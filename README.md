@@ -138,6 +138,9 @@ A few comments:
 - A runner is a concatenation of a model and the code to run it. The code is produced by developer and should be easy to deploy (a docker image ?)
 - Inspiration: Kubernetes
 - Open question ? how to choose runner size ?
+  - The presence of a GPU, can be set through a model metadata.
+- Inferences can be a call for a single line, but could also be batchs
+  - For batch such an architecture doesn't seem relevant.
 
 **Monitoring**
 - Monitoring offers observability on model lifecycle (ex: when was it last updated, how many models, which themes)
