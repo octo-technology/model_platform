@@ -11,7 +11,7 @@ MLflow tracking server needs :
 In my opinion **the artifact store is not a problem.** 
 - **A backend store** (to store the mlflow metadatas). This can only be a Database or a local folder:
   - **Database** : this means that we need to have an instance of the database running somewhere, implying managing and supporting an
-additional server (backups etc...).
+additional server (backups etc...). **Currently we don't know if we can have multiple mlflow tracking servers using the same database.**
   - **Local folder storage** aka "mlruns". This means we need to mount a persistent storage on the k8s server running
 the mlflow tracking server. 
 
