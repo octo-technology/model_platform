@@ -1,0 +1,30 @@
+- la gouvernance a besoin de lire les logs
+- la gouv est en lecture seul sur le model registry ou on passe par la gouv pour valider => AUDIT (qui? quand? a validé le modèle)
+- Les runners contiennent la vérité sur le modèle en prod.???
+- Quid des batchs, pas rest? Quels pattern d'accès aux données pull ou push?
+  - proxy bulk api
+  - possiblité de mettre de côté
+- configuration de la sortie des logs
+- AUTH: intercation les runners seulement https -> api management / -> IAM. 
+- Qui de l'orchestration ? Multi-modèl
+- Trace push dans stdout
+- Déploiement
+  - roll out (gestion up and down)
+  - Queue deveant les API
+  - Gestion programatique
+- Runner dédiés 
+  - runner edge
+- Ressource management:
+  - K8S 
+  - Solution local
+  - Openshift
+  - partage/quota
+- Metrics/drigt
+- Versionning de Dataset
+  - Vision metadata / pointeurs
+- LLM: ressource limités 
+  - optimisation du chargement /déchargement
+  - partage des ressources
+- Repository pour les images docker. 
+- Génération de code pour que le backend puissent directement appeler le backend. 
+  - schéma de data class remplie et serialisée. 
