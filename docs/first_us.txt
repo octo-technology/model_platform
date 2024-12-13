@@ -1,0 +1,8 @@
+fix:
+feat:
+refactor:
+
+how to contribute
+template de PR
+github actions
+lock main

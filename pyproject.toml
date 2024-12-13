@@ -1,0 +1,60 @@
+[tool.poetry]
+name = "model_platform"
+version = "0.1.0"
+description = ""
+authors = ["Octo Technology MLOps tribe"]
+packages = [{ include = "model_platform" }]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+pytest-mock = "^3.14.0"
+
+[tool.poetry.dev-dependencies]
+ruff = "==0.1.4"
+pytest = "==7.4.2"
+pytest-cov = "==4.1.0"
+pre-commit = "==3.5.0"
+black = "==24.3.0"
+
+
+
+[tool.ruff]
+# Enable the pycodestyle (`E`) and Pyflakes (`F`) rules by default.
+# Unlike Flake8, Ruff doesn't enable pycodestyle warnings (`W`) or
+# McCabe complexity (`C901`) by default.
+select = ["E", "F","I","N","D"]
+ignore = ["D205"]
+
+# Allow autofix for all enabled rules (when `--fix`) is provided.
+fixable = ["ALL"]
+unfixable = ["E712"]
+
+include = ["*.py"]
+exclude = ["**/Applications/**", "**/tests/**","**/docs/**","**/__init__.py"]
+per-file-ignores = {}
+
+# Same as Black.
+line-length = 120
+
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+target-version = "py311"
+
+[tool.black]
+line-length = 120
+
+[tool.isort]
+profile = "black"
+line_length = 120
+extend_skip_glob = [
+    "cmake/*",
+    "orttraining/*",
+    "onnxruntime/core/flatbuffers/*",
+]
+
+[tool.pydocstyle]
+convention = "google"
+
+[tool.pytest.ini_options]
+pythonpath = "src"

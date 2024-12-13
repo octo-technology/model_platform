@@ -1,0 +1,42 @@
+name: "Test workflow"
+run-name: "Test workflow [${{ github.ref_name }}] ${{ github.event.repository.pushed_at}}"
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  test-and-quality-check:
+    runs-on: ubuntu-22.04
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5.0.0
+        with:
+          python-version: 3.11
+
+      - name: Install Poetry
+        run: |
+          python -m pip install --upgrade pip
+          pip install poetry
+
+      - name: Install dependencies and project
+        run: |
+          poetry install
+
+      - name: Run black
+        run: |
+          poetry run black model_platform tests --preview --line-length=120 --check --diff
+
+      - name: Run ruff
+        run: |
+          poetry run ruff check model_platform tests
+
+      - name: Run unit tests
+        run: |
+          echo "Launching unit tests"
+          poetry run pytest tests
