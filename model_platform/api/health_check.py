@@ -4,9 +4,13 @@ This module provides a health check endpoint for the API.
 """
 
 from fastapi import APIRouter
+from pydantic import BaseModel
 
 router = APIRouter()
 
+class HealthCheck(BaseModel):
+    """Response model to validate and return when performing a health check."""
+    status: str = "OK"
 
 @router.get("/")
 def health_check():
@@ -17,4 +21,4 @@ def health_check():
     dict
         A dictionary with the status of the API.
     """
-    return {"status": "healthy"}
+    return HealthCheck(status="OK")

@@ -5,8 +5,10 @@ This module provides endpoints for interacting with the model registry.
 
 from fastapi import APIRouter, Depends
 
-from model_platform.adapters.mlflow_model_registry_adapter import MLFlowModelRegistryAdapter
+from model_platform.infrastructure.mlflow_model_registry_adapter import MLFlowModelRegistryAdapter
 from model_platform.domain.ports.model_registry import ModelRegistry
+from model_platform.infrastructure.mlflow_client_manager import MLFLOW_CLIENT
+from fastapi.responses import JSONResponse
 
 router = APIRouter()
 
@@ -19,7 +21,7 @@ def get_model_registry():
     MLFlowModelRegistryAdapter
         An instance of the MLFlowModelRegistryAdapter.
     """
-    return MLFlowModelRegistryAdapter()
+    return MLFlowModelRegistryAdapter(MLFLOW_CLIENT.client)
 
 
 @router.get("/list")
@@ -36,4 +38,4 @@ def list_models(registry: ModelRegistry = Depends(get_model_registry)):
     list[dict[str, str | int]]
         A list of dictionaries containing model attributes.
     """
-    return registry.list_all_models()
+    return JSONResponse(content=registry.list_all_models(), media_type="application/json")

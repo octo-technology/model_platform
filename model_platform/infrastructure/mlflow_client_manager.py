@@ -1,0 +1,102 @@
+"""MLFlow configuration settings module.
+
+This module defines the settings for configuring MLFlow, including environment variables.
+"""
+
+import os
+import sys
+
+import mlflow
+from loguru import logger
+from mlflow import MlflowClient, MlflowException
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from model_platform import PROJECT_DIR
+
+
+class MLflowClientManager:
+    """
+    Manages the MLflow client initialization and retrieval.
+
+    Attributes
+    ----------
+    client : MlflowClient or None
+        The MLflow client instance.
+    """
+
+    def __init__(self):
+        """
+        Initializes the MLflowClientManager with no client.
+        """
+        self.client = None
+
+    def initialize(self):
+        """
+        Initializes the MLflow client.
+
+        Tries to create an instance of MlflowClient and logs the result.
+        If initialization fails, logs the error and sets the client to None.
+        """
+        try:
+            self.client = mlflow.MlflowClient()
+            self._check_connection()
+            logger.info("MLflow client initialized successfully.")
+        except Exception as e:
+            logger.error(f"Failed to initialize MLflow client: {e}")
+            self.client = None
+
+    def _check_connection(self):
+        try:
+            _ = self.client.search_experiments()
+        except MlflowException as e:
+            self.client = None
+            logger.error(f"Failed to connect to MLflow server: {e}")
+            sys.exit(1)
+
+    def close(self):
+        """
+        Closes the MLflow client if it is initialized.
+
+        If the client is not initialized, logs a warning.
+        """
+        if self.client:
+            self.client = None
+            logger.info("MLflow client closed.")
+        else:
+            logger.warning("MLflow client is not initialized.")
+
+
+MLFLOW_CLIENT = MLflowClientManager()
+
+
+class MLFlowSettings(BaseSettings):
+    """Settings for configuring MLFlow.
+
+    Attributes
+    ----------
+    mlflow_s3_endpoint_url : str
+        The S3 endpoint URL for MLFlow.
+    aws_access_key_id : str
+        The AWS access key ID.
+    aws_secret_access_key : str
+        The AWS secret access key.
+    mlflow_tracking_uri : str
+        The tracking URI for MLFlow.
+    """
+    model_config = SettingsConfigDict(env_file=os.path.join(PROJECT_DIR, ".env"), env_file_encoding="utf-8",
+                                      extra="allow")
+
+    def __init__(self, **data):
+        """Initialize the MLFlowSettings instance and set environment variables.
+
+        Parameters
+        ----------
+        **data : dict
+            The data to initialize the settings.
+        """
+        super().__init__(**data)
+        for key, value in self.model_dump().items():
+            os.environ[key.upper()] = str(value)
+
+
+_ = MLFlowSettings()

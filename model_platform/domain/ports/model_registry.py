@@ -9,11 +9,7 @@ from abc import ABC, abstractmethod
 class ModelRegistry(ABC):
     """Abstract base class for the Model Registry port."""
 
-    def __init__(self):
-        """Initialize the ModelRegistry instance."""
-        pass
-
     @abstractmethod
-    def list_all_models(self):
+    def list_all_models(self) -> list[dict[str, str | int]]:
         """List all registered models in the model registry."""
         pass
