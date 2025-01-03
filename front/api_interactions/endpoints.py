@@ -1,0 +1,5 @@
+API_BASE_URL = "http://0.0.0.0:8000"
+HEALTH_ENDPOINT = f"{API_BASE_URL}/health"
+MODELS_LIST_ENDPOINT = f"{API_BASE_URL}/models/list"
+DEPLOY_MODEL_ENDPOINT = f"{API_BASE_URL}/models/deploy"
+DEPLOYED_MODELS_LIST_ENDPOINT = f"{API_BASE_URL}/deployed_models/list"

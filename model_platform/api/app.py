@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from model_platform.api import health_check, models_routes
+from model_platform.api import health_check, models_routes, deployed_models_routes
 from model_platform.infrastructure.mlflow_client_manager import MLFLOW_CLIENT
 
 
@@ -27,6 +27,7 @@ async def lifespan(app: FastAPI):
     yield
     MLFLOW_CLIENT.close()
 
+
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application.
 
@@ -35,10 +36,12 @@ def create_app() -> FastAPI:
     FastAPI
         The configured FastAPI application instance.
     """
-    app = FastAPI(title="Model Platform API", version="1.0.0",lifespan=lifespan)
+    app = FastAPI(title="Model Platform API", version="1.0.0", lifespan=lifespan)
     app.include_router(health_check.router, prefix="/health", tags=["Health"])
     app.include_router(models_routes.router, prefix="/models", tags=["Models"])
+    app.include_router(deployed_models_routes.router, prefix="/deployed_models", tags=["Deployed Models"])
 
     return app
+
 
 app = create_app()

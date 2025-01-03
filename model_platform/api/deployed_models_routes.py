@@ -2,14 +2,13 @@
 
 This module provides endpoints for interacting with the model registry.
 """
-import logging
+from datetime import datetime
 
-from fastapi import APIRouter, Depends
-
-from model_platform.infrastructure.mlflow_model_registry_adapter import MLFlowModelRegistryAdapter
-from model_platform.domain.ports.model_registry import ModelRegistry
-from model_platform.infrastructure.mlflow_client_manager import MLFLOW_CLIENT
+from fastapi import APIRouter
 from fastapi.responses import JSONResponse
+
+from model_platform.infrastructure.mlflow_client_manager import MLFLOW_CLIENT
+from model_platform.infrastructure.mlflow_model_registry_adapter import MLFlowModelRegistryAdapter
 
 router = APIRouter()
 
@@ -26,7 +25,7 @@ def get_model_registry():
 
 
 @router.get("/list")
-def list_models(registry: ModelRegistry = Depends(get_model_registry)):
+def list_models():
     """Endpoint to list all registered models.
 
     Parameters
@@ -39,10 +38,5 @@ def list_models(registry: ModelRegistry = Depends(get_model_registry)):
     list[dict[str, str | int]]
         A list of dictionaries containing model attributes.
     """
-    return JSONResponse(content=registry.list_all_models(), media_type="application/json")
-
-@router.post("/deploy/{model_name}")
-def route_deploy(model_name: str, registry: ModelRegistry = Depends(get_model_registry)):
-    logging.info(f"Deploying {model_name}")
-    pass
-
+    return JSONResponse(content=[{"name": "model 1", "deployment_time_stamp": datetime.timestamp(datetime.now()), "version": 0}],
+                        media_type="application/json")
