@@ -2,12 +2,13 @@
 
 This module provides an adapter for interacting with the MLFlow Model Registry.
 """
+
 import os
 
 import mlflow
 from mlflow import MlflowClient
 from mlflow.entities import FileInfo
-from mlflow.entities.model_registry import RegisteredModel, ModelVersion
+from mlflow.entities.model_registry import ModelVersion, RegisteredModel
 
 from model_platform import PROJECT_DIR
 from model_platform.domain.ports.model_registry import ModelRegistry
@@ -47,8 +48,12 @@ class MLFlowModelRegistryAdapter(ModelRegistry):
         A list of dictionaries containing model attributes, sorted by creation timestamp in descending order.
         """
         processed_list = [
-            {"name": model.name, "creation_timestamp": model.creation_timestamp, "aliases": model.aliases,
-             "latest_versions": MLFlowModelRegistryAdapter._process_model_versions(model.latest_versions)}
+            {
+                "name": model.name,
+                "creation_timestamp": model.creation_timestamp,
+                "aliases": model.aliases,
+                "latest_versions": MLFlowModelRegistryAdapter._process_model_versions(model.latest_versions),
+            }
             for model in mlflow_registered_model_list
         ]
         processed_list.sort(key=lambda x: x["creation_timestamp"], reverse=True)
@@ -57,12 +62,18 @@ class MLFlowModelRegistryAdapter(ModelRegistry):
     @staticmethod
     def _process_model_versions(model_version: list[ModelVersion]) -> list[dict]:
         processed_versions = [
-            {"name": version.name, "version": version.version, "creation_timestamp": version.creation_timestamp,
-             "run_id": version.run_id} for version in model_version]
+            {
+                "name": version.name,
+                "version": version.version,
+                "creation_timestamp": version.creation_timestamp,
+                "run_id": version.run_id,
+            }
+            for version in model_version
+        ]
 
         return processed_versions
 
-    def _get_model_artifacts_path(self,run_id:str) -> str:
+    def _get_model_artifacts_path(self, run_id: str) -> str:
         file_info: FileInfo = self.mlflow_client.list_artifacts(run_id)[0]
         return file_info.path
 
@@ -78,9 +89,9 @@ class MLFlowModelRegistryAdapter(ModelRegistry):
 
     def _get_model_run_id(self, model_name: str, version: str) -> str:
         registered_model: RegisteredModel = self.mlflow_client.get_registered_model(model_name)
-        run_id = \
-            [model_version for model_version in registered_model.latest_versions if model_version.version == version][
-                0].run_id
+        run_id = [
+            model_version for model_version in registered_model.latest_versions if model_version.version == version
+        ][0].run_id
 
         return run_id
 
@@ -90,5 +101,8 @@ if __name__ == "__main__":
     client = mlflow.MlflowClient()
     registry = MLFlowModelRegistryAdapter(client)
     result = registry.list_all_models()
-    print(registry.download_model_artifacts("mlflow_explo_titanic", "3",
-                                            os.path.join(PROJECT_DIR, "downloaded_artifacts")))
+    print(
+        registry.download_model_artifacts(
+            "mlflow_explo_titanic", "3", os.path.join(PROJECT_DIR, "downloaded_artifacts")
+        )
+    )

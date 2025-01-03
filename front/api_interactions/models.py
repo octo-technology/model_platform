@@ -18,7 +18,7 @@ def get_models_list(url) -> pd.DataFrame | None:
 
 
 def format_timestamp(timestamp):
-    return datetime.fromtimestamp(timestamp / 1000).strftime('%Y-%m-%d %H:%M:%S')
+    return datetime.fromtimestamp(timestamp / 1000).strftime("%Y-%m-%d %H:%M:%S")
 
 
 def format_models_response(models):
@@ -29,12 +29,14 @@ def format_models_response(models):
         aliases = ", ".join(model.get("aliases", {}).keys()) if model.get("aliases") else "None"
         versions = len(model.get("latest_versions", []))
 
-        data.append({
-            "Name": model_name,
-            "Creation Date": creation_timestamp,
-            "Aliases": aliases,
-            "Versions": versions,
-        })
+        data.append(
+            {
+                "Name": model_name,
+                "Creation Date": creation_timestamp,
+                "Aliases": aliases,
+                "Versions": versions,
+            }
+        )
 
     return pd.DataFrame(data)
 

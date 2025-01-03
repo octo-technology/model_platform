@@ -8,9 +8,12 @@ from pydantic import BaseModel
 
 router = APIRouter()
 
+
 class HealthCheck(BaseModel):
     """Response model to validate and return when performing a health check."""
+
     status: str = "OK"
+
 
 @router.get("/")
 def health_check():

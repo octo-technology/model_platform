@@ -8,7 +8,7 @@ import sys
 
 import mlflow
 from loguru import logger
-from mlflow import MlflowClient, MlflowException
+from mlflow import MlflowException
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from model_platform import PROJECT_DIR
@@ -83,8 +83,10 @@ class MLFlowSettings(BaseSettings):
     mlflow_tracking_uri : str
         The tracking URI for MLFlow.
     """
-    model_config = SettingsConfigDict(env_file=os.path.join(PROJECT_DIR, ".env"), env_file_encoding="utf-8",
-                                      extra="allow")
+
+    model_config = SettingsConfigDict(
+        env_file=os.path.join(PROJECT_DIR, ".env"), env_file_encoding="utf-8", extra="allow"
+    )
 
     def __init__(self, **data):
         """Initialize the MLFlowSettings instance and set environment variables.

@@ -15,12 +15,20 @@ def mlflow_adapter():
 
 @pytest.fixture()
 def mock_models():
-    model_1_latest_version = [ModelVersion(name="model1", version="1", creation_timestamp=1234567890, description="bla",run_id="A1234567890")]
-    model_2_latest_version = [ModelVersion(name="model2", version="1", creation_timestamp=1234567890, description="bla",run_id="B1234567890"),
-                                ModelVersion(name="model2", version="2", creation_timestamp=1234567891, description="bla",run_id="C1234567891")]
+    model_1_latest_version = [
+        ModelVersion(name="model1", version="1", creation_timestamp=1234567890, description="bla", run_id="A1234567890")
+    ]
+    model_2_latest_version = [
+        ModelVersion(
+            name="model2", version="1", creation_timestamp=1234567890, description="bla", run_id="B1234567890"
+        ),
+        ModelVersion(
+            name="model2", version="2", creation_timestamp=1234567891, description="bla", run_id="C1234567891"
+        ),
+    ]
     mock_models = [
         RegisteredModel(name="model1", creation_timestamp=1234567890, latest_versions=model_1_latest_version),
-        RegisteredModel(name="model2", creation_timestamp=1234567891, latest_versions=model_2_latest_version)
+        RegisteredModel(name="model2", creation_timestamp=1234567891, latest_versions=model_2_latest_version),
     ]
     return mock_models
 
