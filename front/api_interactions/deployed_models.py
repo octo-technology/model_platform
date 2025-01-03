@@ -16,7 +16,7 @@ def get_deployed_models_list(url) -> pd.DataFrame | None:
 
 
 def format_timestamp(timestamp):
-    return datetime.fromtimestamp(timestamp / 1000).strftime('%Y-%m-%d %H:%M:%S')
+    return datetime.fromtimestamp(timestamp / 1000).strftime("%Y-%m-%d %H:%M:%S")
 
 
 def format_response(models):
@@ -25,11 +25,8 @@ def format_response(models):
         model_name = model.get("name", "Unknown")
         deployment_time_stamp = format_timestamp(model.get("deployment_time_stamp", 0))
         versions = len(model.get("latest_versions", []))
+        uri = model.get("uri", "Unknow")
 
-        data.append({
-            "Name": model_name,
-            "Deployment Date": deployment_time_stamp,
-            "Versions": versions,
-        })
+        data.append({"Name": model_name, "Deployment Date": deployment_time_stamp, "Versions": versions, "uri": uri})
 
     return pd.DataFrame(data)

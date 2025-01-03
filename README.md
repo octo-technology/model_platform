@@ -29,7 +29,7 @@ cp .env.example .env
 ```
 
 **Ensure you have a mlflow server listening at mlflow_tracking_uri**
-For example to have a local mlflow run 
+For example to have a local mlflow run
 ```bash
 mlflow server
 ```
@@ -39,7 +39,7 @@ mlflow server
 poetry run python -m model_platform
 ```
 
-### Run 
+### Run
 ```bash
 poetry run python -m streamlit run front/app.py --server.runOnSave=true
 ```

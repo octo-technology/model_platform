@@ -2,18 +2,18 @@
 
 This module initializes the FastAPI application and includes the necessary routers.
 """
+
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from model_platform.api import health_check, models_routes, deployed_models_routes
+from model_platform.api import deployed_models_routes, health_check, models_routes, projects_routes
 from model_platform.infrastructure.mlflow_client_manager import MLFLOW_CLIENT
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    Manages the lifespan of the FastAPI application.
+    """Manages the lifespan of the FastAPI application.
 
     This context manager initializes the MLflow client when the application starts
     and closes it when the application shuts down.
@@ -40,6 +40,7 @@ def create_app() -> FastAPI:
     app.include_router(health_check.router, prefix="/health", tags=["Health"])
     app.include_router(models_routes.router, prefix="/models", tags=["Models"])
     app.include_router(deployed_models_routes.router, prefix="/deployed_models", tags=["Deployed Models"])
+    app.include_router(projects_routes.router, prefix="/projects", tags=["Projects"])
 
     return app
 

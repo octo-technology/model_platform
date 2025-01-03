@@ -1,10 +1,9 @@
-import pandas as pd
 import streamlit as st
 
 from front.api_interactions.deployed_models import get_deployed_models_list
-from front.api_interactions.endpoints import MODELS_LIST_ENDPOINT, DEPLOYED_MODELS_LIST_ENDPOINT, HEALTH_ENDPOINT
-from front.api_interactions.health import check_backend_health
-from front.api_interactions.models import get_models_list, deploy_model
+from front.api_interactions.endpoints import DEPLOYED_MODELS_LIST_ENDPOINT, MODELS_LIST_ENDPOINT
+from front.api_interactions.models import deploy_model, get_models_list
+from front.api_interactions.projects import get_project_info, get_projects_list
 
 models = get_models_list(MODELS_LIST_ENDPOINT)
 st.title("Model Platform")
@@ -30,8 +29,8 @@ if models is not None:
 
         # Afficher le bouton de déploiement
         with col5:
-            if st.button(f"Deploy", key=row['Name']):
-                result = deploy_model(row['Name'])
+            if st.button("Deploy", key=row["Name"]):
+                result = deploy_model(row["Name"])
                 st.success(result)
 
 else:
@@ -39,34 +38,21 @@ else:
 
 st.write("### Deployed models")
 deployed_models = get_deployed_models_list(DEPLOYED_MODELS_LIST_ENDPOINT)
-st.dataframe(deployed_models, use_container_width=True)
+st.dataframe(deployed_models, use_container_width=True, column_config={"uri": st.column_config.LinkColumn()})
 # Vérification de l'état du backend
 
+project_list = get_projects_list()
 
-project_names = ["Project Alpha", "Project Beta", "Project Gamma", "Project Delta"]
+project_names = project_list["Name"].tolist()
 
 # Titre
 st.sidebar.title("Select a Project")
 
-# Menu déroulant pour sélectionner un projet
+# Menu déroulant pour sélectionner un project
 selected_project = st.sidebar.selectbox("Choose a project", project_names)
-
+model_info = get_project_info(selected_project)
 # Project infos
 st.sidebar.title("Project infos")
-project_card = pd.DataFrame({
-    "Project name": selected_project,
-    "Owner": "The best team ever",
-    "Scope": "A project to revolutionize IA projects",
-    "Data perimeter": "All data on earth regarding our clients",
-}, index=["Infos"]).T
-st.sidebar.dataframe(project_card, )
-st.sidebar.title("Backend status")
-
-# Affichage de l'état avec une pastille
-status_colors = {
-    "healthy": "🟢",
-    "unhealthy": "🟠",
-    "unreachable": "🔴"
-}
-status = check_backend_health(HEALTH_ENDPOINT)
-st.sidebar.markdown(f"{status_colors[status]} {status.capitalize()}")
+st.sidebar.dataframe(
+    model_info,
+)

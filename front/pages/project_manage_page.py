@@ -1,8 +1,10 @@
 import streamlit as st
 
+from front.api_interactions.projects import get_projects_list
+
 
 def show_create_project_popup():
-    with st.form(key='create_project_form'):
+    with st.form(key="create_project_form"):
         st.subheader("Create a New Project")
 
         project_name = st.text_input("Project Name")
@@ -19,5 +21,10 @@ def show_create_project_popup():
 
 
 st.title("Project Management")
+st.write("### Project list")
+
+
+projects_df = get_projects_list()
+st.dataframe(projects_df)
 if st.button("Create New Project"):
     show_create_project_popup()
