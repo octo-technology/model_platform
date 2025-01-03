@@ -134,7 +134,7 @@ NB :
 Adapté pour : 
 - Les organisations qui souhaitent accélérer et standardiser le travail de déploiement et de run
 
-
+  
 ## Plateforme intégrée
 
 ```mermaid

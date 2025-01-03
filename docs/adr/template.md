@@ -1,6 +1,6 @@
 # ADR TEMPLATE
 
-- 📅 Date: 
+- 📅 Date:
 - 👷 Decision taken by:
 
 # Context
@@ -9,23 +9,23 @@
 
 # Considered options 💡
 
-1. Option 1: 
-    - **More details:** 
-    - ✅ **Advantage:** 
-    - 🚫 **Disadvantage:** 
-2. Option 2: 
-    - **More details:** 
-    - ✅ **Advantage:** 
-    - 🚫 **Disadvantage:** 
+1. Option 1:
+    - **More details:**
+    - ✅ **Advantage:**
+    - 🚫 **Disadvantage:**
+2. Option 2:
+    - **More details:**
+    - ✅ **Advantage:**
+    - 🚫 **Disadvantage:**
 
- 
-# Advices 
+
+# Advices
 <--Any advices worth mentioning-->
 
 # Decision 🏆
 <--Which decision have been taken and what was the decider-->
 
-# Consequences 
+# Consequences
 <-- Consequences of your decision -->
 
 ♻️ Update: <date>.

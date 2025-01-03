@@ -8,6 +8,12 @@ packages = [{ include = "model_platform" }]
 [tool.poetry.dependencies]
 python = "^3.11"
 pytest-mock = "^3.14.0"
+pydantic-settings = "^2.7.0"
+mlflow = "^2.19.0"
+loguru = "^0.7.3"
+streamlit = "^1.41.1"
+uvicorn = "^0.34.0"
+fastapi = "^0.115.6"
 
 [tool.poetry.dev-dependencies]
 ruff = "==0.1.4"
@@ -22,7 +28,7 @@ black = "==24.3.0"
 # Enable the pycodestyle (`E`) and Pyflakes (`F`) rules by default.
 # Unlike Flake8, Ruff doesn't enable pycodestyle warnings (`W`) or
 # McCabe complexity (`C901`) by default.
-select = ["E", "F","I","N","D"]
+select = ["E", "F","I","N",]
 ignore = ["D205"]
 
 # Allow autofix for all enabled rules (when `--fix`) is provided.

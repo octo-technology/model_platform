@@ -1,1 +1,5 @@
 .idea/
+.env
+poetry.lock
+__pycache__
+mlruns
