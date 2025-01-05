@@ -36,10 +36,10 @@ mlflow server
 
 ### Run
 ```bash
-poetry run python -m model_platform
+python -m model_platform
 ```
 
 ### Run
 ```bash
-poetry run python -m streamlit run front/app.py --server.runOnSave=true
+python -m streamlit run front/app.py --server.runOnSave=true
 ```
