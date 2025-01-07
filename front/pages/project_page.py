@@ -43,16 +43,18 @@ st.dataframe(deployed_models, use_container_width=True, column_config={"uri": st
 
 project_list = get_projects_list()
 
-project_names = project_list["Name"].tolist()
+if len(project_list) == 0 or project_list.empty:
+    st.warning("No projects found or the API is unreachable.")
+else:
+    project_names = project_list["Name"].tolist()
+    # Titre
+    st.sidebar.title("Select a Project")
 
-# Titre
-st.sidebar.title("Select a Project")
-
-# Menu déroulant pour sélectionner un project
-selected_project = st.sidebar.selectbox("Choose a project", project_names)
-model_info = get_project_info(selected_project)
-# Project infos
-st.sidebar.title("Project infos")
-st.sidebar.dataframe(
-    model_info,
-)
+    # Menu déroulant pour sélectionner un project
+    selected_project = st.sidebar.selectbox("Choose a project", project_names)
+    model_info = get_project_info(selected_project)
+    # Project infos
+    st.sidebar.title("Project infos")
+    st.sidebar.dataframe(
+        model_info,
+    )
