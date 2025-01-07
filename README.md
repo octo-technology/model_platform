@@ -31,15 +31,15 @@ cp .env.example .env
 **Ensure you have a mlflow server listening at mlflow_tracking_uri**
 For example to have a local mlflow run
 ```bash
-mlflow server
+make registry_server
 ```
 
-### Run
+### Run backend
 ```bash
 python -m model_platform
 ```
 
-### Run
+### Run frontend
 ```bash
 python -m streamlit run front/app.py --server.runOnSave=true
 ```
