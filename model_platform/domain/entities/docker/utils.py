@@ -27,4 +27,5 @@ def build_image_from_context(context_dir: str, image_name: str) -> int:
         logger.info(f"Image '{image_name}' built successfully.")
         return 0
     except docker.errors.BuildError as e:
-        raise RuntimeError(f"Docker build failed: {e}")
+        logger.error(f"Docker build failed: {e}")
+        return 1

@@ -34,8 +34,15 @@ class DotEnv(BaseSettings):
             The data to initialize the settings.
         """
         super().__init__(**data)
+        self.combine_uri_and_port()
         for key, value in self.model_dump().items():
             os.environ[key.upper()] = str(value)
+
+    def combine_uri_and_port(self):
+        """Combine MLFLOW_TRACKING_URI and MLFLOW_PORT into a full URI."""
+        if hasattr(self, "mlflow_tracking_uri") and hasattr(self, "mlflow_port"):
+            full_uri = f"{self.mlflow_tracking_uri}:{self.mlflow_port}"
+            self.mlflow_tracking_uri = full_uri
 
 
 _ = DotEnv()

@@ -1,4 +1,8 @@
+import os
+
 from model_platform import PROJECT_DIR
+from model_platform.domain.entities.docker.dockerfile_template import DockerfileTemplate
+from model_platform.domain.entities.docker.utils import build_image_from_context
 
 
 def test_dockerfile_template_generate_dockerfile_should_correctly_build_image():
@@ -11,4 +15,5 @@ def test_dockerfile_template_generate_dockerfile_should_correctly_build_image():
     )
     context_path = os.path.join(PROJECT_DIR, "docker_test")
     dockerfile.generate_dockerfile(context_path)
-    build_image_from_context(context_dir=context_path, image_name="mlflow_image")
+    status = build_image_from_context(context_dir=context_path, image_name="mlflow_image")
+    assert status == 0
