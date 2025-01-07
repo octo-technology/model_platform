@@ -12,7 +12,6 @@ from mlflow.entities.model_registry import ModelVersion, RegisteredModel
 
 from model_platform import PROJECT_DIR
 from model_platform.domain.ports.model_registry import ModelRegistry
-from model_platform.infrastructure.mlflow_client_manager import MLFlowSettings
 
 
 class MLFlowModelRegistryAdapter(ModelRegistry):
@@ -97,7 +96,7 @@ class MLFlowModelRegistryAdapter(ModelRegistry):
 
 
 if __name__ == "__main__":
-    MLFlowSettings()
+    print(os.environ["MLFLOW_TRACKING_URI"])
     client = mlflow.MlflowClient()
     registry = MLFlowModelRegistryAdapter(client)
     result = registry.list_all_models()
