@@ -13,7 +13,8 @@ def test_dockerfile_template_generate_dockerfile_should_correctly_build_image():
         workdir="/opt/mlflow",
         python_version="3.8",
     )
-    context_path = os.path.join(PROJECT_DIR, "docker_test")
+    # TODO créer et supprimer le dossier pour chaque tests
+    context_path = os.path.join(PROJECT_DIR, "tests", "entities", "docker_test")
     dockerfile.generate_dockerfile(context_path)
     status = build_image_from_context(context_dir=context_path, image_name="mlflow_image")
     assert status == 0

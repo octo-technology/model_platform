@@ -25,6 +25,7 @@ def build_image_from_context(context_dir: str, image_name: str) -> int:
     try:
         _, build_logs = client.images.build(path=context_dir, tag=image_name, platform=platform_option)
         logger.info(f"Image '{image_name}' built successfully.")
+        _display_docker_build_logs(build_logs)
         return 0
     except docker.errors.BuildError as e:
         logger.error(f"Docker build failed: {e}")
