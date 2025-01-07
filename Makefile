@@ -5,7 +5,7 @@ mlflow_server:
 		--backend-store-uri postgresql://user:password@127.0.0.1:5432/mlflowdb \
 		--artifacts-destination s3://bucket \
 		--host localhost \
-		--port 5000
+		--port $(MLFLOW_PORT)
 
 
 registry_server:
