@@ -6,4 +6,6 @@ st.title("Project Management")
 st.write("### Project list")
 
 projects_df = get_projects_list()
-st.dataframe(projects_df)
+if projects_df is None or projects_df.empty:
+    st.warning("No projects found or the API is unreachable.")
+    st.dataframe(projects_df)
