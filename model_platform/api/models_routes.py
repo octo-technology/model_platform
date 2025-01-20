@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
 from model_platform.domain.ports.model_registry import ModelRegistry
+from model_platform.domain.use_cases.generate_and_build_image import generate_and_build_docker_image
 from model_platform.infrastructure.mlflow_client_manager import MLFLOW_CLIENT
 from model_platform.infrastructure.mlflow_model_registry_adapter import MLFlowModelRegistryAdapter
 
@@ -43,7 +44,7 @@ def list_models(registry: ModelRegistry = Depends(get_model_registry)):
     return JSONResponse(content=registry.list_all_models(), media_type="application/json")
 
 
-@router.post("/deploy/{model_name}")
-def route_deploy(model_name: str, registry: ModelRegistry = Depends(get_model_registry)):
+@router.post("/deploy/{model_name}/{version}")
+def route_deploy(model_name: str, version: str, registry: ModelRegistry = Depends(get_model_registry)):
     logging.info(f"Deploying {model_name}")
-    pass
+    generate_and_build_docker_image(registry, model_name, version)
