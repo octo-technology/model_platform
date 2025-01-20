@@ -2,8 +2,6 @@ import os
 
 from loguru import logger
 
-from model_platform.domain.entities.docker.utils import build_image_from_context
-
 
 class DockerfileTemplate:
     def __init__(self, python_version: str):
@@ -64,18 +62,3 @@ class DockerfileTemplate:
     def _setup_system_packages(self) -> str:
         return """RUN apt-get update && apt-get install -y nginx curl \
         wget bzip2 ca-certificates && rm -rf /var/lib/apt/lists/*"""
-
-    def _install_model_steps(self, model_dir: str) -> str:
-        pass
-
-
-if __name__ == "__main__":
-    from model_platform import PROJECT_DIR
-
-    os.environ["DOCKER_HOST"] = "unix:///Users/philippe.stepniewski/.colima/default/docker.sock"
-    dockerfile = DockerfileTemplate(
-        python_version="3.9",
-    )
-    dockerfile.generate_dockerfile(os.path.join(PROJECT_DIR, "docker_test"))
-    context_path = os.path.join(PROJECT_DIR, "docker_test")
-    build_image_from_context(context_path, "test_image")

@@ -2,7 +2,6 @@ import os.path
 import shutil
 import time
 
-import mlflow
 from loguru import logger
 
 from model_platform import PROJECT_DIR
@@ -67,9 +66,3 @@ def generate_and_build_docker_image(registry: MLFlowModelRegistryAdapter, model_
     image_name: str = f"{model_name}_{version}_ctr"
     build_docker_image_from_context_path(context_path, image_name)
     return image_name
-
-
-if __name__ == "__main__":
-    client = mlflow.MlflowClient()
-    registry = MLFlowModelRegistryAdapter(client)
-    generate_and_build_docker_image(registry, "mlflow_explo_titanic", "2")

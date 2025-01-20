@@ -1,0 +1,4 @@
+GET http://0.0.0.0:8000/models/list
+
+###
+GET http://0.0.0.0:8000/models/deploy/mlflow_explo_titanic/2
