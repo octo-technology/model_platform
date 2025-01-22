@@ -1,4 +1,6 @@
 import os
+import shutil
+
 import pytest
 from model_platform.domain.entities.docker.dockerfile_template import DockerfileTemplate
 from model_platform.domain.entities.docker.utils import build_image_from_context
@@ -12,4 +14,5 @@ def test_dockerfile_template_generate_dockerfile_should_correctly_build_image():
     dockerfile.generate_dockerfile(os.path.join(TEST_DIR, "entities/docker_test"))
     context_path = os.path.join(TEST_DIR, "entities/docker_test")
     build_image_from_context(context_path, "test_image")
+    # TODO remove DOCKERFILE
     assert True
