@@ -5,13 +5,11 @@ This module provides an adapter for interacting with the MLFlow Model Registry.
 
 import os
 
-import mlflow
 from loguru import logger
 from mlflow import MlflowClient
 from mlflow.entities import FileInfo
 from mlflow.entities.model_registry import ModelVersion, RegisteredModel
 
-from model_platform import PROJECT_DIR
 from model_platform.domain.ports.model_registry import ModelRegistry
 
 
@@ -96,15 +94,3 @@ class MLFlowModelRegistryAdapter(ModelRegistry):
         ][0].run_id
 
         return run_id
-
-
-if __name__ == "__main__":
-    print(os.environ["MLFLOW_TRACKING_URI"])
-    client = mlflow.MlflowClient()
-    registry = MLFlowModelRegistryAdapter(client)
-    result = registry.list_all_models()
-    print(
-        registry.download_model_artifacts(
-            "mlflow_explo_titanic", "1", os.path.join(PROJECT_DIR, "downloaded_artifacts")
-        )
-    )
