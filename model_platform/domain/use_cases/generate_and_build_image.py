@@ -12,35 +12,57 @@ from model_platform.infrastructure.mlflow_model_registry_adapter import MLFlowMo
 
 def recreate_directory(directory_path: str):
     """
-    Crée un dossier s'il n'existe pas, le supprime et le recrée s'il existe.
+    Recreates a directory at the specified path.
+
+    If the directory already exists, it is removed and then recreated.
 
     Args:
-        directory_path (str): Le chemin du dossier à vérifier et recréer.
+        directory_path (str): The path of the directory to recreate.
     """
     if os.path.exists(directory_path):
-        shutil.rmtree(directory_path)  # Supprime le dossier existent
+        shutil.rmtree(directory_path)
     os.makedirs(directory_path)
 
 
 def remove_directory(directory_path: str):
     """
-    Supprime un dossier s'il existe.
+    Removes a directory at the specified path if it exists.
+
+    Logs the removal action.
 
     Args:
-        directory_path (str): Le chemin du dossier à supprimer.
+        directory_path (str): The path of the directory to remove.
     """
     if os.path.exists(directory_path):
         logger.info("Removing {directory_path}")
-        shutil.rmtree(directory_path)  # Supprime le dossier existent
+        shutil.rmtree(directory_path)
 
 
 def copy_fast_api_template_to_tmp_docker_folder(dest_path: str) -> None:
+    """
+    Copies the FastAPI template to the specified destination path.
+
+    Args:
+        dest_path (str): The destination path where the FastAPI template will be copied.
+    """
     src_path = os.path.join(PROJECT_DIR, "model_platform/domain/entities/docker/fast_api_template.py")
     logger.info(f"Copying FastAPI template from {src_path} to {dest_path}")
     shutil.copy(src_path, dest_path)
 
 
 def prepare_docker_context(registry: MLFlowModelRegistryAdapter, model_name: str, version: str) -> str:
+    """
+    Prepares the Docker context by creating a temporary directory, copying the FastAPI template,
+    and downloading the model artifacts.
+
+    Args:
+        registry (MLFlowModelRegistryAdapter): The model registry adapter to use for downloading model artifacts.
+        model_name (str): The name of the model.
+        version (str): The version of the model.
+
+    Returns:
+        str: The path to the prepared Docker context.
+    """
     timestamp_id: int = int(time.time())
     dest_model_files = f"{timestamp_id}_{model_name}_{version}"
     path_dest = os.path.join(PROJECT_DIR, "tmp", dest_model_files)
@@ -51,6 +73,13 @@ def prepare_docker_context(registry: MLFlowModelRegistryAdapter, model_name: str
 
 
 def build_docker_image_from_context_path(context_path: str, image_name: str) -> None:
+    """
+    Builds a Docker image from the specified context path and image name.
+
+    Args:
+        context_path (str): The path to the Docker context.
+        image_name (str): The name of the Docker image to build.
+    """
     dockerfile = DockerfileTemplate(
         python_version="3.9",
     )
@@ -62,6 +91,17 @@ def build_docker_image_from_context_path(context_path: str, image_name: str) -> 
 
 
 def generate_and_build_docker_image(registry: MLFlowModelRegistryAdapter, model_name: str, version: str) -> str:
+    """
+    Generates and builds a Docker image for the specified model and version.
+
+    Args:
+        registry (MLFlowModelRegistryAdapter): The model registry adapter to use for downloading model artifacts.
+        model_name (str): The name of the model.
+        version (str): The version of the model.
+
+    Returns:
+        str: The name of the built Docker image.
+    """
     context_path: str = prepare_docker_context(registry, model_name, version)
     image_name: str = f"{model_name}_{version}_ctr"
     build_docker_image_from_context_path(context_path, image_name)
