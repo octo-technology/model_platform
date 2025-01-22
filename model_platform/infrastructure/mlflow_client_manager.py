@@ -3,15 +3,11 @@
 This module defines the settings for configuring MLFlow, including environment variables.
 """
 
-import os
 import sys
 
 import mlflow
 from loguru import logger
 from mlflow import MlflowException
-from pydantic_settings import BaseSettings, SettingsConfigDict
-
-from model_platform import PROJECT_DIR
 
 
 class MLflowClientManager:
