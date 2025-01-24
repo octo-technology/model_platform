@@ -20,18 +20,48 @@ TASKS_STATUS = {}
 
 
 def track_task_status(task_id: str):
+    """
+    Decorator to track the status of a background task.
+
+    Parameters
+    ----------
+    task_id : str
+        The unique identifier for the task.
+
+    Returns
+    -------
+    function
+        A decorator function that wraps the target function to track its status.
+    """
+
     def decorator(func):
         def wrapper(*args, **kwargs):
+            """
+            Wrapper function to update the task status.
+
+            Parameters
+            ----------
+            *args : tuple
+                Positional arguments for the target function.
+            **kwargs : dict
+                Keyword arguments for the target function.
+
+            Returns
+            -------
+            Any
+                The result of the target function.
+
+            Raises
+            ------
+            Exception
+                If the target function raises an exception, it updates the task status to 'failed'.
+            """
             try:
-                # Mettre à jour le statut en "in_progress"
                 TASKS_STATUS[task_id] = "in_progress"
-                # Exécuter la tâche
                 result = func(*args, **kwargs)
-                # Mettre à jour le statut en "completed"
                 TASKS_STATUS[task_id] = "completed"
                 return result
             except Exception as e:
-                # Mettre le statut en "failed" en cas d'erreur
                 TASKS_STATUS[task_id] = f"failed: {str(e)}"
                 raise
 
