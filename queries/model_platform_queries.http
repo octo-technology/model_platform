@@ -4,4 +4,4 @@ GET http://0.0.0.0:8000/models/list
 GET http://0.0.0.0:8000/models/deploy/mlflow_explo_titanic/3
 
 ###
-GET http://0.0.0.0:8000/models/task-status/2ff513e6-4880-4ebc-8cf6-f9f5c2210e7e
+GET http://0.0.0.0:8000/models/task-status/a935e8d2-81b8-43a8-8e18-004fb3a4a097
