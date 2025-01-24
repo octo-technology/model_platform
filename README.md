@@ -43,3 +43,24 @@ python -m model_platform
 ```bash
 python -m streamlit run front/app.py --server.runOnSave=true
 ```
+
+
+## Install minikube
+
+NB: It requires a docker up and running on your computer.
+
+1. Follow instruction [here](https://minikube.sigs.k8s.io/docs/start/?arch=%2Flinux%2Fx86-64%2Fstable%2Fbinary+download)
+2. Start minikube with `minikube start`
+3. Installer kubectl
+
+Check setup is ok :
+```shell
+kubectl config current-context
+```
+
+Should return `minikube`
+
+Build custom mlflow image
+```
+eval $(minikube docker-env); docker build -t model-registry infrastructure/registry/.
+```

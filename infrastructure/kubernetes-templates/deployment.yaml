@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ project_name }}-api-deployment
+  namespace: {{ project_name }}-project
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ project_name }}-api
+  template:
+    metadata:
+      labels:
+        app: {{ project_name }}-api
+    spec:
+      containers:
+      - name: {{ project_name }}-api
+        image: {{ project_name }}-api:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8000
+        env:
+          - name: TRACKING_URI
+            value: "http://model-registry-service/"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: model-registry
+  namespace: {{ project_name }}-project
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: model-registry
+  template:
+    metadata:
+      labels:
+        app: model-registry
+    spec:
+      containers:
+        - name: model-registry
+          image: model-registry:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 5000
