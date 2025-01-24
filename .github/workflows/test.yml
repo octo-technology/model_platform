@@ -42,7 +42,7 @@ jobs:
 
       - name: Run Query docker test
         run: |
-            http --json POST http://0.0.0.0:8000/predict \
+            http --ignore-stdin --json POST http://0.0.0.0:8000/predict \
             Content-Type:application/json \
             inputs:='{
               "Pclass": 3,
