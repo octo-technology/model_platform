@@ -5,14 +5,12 @@ This module provides an adapter for interacting with the MLFlow Model Registry.
 
 import os
 
-import mlflow
+from loguru import logger
 from mlflow import MlflowClient
 from mlflow.entities import FileInfo
 from mlflow.entities.model_registry import ModelVersion, RegisteredModel
 
-from model_platform import PROJECT_DIR
 from model_platform.domain.ports.model_registry import ModelRegistry
-from model_platform.infrastructure.mlflow_client_manager import MLFlowSettings
 
 
 class MLFlowModelRegistryAdapter(ModelRegistry):
@@ -82,9 +80,11 @@ class MLFlowModelRegistryAdapter(ModelRegistry):
 
     def download_model_artifacts(self, model_name: str, version: str, destination_path: str) -> str:
         run_id = self._get_model_run_id(model_name, version)
+        logger.info(f"Downloading model artefacts for run_id: {run_id}")
         artifacts_path: str = self._get_model_artifacts_path(run_id)
         downloaded_artifacts_path = self._download_run_id_artifacts(run_id, artifacts_path, destination_path)
         downloaded_artifacts_path = os.path.join(destination_path, downloaded_artifacts_path)
+        logger.info(f"Downloaded model artefacts to: {downloaded_artifacts_path}")
         return downloaded_artifacts_path
 
     def _get_model_run_id(self, model_name: str, version: str) -> str:
@@ -94,15 +94,3 @@ class MLFlowModelRegistryAdapter(ModelRegistry):
         ][0].run_id
 
         return run_id
-
-
-if __name__ == "__main__":
-    MLFlowSettings()
-    client = mlflow.MlflowClient()
-    registry = MLFlowModelRegistryAdapter(client)
-    result = registry.list_all_models()
-    print(
-        registry.download_model_artifacts(
-            "mlflow_explo_titanic", "3", os.path.join(PROJECT_DIR, "downloaded_artifacts")
-        )
-    )

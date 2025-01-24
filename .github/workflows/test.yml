@@ -22,7 +22,7 @@ jobs:
       - name: Install Poetry
         run: |
           python -m pip install --upgrade pip
-          pip install poetry
+          pip install poetry==1.8.5
 
       - name: Install dependencies and project
         run: |
@@ -40,3 +40,29 @@ jobs:
         run: |
           echo "Launching unit tests"
           poetry run pytest tests
+
+      - name: Start docker
+        run: |
+          docker run -d --name test_container -p 8000:8000 test_image
+
+      - name: Install HTTPie
+        run: sudo apt-get update && sudo apt-get install -y httpie
+
+      - name: Run Query docker test
+        run: |
+            http --ignore-stdin --json POST http://0.0.0.0:8000/predict \
+            Content-Type:application/json \
+            inputs:='{
+              "Pclass": 3,
+              "Sex": "male",
+              "Age": 22.0,
+              "SibSp": 1,
+              "Parch": 0,
+              "Fare": 7.25,
+              "Embarked": "S"
+            }'
+
+      - name: Stop and Remove Docker Container
+        run: |
+          docker stop test_container
+          docker rm test_container

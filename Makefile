@@ -11,3 +11,10 @@ mlflow_server:
 registry_server:
 	docker-compose -f infrastructure/docker-compose.yml up -d
 	make mlflow_server
+
+
+run-ci-arm:
+	act -W .github/workflows/test.yml --container-architecture linux/arm64
+
+run-ci-amd:
+	act -W .github/workflows/test.yml

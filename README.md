@@ -43,3 +43,15 @@ python -m model_platform
 ```bash
 python -m streamlit run front/app.py --server.runOnSave=true
 ```
+
+### Running CI locally
+You will need to install nektos act https://nektosact.com/installation/
+```bash
+#mac ARM
+make run-ci-arm
+```
+or
+```bash
+#Intel processors
+make run-ci-amd
+```

@@ -15,14 +15,14 @@ streamlit = "^1.41.1"
 uvicorn = "^0.34.0"
 fastapi = "^0.115.6"
 psycopg2-binary = "^2.9.10"
+boto3 = "^1.36.2"
 
 [tool.poetry.dev-dependencies]
-ruff = "==0.1.4"
-pytest = "==7.4.2"
-pytest-cov = "==4.1.0"
-pre-commit = "==3.5.0"
-black = "==24.3.0"
-
+ruff = "^0.1.4"
+pytest-cov = "^4.1.0"
+pre-commit = "^3.5.0"
+black = "^24.3.0"
+pytest = "^8.3.4"
 
 
 [tool.ruff]
