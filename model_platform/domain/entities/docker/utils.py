@@ -1,3 +1,4 @@
+import docker
 from docker.errors import DockerException
 from loguru import logger
 
@@ -10,8 +11,6 @@ def _display_docker_build_logs(build_logs):
 
 
 def build_image_from_context(context_dir: str, image_name: str) -> int:
-    import docker
-
     try:
         client = docker.from_env()
     except DockerException as e:

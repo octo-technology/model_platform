@@ -9,8 +9,9 @@ import uuid
 from fastapi import APIRouter, BackgroundTasks, Depends
 from fastapi.responses import JSONResponse
 
+from model_platform.domain.entities.docker.task_build_statuses import TaskBuildStatuses
 from model_platform.domain.ports.model_registry import ModelRegistry
-from model_platform.domain.use_cases.generate_and_build_image import generate_and_build_docker_image
+from model_platform.domain.use_cases.generate_and_build_image import generate_and_build_and_clean_docker_image
 from model_platform.infrastructure.mlflow_client_manager import MLFLOW_CLIENT
 from model_platform.infrastructure.mlflow_model_registry_adapter import MLFlowModelRegistryAdapter
 
@@ -57,12 +58,12 @@ def track_task_status(task_id: str):
                 If the target function raises an exception, it updates the task status to 'failed'.
             """
             try:
-                TASKS_STATUS[task_id] = "in_progress"
+                TASKS_STATUS[task_id] = TaskBuildStatuses.in_progress
                 result = func(*args, **kwargs)
-                TASKS_STATUS[task_id] = "completed"
+                TASKS_STATUS[task_id] = TaskBuildStatuses.in_progress
                 return result
             except Exception as e:
-                TASKS_STATUS[task_id] = f"failed: {str(e)}"
+                TASKS_STATUS[task_id] = f"{TaskBuildStatuses.failed}: {str(e)}"
                 raise
 
         return wrapper
@@ -99,7 +100,7 @@ def list_models(registry: ModelRegistry = Depends(get_model_registry)):
 
 
 @router.get("/deploy/{model_name}/{version}")
-async def route_deploy(
+def route_deploy(
     model_name: str,
     version: str,
     background_tasks: BackgroundTasks,
@@ -108,7 +109,7 @@ async def route_deploy(
     task_id = str(uuid.uuid4())
     TASKS_STATUS[task_id] = "queued"
     logging.info(f"Deploying {model_name}:{version} with task_id: {task_id}")
-    decorated_task = track_task_status(task_id)(generate_and_build_docker_image)
+    decorated_task = track_task_status(task_id)(generate_and_build_and_clean_docker_image)
     background_tasks.add_task(decorated_task, registry, model_name, version)
 
     return {"task_id": task_id, "status": "Deployment initiated"}

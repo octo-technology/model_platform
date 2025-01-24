@@ -87,10 +87,21 @@ def build_docker_image_from_context_path(context_path: str, image_name: str) -> 
     logger.info(f"Starting docker build in {context_path}")
     build_image_from_context(context_path, image_name)
     logger.info(f"Docker image {image_name} built successfully")
+
+
+def clean_build_context(context_path: str) -> None:
+    """
+    Cleans the build context by removing the specified directory.
+
+    Args:
+        context_path (str): The path to the build context directory.
+    """
     remove_directory(context_path)
 
 
-def generate_and_build_docker_image(registry: MLFlowModelRegistryAdapter, model_name: str, version: str) -> str:
+def generate_and_build_and_clean_docker_image(
+    registry: MLFlowModelRegistryAdapter, model_name: str, version: str
+) -> str:
     """
     Generates and builds a Docker image for the specified model and version.
 
@@ -105,4 +116,5 @@ def generate_and_build_docker_image(registry: MLFlowModelRegistryAdapter, model_
     context_path: str = prepare_docker_context(registry, model_name, version)
     image_name: str = f"{model_name}_{version}_ctr"
     build_docker_image_from_context_path(context_path, image_name)
+    clean_build_context(context_path)
     return image_name
