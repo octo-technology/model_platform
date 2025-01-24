@@ -12,34 +12,37 @@ class DockerfileTemplate:
         # Setup system package
         {setup_system_packages}
 
-        # Setup miniconda
-        RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
-            /bin/bash Miniconda3-latest-Linux-x86_64.sh -b -p /opt/conda && \
-            rm Miniconda3-latest-Linux-x86_64.sh
-        ENV PATH /opt/conda/bin:$PATH
+        # Setup uv
+        RUN wget -qO- https://astral.sh/uv/install.sh | sh && which uv || echo "UV installation failed"
+        ENV PATH="/root/.local/bin:$PATH"
 
         WORKDIR /opt/mlflow
         ENV GUNICORN_CMD_ARGS="--timeout 60 -k gevent"
 
-        # Install model and dependencies
-        RUN conda update -n base -c defaults conda && conda clean --all --yes
+        #Copy artefacts and dependencies lists
         COPY custom_model/conda.yaml /opt/mlflow
+        COPY custom_model/requirements.txt /opt/mlflow/requirements.txt
         COPY custom_model/python_model.pkl /opt/mlflow
-        RUN conda env create -f conda.yaml
-
         COPY fast_api_template.py /opt/mlflow
+
+        # Install python model version
+
+        RUN YAML_PYTHON_VERSION=$(grep -E "^ *- python=" /opt/mlflow/conda.yaml \
+            | sed -E 's/.*python=([0-9.]+).*/\\1/') && \
+            echo "Python version from conda.yaml: $YAML_PYTHON_VERSION" && \
+            uv python install $YAML_PYTHON_VERSION
+
         # Install additional dependencies in the environment
-        RUN /opt/conda/bin/conda install -n mlflow-env -c conda-forge uvicorn fastapi cloudpickle && \
-            conda clean --all --yes
+        RUN uv venv
+        RUN uv pip install -r /opt/mlflow/requirements.txt
+        RUN uv pip install uvicorn fastapi cloudpickle loguru
 
         # Clean up apt cache to reduce image size
         RUN rm -rf /var/lib/apt/lists/*
-
         EXPOSE 8000
 
         # Activate conda environment and start the application
-        CMD ["bash", "-c", "source /opt/conda/bin/activate mlflow-env \
-        && uvicorn fast_api_template:app --host 0.0.0.0 --port 8000"]
+        CMD ["bash", "-c", "uv run uvicorn fast_api_template:app --host 0.0.0.0 --port 8000"]
 
         """
 
@@ -61,4 +64,4 @@ class DockerfileTemplate:
 
     def _setup_system_packages(self) -> str:
         return """RUN apt-get update && apt-get install -y nginx curl \
-        wget bzip2 ca-certificates && rm -rf /var/lib/apt/lists/*"""
+        wget bzip2 libgomp1 ca-certificates && rm -rf /var/lib/apt/lists/*"""
