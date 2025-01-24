@@ -36,6 +36,14 @@ jobs:
         run: |
           poetry run ruff check model_platform tests
 
+      - name: Run unit tests
+        run: |
+          echo "Launching unit tests"
+          poetry run pytest tests
+
+      - name: Start docker
+        run: |
+          docker run -d --name test_container -p 8000:8000 test_image
 
       - name: Install HTTPie
         run: sudo apt-get update && sudo apt-get install -y httpie
