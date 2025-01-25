@@ -99,6 +99,27 @@ def list_models(registry: ModelRegistry = Depends(get_model_registry)):
     return JSONResponse(content=registry.list_all_models(), media_type="application/json")
 
 
+@router.get("/{model_name}/versions")
+def list_model_versions(registry: ModelRegistry = Depends(get_model_registry), model_name: str = None):
+    """Endpoint to list all versions of a registered model.
+
+    Parameters
+    ----------
+    registry : ModelRegistry, optional
+        The model registry adapter, by default Depends(get_model_registry)
+    model_name : str, optional
+        The name of the model to list versions for, by default None
+
+    Returns
+    -------
+    list[dict[str, str | int]]
+        A list of dictionaries containing model version attributes.
+    """
+    model_versions = registry.list_model_versions(model_name)
+    print(model_versions)
+    return JSONResponse(content=model_versions, media_type="application/json")
+
+
 @router.get("/deploy/{model_name}/{version}")
 def route_deploy(
     model_name: str,

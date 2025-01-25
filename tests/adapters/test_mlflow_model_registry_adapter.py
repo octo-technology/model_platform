@@ -2,6 +2,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from mlflow.entities.model_registry import RegisteredModel, ModelVersion
+from mlflow.store.entities import PagedList
 
 from model_platform.infrastructure.mlflow_model_registry_adapter import MLFlowModelRegistryAdapter
 
@@ -33,6 +34,13 @@ def mock_models():
     return mock_models
 
 
+@pytest.fixture()
+def mock_model_versions():
+    return ModelVersion(
+        name="model1", version="1", creation_timestamp=1234567890, description="bla", run_id="A1234567890"
+    )
+
+
 def test_list_all_models(mlflow_adapter, mock_models):
     mlflow_adapter.mlflow_client.search_registered_models.return_value = mock_models
 
@@ -53,11 +61,3 @@ def test_process_mlflow_list(mock_models):
     assert result[0]["creation_timestamp"] == 1234567891
     assert result[1]["name"] == "model1"
     assert result[1]["creation_timestamp"] == 1234567890
-
-
-def test_get_model_run_id(mlflow_adapter, mock_models):
-    mlflow_adapter.mlflow_client.get_registered_model.return_value = mock_models[0]
-
-    run_id = mlflow_adapter._get_model_run_id("model1", "1")
-
-    assert "A1234567890" == run_id
