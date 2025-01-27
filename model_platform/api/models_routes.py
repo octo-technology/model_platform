@@ -116,7 +116,6 @@ def list_model_versions(registry: ModelRegistry = Depends(get_model_registry), m
         A list of dictionaries containing model version attributes.
     """
     model_versions = registry.list_model_versions(model_name)
-    print(model_versions)
     return JSONResponse(content=model_versions, media_type="application/json")
 
 
