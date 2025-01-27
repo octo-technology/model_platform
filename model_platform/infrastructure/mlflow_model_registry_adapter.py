@@ -9,6 +9,7 @@ from loguru import logger
 from mlflow import MlflowClient
 from mlflow.entities import FileInfo
 from mlflow.entities.model_registry import ModelVersion, RegisteredModel
+from mlflow.store.entities import PagedList
 
 from model_platform.domain.ports.model_registry import ModelRegistry
 
@@ -30,6 +31,23 @@ class MLFlowModelRegistryAdapter(ModelRegistry):
         """
         registered_model_list = self.mlflow_client.search_registered_models()
         return self._process_mlflow_list(registered_model_list)
+
+    def list_model_versions(self, model_name: str) -> list[dict]:
+        """List all versions of a registered model in the MLFlow Model Registry by querying the MLFlow client.
+
+        Parameters
+        ----------
+        model_name : str
+            The name of the model to list versions for.
+
+        Returns
+        -------
+        list[dict[str, str | int]]
+            A list of dictionaries containing model version attributes.
+        """
+        all_model_versions: PagedList[ModelVersion] = self.mlflow_client.search_model_versions(f"name='{model_name}'")
+        all_model_versions_processed: list[dict] = self._process_model_versions(all_model_versions.to_list())
+        return all_model_versions_processed
 
     @staticmethod
     def _process_mlflow_list(mlflow_registered_model_list: list[RegisteredModel]) -> list[dict[str, str | int]]:
@@ -88,9 +106,7 @@ class MLFlowModelRegistryAdapter(ModelRegistry):
         return downloaded_artifacts_path
 
     def _get_model_run_id(self, model_name: str, version: str) -> str:
-        registered_model: RegisteredModel = self.mlflow_client.get_registered_model(model_name)
-        run_id = [
-            model_version for model_version in registered_model.latest_versions if model_version.version == version
-        ][0].run_id
+        model_versions: list[dict] = self.list_model_versions(model_name)
+        run_id = [model_version["run_id"] for model_version in model_versions if model_version["version"] == version][0]
 
         return run_id

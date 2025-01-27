@@ -1,7 +1,10 @@
 GET http://0.0.0.0:8001/models/list
 
 ###
-GET http://0.0.0.0:8001/models/deploy/mlflow_explo_titanic/3
+GET http://0.0.0.0:8001/models/mlflow_explo_titanic/versions
 
 ###
-GET http://0.0.0.0:8001/models/task-status/a935e8d2-81b8-43a8-8e18-004fb3a4a097
+GET http://0.0.0.0:8001/models/deploy/mlflow_explo_titanic/4
+
+###
+GET http://0.0.0.0:8001/models/task-status/78499e79-7b16-4ae1-a6f6-d8ca7d472f6b
