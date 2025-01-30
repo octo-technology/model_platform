@@ -68,8 +68,9 @@ def track_task_status(task_id: str, tasks_status: dict):
     return decorator
 
 
-def get_project_registry_connexion_params(project_name: str) -> dict[str:str]:
-    return {"project_name": project_name, "tracking_uri": "http://127.0.0.1:5000"}
+def get_project_registry_connexion_params(project_name: str, request: Request) -> dict[str:str]:
+    connexion_params: str = request.app.state.project_sqlite_db_handler.get_project_connection_params(project_name)
+    return {"project_name": project_name, "tracking_uri": connexion_params}
 
 
 def get_registry_pool(request: Request) -> RegistryHandler:
@@ -82,16 +83,21 @@ def get_tasks_status(request: Request) -> dict:
 
 
 @router.get("/list")
-def list_models(registry_pool: RegistryHandler = Depends(get_registry_pool), project_name: str = None):
-    registry: ModelRegistry = registry_pool.connect(get_project_registry_connexion_params(project_name))
+def list_models(
+    registry_pool: RegistryHandler = Depends(get_registry_pool), project_name: str = None, request: Request = None
+):
+    registry: ModelRegistry = registry_pool.connect(get_project_registry_connexion_params(project_name, request))
     return JSONResponse(content=registry.list_all_models(), media_type="application/json")
 
 
 @router.get("/{model_name}/versions")
 def list_model_versions(
-    registry_pool: RegistryHandler = Depends(get_registry_pool), project_name: str = None, model_name: str = None
+    registry_pool: RegistryHandler = Depends(get_registry_pool),
+    request: Request = None,
+    project_name: str = None,
+    model_name: str = None,
 ):
-    registry: ModelRegistry = registry_pool.connect(get_project_registry_connexion_params(project_name))
+    registry: ModelRegistry = registry_pool.connect(get_project_registry_connexion_params(project_name, request))
     model_versions = registry.list_model_versions(model_name)
     return JSONResponse(content=model_versions, media_type="application/json")
 
@@ -100,12 +106,13 @@ def list_model_versions(
 def route_deploy(
     background_tasks: BackgroundTasks,
     registry_pool: RegistryHandler = Depends(get_registry_pool),
+    request: Request = None,
     tasks_status: dict = Depends(get_tasks_status),
     project_name: str = None,
     model_name: str = None,
     version: str = None,
 ):
-    registry: ModelRegistry = registry_pool.connect(get_project_registry_connexion_params(project_name))
+    registry: ModelRegistry = registry_pool.connect(get_project_registry_connexion_params(project_name, request))
     task_id = str(uuid.uuid4())
     tasks_status[task_id] = "queued"
     logging.info(f"Deploying {model_name}:{version} with task_id: {task_id}")

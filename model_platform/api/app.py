@@ -9,6 +9,9 @@ from fastapi import FastAPI
 
 from model_platform.api import deployed_models_routes, health_check, models_routes, projects_routes
 from model_platform.infrastructure.mlflow_handler_adapter import MLFlowHandlerAdapter
+from model_platform.infrastructure.project_sqlite_db_handler import ProjectSQLiteDBHandler
+
+# Fix data to test front
 
 
 @asynccontextmanager
@@ -24,10 +27,12 @@ async def lifespan(app: FastAPI):
         The FastAPI application instance.
     """
     app.state.registry_pool = MLFlowHandlerAdapter()
+    app.state.project_sqlite_db_handler = ProjectSQLiteDBHandler(db_path="projects.db")
     app.state.task_status = {}
     yield
     app.state.registry_pool.clean_client_pool(ttl_in_seconds=0)
     app.state.task_status = None
+    app.state.project_sqlite_db_handler = None
 
 
 def create_app() -> FastAPI:

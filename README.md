@@ -34,6 +34,11 @@ For example to have a local mlflow run
 make registry_server
 ```
 
+### Optional: Populate SQLLite database with projects
+```bash
+python dev_utils/populate_db.py
+```
+
 ### Run backend
 ```bash
 python -m model_platform
