@@ -8,9 +8,4 @@ class Project(BaseModel):
     data_perimeter: str
 
     def to_json(self) -> dict:
-        return {
-            "data_perimeter": self.data_perimeter,
-            "scope": self.scope,
-            "owner": self.owner,
-            "name": self.name,
-        }
+        return {"data_perimeter": self.data_perimeter, "scope": self.scope, "owner": self.owner, "name": self.name}

@@ -36,8 +36,11 @@ class MLFlowHandlerAdapter(RegistryHandler):
         for project_name in list(self.client_pool.keys()):
             registry_and_ttl = self.client_pool[project_name]
             if current_timestamp - registry_and_ttl["timestamp"] > ttl_in_seconds:
-                registry_and_ttl["registry"].mlflow_client_manager.close()
-                del self.client_pool[project_name]
-                logger.info(f"Closed connection to {project_name} project registry.")
+                self._close_one_connexion(project_name)
             else:
                 logger.info(f"Connection to {project_name} project registry is still valid.")
+
+    def _close_one_connexion(self, project_name: str) -> None:
+        self.client_pool[project_name]["registry"].mlflow_client_manager.close()
+        del self.client_pool[project_name]
+        logger.info(f"Closed connection to {project_name} project registry.")
