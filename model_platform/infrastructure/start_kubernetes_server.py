@@ -57,11 +57,13 @@ def create_service(namespace_name, service_name, deployment_name, service_port, 
     service = client.V1Service(
         metadata=client.V1ObjectMeta(name=service_name),
         spec=client.V1ServiceSpec(
-            selector={"app": deployment_name}, ports=[client.V1ServicePort(port=service_port, target_port=target_port)]
+            type="NodePort" ,
+            selector={"app": deployment_name}, 
+            ports=[client.V1ServicePort(port=service_port, target_port=target_port)]
         ),
     )
     try:
-        v1.create_namespaced_service(namespace=namespace_name, body=service)
+        service = v1.create_namespaced_service(namespace=namespace_name, body=service)
         print(f"Service '{service_name}' créé avec succès dans le namespace '{namespace_name}'!")
     except client.exceptions.ApiException as e:
         if e.status == 409:
@@ -79,7 +81,7 @@ if __name__ == "__main__":
     service_name = "mlflow-service"
     image = "model-registry"  # Utilisez l'image officielle MLflow
     container_port = 5000
-    service_port = 80  # Port externe exposé
+    service_port = 5000  # Port du service ClusterIP exposé aux autres applications du cluster kube
     target_port = 5000  # Port interne du conteneur
 
     # Création des resources
