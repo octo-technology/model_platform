@@ -29,7 +29,9 @@ async def lifespan(app: FastAPI):
     app.state.registry_pool = MLFlowHandlerAdapter()
     app.state.project_sqlite_db_handler = ProjectSQLiteDBHandler(db_path="projects.db")
     app.state.task_status = {}
+    app.state.registry_pool.start_cleaning_task(interval=60)
     yield
+    app.state.registry_pool.stop_cleaning_task()
     app.state.registry_pool.clean_client_pool(ttl_in_seconds=0)
     app.state.task_status = None
     app.state.project_sqlite_db_handler = None

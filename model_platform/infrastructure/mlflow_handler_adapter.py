@@ -1,3 +1,4 @@
+import asyncio
 import time
 
 from loguru import logger
@@ -13,6 +14,8 @@ class MLFlowHandlerAdapter(RegistryHandler):
         self,
     ):
         self.client_pool: dict[str : dict[str : int | MlflowClient]] = {}
+        self.cleaning_task = None
+        self.running = False
 
     def connect(self, connexion_parameters: dict[str:str]) -> MLFlowModelRegistryAdapter:
         project_name: str = connexion_parameters["project_name"]
@@ -31,7 +34,7 @@ class MLFlowHandlerAdapter(RegistryHandler):
 
         return registry_adapter
 
-    def clean_client_pool(self, ttl_in_seconds: int) -> None:
+    def clean_client_pool(self, ttl_in_seconds: int = 300) -> None:
         current_timestamp: int = int(time.time())
         for project_name in list(self.client_pool.keys()):
             registry_and_ttl = self.client_pool[project_name]
@@ -44,3 +47,27 @@ class MLFlowHandlerAdapter(RegistryHandler):
         self.client_pool[project_name]["registry"].mlflow_client_manager.close()
         del self.client_pool[project_name]
         logger.info(f"Closed connection to {project_name} project registry.")
+
+    async def _clean_registry_pool_periodically(self, interval: int) -> None:
+        """Tâche en arrière-plan pour nettoyer le pool de connexions MLflow."""
+        self.running = True
+        while self.running:
+            await asyncio.sleep(interval)
+            logger.info(f"🔄 Running periodic cleanup (interval={interval}s)")
+            self.clean_client_pool(ttl_in_seconds=interval)
+
+    def start_cleaning_task(self, interval: int = 60) -> None:
+        if self.cleaning_task is None:
+            self.cleaning_task = asyncio.create_task(self._clean_registry_pool_periodically(interval))
+            logger.info(f"🟢 MLflow registry cleanup task started (every {interval} seconds)")
+
+    def stop_cleaning_task(self) -> None:
+        if self.cleaning_task:
+            self.running = False
+            self.cleaning_task.cancel()
+            try:
+                asyncio.run(self.cleaning_task)
+            except asyncio.CancelledError:
+                pass
+            self.cleaning_task = None
+            logger.info("🔴 MLflow registry cleanup task stopped.")
