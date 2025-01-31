@@ -8,25 +8,11 @@ from datetime import datetime
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
-from model_platform.infrastructure.mlflow_client_manager import MLFLOW_CLIENT
-from model_platform.infrastructure.mlflow_model_registry_adapter import MLFlowModelRegistryAdapter
-
 router = APIRouter()
 
 
-def get_model_registry():
-    """Dependency that provides an instance of the MLFlowModelRegistryAdapter.
-
-    Returns
-    -------
-    MLFlowModelRegistryAdapter
-        An instance of the MLFlowModelRegistryAdapter.
-    """
-    return MLFlowModelRegistryAdapter(MLFLOW_CLIENT.client)
-
-
 @router.get("/list")
-def list_models():
+def list_models(project_name: str):
     """Endpoint to list all registered models.
 
     Parameters

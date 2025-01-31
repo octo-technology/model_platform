@@ -8,7 +8,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from model_platform.api import deployed_models_routes, health_check, models_routes, projects_routes
-from model_platform.infrastructure.mlflow_client_manager import MLFLOW_CLIENT
+from model_platform.infrastructure.mlflow_handler_adapter import MLFlowHandlerAdapter
+from model_platform.infrastructure.project_sqlite_db_handler import ProjectSQLiteDBHandler
 
 
 @asynccontextmanager
@@ -23,9 +24,11 @@ async def lifespan(app: FastAPI):
     app : FastAPI
         The FastAPI application instance.
     """
-    MLFLOW_CLIENT.initialize()
+    app.state.registry_pool = MLFlowHandlerAdapter()
+    app.state.project_sqlite_db_handler = ProjectSQLiteDBHandler(db_path="projects.db")
+    app.state.task_status = {}
+    app.state.registry_pool.start_cleaning_task(interval=60)
     yield
-    MLFLOW_CLIENT.close()
 
 
 def create_app() -> FastAPI:
@@ -38,8 +41,10 @@ def create_app() -> FastAPI:
     """
     app = FastAPI(title="Model Platform API", version="1.0.0", lifespan=lifespan)
     app.include_router(health_check.router, prefix="/health", tags=["Health"])
-    app.include_router(models_routes.router, prefix="/models", tags=["Models"])
-    app.include_router(deployed_models_routes.router, prefix="/deployed_models", tags=["Deployed Models"])
+    app.include_router(models_routes.router, prefix="/{project_name}/models", tags=["Models"])
+    app.include_router(
+        deployed_models_routes.router, prefix="/{project_name}/deployed_models", tags=["Deployed Models"]
+    )
     app.include_router(projects_routes.router, prefix="/projects", tags=["Projects"])
 
     return app

@@ -20,11 +20,12 @@ class MLflowClientManager:
         The MLflow client instance.
     """
 
-    def __init__(self):
+    def __init__(self, tracking_uri: str):
         """
         Initializes the MLflowClientManager with no client.
         """
         self.client = None
+        self.tracking_uri = tracking_uri
 
     def initialize(self):
         """
@@ -34,7 +35,8 @@ class MLflowClientManager:
         If initialization fails, logs the error and sets the client to None.
         """
         try:
-            self.client = mlflow.MlflowClient()
+            logger.info(f"Initializing MLflow client with tracking URI: {self.tracking_uri}")
+            self.client = mlflow.MlflowClient(tracking_uri=self.tracking_uri)
             self._check_connection()
             logger.info("MLflow client initialized successfully.")
         except Exception as e:
@@ -60,6 +62,3 @@ class MLflowClientManager:
             logger.info("MLflow client closed.")
         else:
             logger.warning("MLflow client is not initialized.")
-
-
-MLFLOW_CLIENT = MLflowClientManager()

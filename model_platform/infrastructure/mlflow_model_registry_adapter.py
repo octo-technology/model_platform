@@ -12,15 +12,17 @@ from mlflow.entities.model_registry import ModelVersion, RegisteredModel
 from mlflow.store.entities import PagedList
 
 from model_platform.domain.ports.model_registry import ModelRegistry
+from model_platform.infrastructure.mlflow_client import MLflowClientManager
 
 
 class MLFlowModelRegistryAdapter(ModelRegistry):
     """Adapter for interacting with the MLFlow Model Registry."""
 
-    def __init__(self, mlflow_client: MlflowClient):
+    def __init__(self, mlflow_client_manager: MLflowClientManager):
         """Initialize the MLFlowModelRegistryAdapter instance."""
         super().__init__()
-        self.mlflow_client: MlflowClient = mlflow_client
+        self.mlflow_client_manager: MLflowClientManager = mlflow_client_manager
+        self.mlflow_client: MlflowClient = mlflow_client_manager.client
 
     def list_all_models(self) -> list[dict[str, str | int]]:
         """List all registered models in the MLFlow Model Registry by querying the MLFlow client.

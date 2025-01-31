@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic import BaseModel
 
 
@@ -6,6 +8,7 @@ class Project(BaseModel):
     owner: str
     scope: str
     data_perimeter: str
+    connection_parameters: Optional[str] = None
 
     def to_json(self) -> dict:
         return {
@@ -13,4 +16,5 @@ class Project(BaseModel):
             "scope": self.scope,
             "owner": self.owner,
             "name": self.name,
+            "connection_parameters": self.connection_parameters,
         }
