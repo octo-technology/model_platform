@@ -22,6 +22,8 @@ def create_project_selection_sidebar(project_list: list):
         st.sidebar.dataframe(
             model_info,
         )
+    if "selected_project" in st.session_state:
+        st.title(st.session_state["selected_project"])
 
 
 def create_project_model_listing(models: list):
