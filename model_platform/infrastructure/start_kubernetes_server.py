@@ -33,7 +33,10 @@ def create_deployment(namespace_name, deployment_name, image, container_port):
                             image=image,
                             ports=[client.V1ContainerPort(container_port=container_port)],
                             image_pull_policy="IfNotPresent",
-                            args=["--backend-store-uri", "postgresql://user:password@127.0.0.1:5432/mlflowdb"]
+                            env=[
+                                client.V1EnvVar(name="MLFLOW_ARTIFACTS_DESTINATION", value="S3://bucket"),
+                                client.V1EnvVar(name="MLFLOW_BACKEND_STORE_URI", value="postgresql://user:password@host.docker.internal:5432/mlflowdb")
+                            ]
                         )
                     ]
                 ),
@@ -74,43 +77,6 @@ def create_service(namespace_name, service_name, deployment_name, service_port, 
         else:
             print(f"Erreur lors de la création du service: {e}")
 
-def get_mlflow_tracking_server_uri(localhost_port):
-    config.load_kube_config()
-    v1 = client.CoreV1Api()
-
-    # # get nodePort
-    # node_ports = svc.spec.ports[0].node_port
-
-    svc = v1.read_namespaced_service(namespace=namespace_name, name=service_name)
-    selector = svc.spec.selector
-
-    if not selector:
-        raise Exception(f"Le service '{service_name}' n'a pas de selector !")
-
-    # Transformer le selector en format "key1=value1,key2=value2"
-    selector_str = ",".join([f"{k}={v}" for k, v in selector.items()])
-
-    # Récupérer les pods correspondant
-    pods = v1.list_namespaced_pod(namespace=namespace_name, label_selector=selector_str).items
-
-    if not pods:
-        print(f"Aucun pod trouvé pour le service '{service_name}'")
-
-    pod_name = pods[0].metadata.name
-
-    # Ouvrir un tunnel de port-forwarding
-    try:
-        pf = stream.portforward(v1.connect_get_namespaced_pod_portforward, pod_name, namespace_name, ports=localhost_port)
-    except Exception as e:
-        raise e 
-
-    print(f"Port-forwarding ouvert sur http://localhost:{localhost_port} -> {pod_name}:{container_port}")
-
-    import requests
-    r = requests.get(f"http://localhost:{localhost_port}")
-    print(r.status_code)
-    
-
 
 if __name__ == "__main__":
     # Paramètres
@@ -121,10 +87,9 @@ if __name__ == "__main__":
     container_port = 5000
     service_port = 5000  # Port du service ClusterIP exposé aux autres applications du cluster kube
     target_port = 5000  # Port interne du conteneur
-    localhost_port = '80'
+    localhost_port = '8080'
 
-    # Création des resources
-    # create_namespace(namespace_name)
-    # create_deployment(namespace_name, deployment_name, image, container_port, project_name)
-    # create_service(namespace_name, service_name, deployment_name, service_port, target_port)
-    get_mlflow_tracking_server_uri(localhost_port)
+    # # Création des resources
+    create_namespace(namespace_name)
+    create_deployment(namespace_name, deployment_name, image, container_port)
+    create_service(namespace_name, service_name, deployment_name, service_port, target_port)
