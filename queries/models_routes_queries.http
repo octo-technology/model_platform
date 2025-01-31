@@ -1,4 +1,4 @@
-GET http://0.0.0.0:8001/test/models/list
+GET http://0.0.0.0:8001/Project Alpha/models/list
 
 ###
 GET http://0.0.0.0:8001/test/models/mlflow_explo_titanic/versions

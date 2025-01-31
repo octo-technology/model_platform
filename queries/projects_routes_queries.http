@@ -2,3 +2,6 @@ GET http://0.0.0.0:8001/projects/list
 
 ###
 GET http://0.0.0.0:8001/projects/Project Alpha/info
+
+###
+GET http://0.0.0.0:8001/Project Alpha/deployed_models/list

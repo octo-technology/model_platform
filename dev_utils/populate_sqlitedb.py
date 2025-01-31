@@ -15,7 +15,6 @@ if __name__ == "__main__":
             "owner": project_name.split(" ")[-1] + " team",
             "scope": "A project to revolutionize IA projects",
             "data_perimeter": "All data on earth regarding our clients",
-            "connection_parameters": "http://localhost:5000",
         }
         for project_name in PROJECT_NAMES
     ]

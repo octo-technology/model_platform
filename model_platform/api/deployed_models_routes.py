@@ -11,12 +11,8 @@ from fastapi.responses import JSONResponse
 router = APIRouter()
 
 
-def get_model_registry():
-    pass
-
-
 @router.get("/list")
-def list_models():
+def list_models(project_name: str):
     """Endpoint to list all registered models.
 
     Parameters

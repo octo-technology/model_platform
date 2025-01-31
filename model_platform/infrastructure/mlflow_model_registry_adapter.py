@@ -6,6 +6,7 @@ This module provides an adapter for interacting with the MLFlow Model Registry.
 import os
 
 from loguru import logger
+from mlflow import MlflowClient
 from mlflow.entities import FileInfo
 from mlflow.entities.model_registry import ModelVersion, RegisteredModel
 from mlflow.store.entities import PagedList
@@ -21,6 +22,7 @@ class MLFlowModelRegistryAdapter(ModelRegistry):
         """Initialize the MLFlowModelRegistryAdapter instance."""
         super().__init__()
         self.mlflow_client_manager: MLflowClientManager = mlflow_client_manager
+        self.mlflow_client: MlflowClient = mlflow_client_manager.client
 
     def list_all_models(self) -> list[dict[str, str | int]]:
         """List all registered models in the MLFlow Model Registry by querying the MLFlow client.
@@ -29,7 +31,7 @@ class MLFlowModelRegistryAdapter(ModelRegistry):
         -------
             list[dict[str, str | int]]: A list of dictionaries containing model attributes.
         """
-        registered_model_list = self.mlflow_client_manager.client.search_registered_models()
+        registered_model_list = self.mlflow_client.search_registered_models()
         return self._process_mlflow_list(registered_model_list)
 
     def list_model_versions(self, model_name: str) -> list[dict]:
@@ -45,9 +47,7 @@ class MLFlowModelRegistryAdapter(ModelRegistry):
         list[dict[str, str | int]]
             A list of dictionaries containing model version attributes.
         """
-        all_model_versions: PagedList[ModelVersion] = self.mlflow_client_manager.client.search_model_versions(
-            f"name='{model_name}'"
-        )
+        all_model_versions: PagedList[ModelVersion] = self.mlflow_client.search_model_versions(f"name='{model_name}'")
         all_model_versions_processed: list[dict] = self._process_model_versions(all_model_versions.to_list())
         return all_model_versions_processed
 
@@ -92,11 +92,11 @@ class MLFlowModelRegistryAdapter(ModelRegistry):
         return processed_versions
 
     def _get_model_artifacts_path(self, run_id: str) -> str:
-        file_info: FileInfo = self.mlflow_client_manager.client.list_artifacts(run_id)[0]
+        file_info: FileInfo = self.mlflow_client.list_artifacts(run_id)[0]
         return file_info.path
 
     def _download_run_id_artifacts(self, run_id: str, artifacts_path: str, destination_path: str) -> str:
-        return self.mlflow_client_manager.client.download_artifacts(run_id, artifacts_path, destination_path)
+        return self.mlflow_client.download_artifacts(run_id, artifacts_path, destination_path)
 
     def download_model_artifacts(self, model_name: str, version: str, destination_path: str) -> str:
         run_id = self._get_model_run_id(model_name, version)

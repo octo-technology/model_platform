@@ -1,4 +1,3 @@
-import json  # Pour convertir le dictionnaire en chaîne JSON
 import logging
 import sqlite3
 
@@ -19,10 +18,7 @@ class ProjectAlreadyExistError(Exception):
 
 
 def map_rows_to_projects(rows: list) -> list[Project]:
-    return [
-        Project(name=row[1], owner=row[2], scope=row[3], data_perimeter=row[4], connection_parameters=row[5])
-        for row in rows
-    ]
+    return [Project(name=row[1], owner=row[2], scope=row[3], data_perimeter=row[4]) for row in rows]
 
 
 class ProjectSQLiteDBHandler(ProjectDbHandler):
@@ -52,26 +48,22 @@ class ProjectSQLiteDBHandler(ProjectDbHandler):
             return map_rows_to_projects(rows)[0]
         raise ProjectDoesntExistError(message="Project doesn't exist", name=name)
 
-    def add_project(
-        self,
-        project: Project,
-    ) -> None:
+    def add_project(self, project: Project) -> None:
         connection = sqlite3.connect(self.db_path)
         try:
             self.get_project(name=project.name)
             raise ProjectAlreadyExistError(name=project.name, message="Project with same name already exists")
         except ProjectDoesntExistError:
             logging.info("Project name not used yet, ok")
-
         try:
             cursor = connection.cursor()
 
             cursor.execute(
                 """
-                INSERT INTO projects (name, owner, scope, data_perimeter, connection_parameters)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO projects (name, owner, scope, data_perimeter)
+                VALUES (?, ?, ?, ?)
             """,
-                (project.name, project.owner, project.scope, project.data_perimeter, project.connection_parameters),
+                (project.name, project.owner, project.scope, project.data_perimeter),
             )
 
             connection.commit()
@@ -92,26 +84,10 @@ class ProjectSQLiteDBHandler(ProjectDbHandler):
                     name TEXT NOT NULL,
                     owner TEXT NOT NULL,
                     scope TEXT NOT NULL,
-                    data_perimeter TEXT NOT NULL,
-                    connection_parameters TEXT
+                    data_perimeter TEXT NOT NULL
                 )
             """
             )
             connection.commit()
         finally:
             connection.close()
-
-    def get_project_connection_params(self, project_name: str) -> dict:
-        connection = sqlite3.connect(self.db_path)
-        try:
-            cursor = connection.cursor()
-            cursor.execute("SELECT connection_parameters FROM projects WHERE name = ?", (project_name,))
-            row = cursor.fetchone()
-        finally:
-            connection.close()
-
-        if row and row[0]:
-            # Si des paramètres de connexion sont trouvés, on les retourne sous forme de dictionnaire
-            return json.loads(row[0])  # Convertir la chaîne JSON en dictionnaire
-        else:
-            return {}

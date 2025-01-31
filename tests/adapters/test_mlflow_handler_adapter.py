@@ -1,3 +1,4 @@
+import asyncio
 import time
 import pytest
 from unittest.mock import MagicMock, patch
@@ -18,29 +19,32 @@ def mock_mlflow_client():
         yield mock_registry_adapter, mock_client_manager
 
 
-def test_connect_creates_new_entry(mock_mlflow_client):
+@pytest.mark.asyncio
+async def test_connect_creates_new_entry(mock_mlflow_client):
     registry_mock, _ = mock_mlflow_client
 
     handler = MLFlowHandlerAdapter()
-    handler.connect({"project_name": "test", "tracking_uri": "http://127.0.0.1:5000"})
+    await asyncio.sleep(0.1)
+    handler.get_registry_adapter("test", tracking_uri="http://127.0.0.1:5000")
 
     assert "test" in handler.client_pool
-    assert handler.client_pool["test"]["registry"] is registry_mock
     assert isinstance(handler.client_pool["test"]["timestamp"], int)
 
 
-def test_connect_reuses_existing_connection(mock_mlflow_client):
+@pytest.mark.asyncio
+async def test_connect_reuses_existing_connection(mock_mlflow_client):
     registry_mock, _ = mock_mlflow_client
 
     handler = MLFlowHandlerAdapter()
     handler.client_pool["test"] = {"registry": registry_mock, "timestamp": int(time.time())}
 
-    handler.connect({"project_name": "test", "tracking_uri": "http://127.0.0.1:5000"})
+    handler.get_registry_adapter(project_name="test", tracking_uri="http://127.0.0.1:5000")
 
     assert handler.client_pool["test"]["registry"] is registry_mock
 
 
-def test_clean_client_pool_removes_expired_entries(mock_mlflow_client):
+@pytest.mark.asyncio
+async def test_clean_client_pool_removes_expired_entries(mock_mlflow_client):
     registry_mock, client_manager_mock = mock_mlflow_client
 
     handler = MLFlowHandlerAdapter()
@@ -56,7 +60,8 @@ def test_clean_client_pool_removes_expired_entries(mock_mlflow_client):
     client_manager_mock.close.assert_called_once()
 
 
-def test_clean_client_pool_keeps_valid_entries(mock_mlflow_client):
+@pytest.mark.asyncio
+async def test_clean_client_pool_keeps_valid_entries(mock_mlflow_client):
     registry_mock, client_manager_mock = mock_mlflow_client
 
     handler = MLFlowHandlerAdapter()

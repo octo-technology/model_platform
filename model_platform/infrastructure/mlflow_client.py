@@ -35,6 +35,7 @@ class MLflowClientManager:
         If initialization fails, logs the error and sets the client to None.
         """
         try:
+            logger.info(f"Initializing MLflow client with tracking URI: {self.tracking_uri}")
             self.client = mlflow.MlflowClient(tracking_uri=self.tracking_uri)
             self._check_connection()
             logger.info("MLflow client initialized successfully.")
