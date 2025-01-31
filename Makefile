@@ -22,3 +22,9 @@ run-ci-arm:
 
 run-ci-amd:
 	act -W .github/workflows/test.yml
+
+frontend:
+	python -m streamlit run front/app.py --server.runOnSave=true
+
+back:
+	python -m model_platform

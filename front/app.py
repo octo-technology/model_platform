@@ -1,12 +1,8 @@
-import logging
-
 import streamlit as st
+from loguru import logger
 
 from front.api_interactions.endpoints import HEALTH_ENDPOINT
 from front.api_interactions.health import check_url_health
-
-logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO)
-logger = logging.getLogger()
 
 logger.info("Application Streamlit démarrée")
 
