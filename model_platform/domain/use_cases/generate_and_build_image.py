@@ -113,6 +113,7 @@ def generate_and_build_and_clean_docker_image(
     Returns:
         str: The name of the built Docker image.
     """
+    # TODO : add event logging
     context_path: str = prepare_docker_context(registry, model_name, version)
     image_name: str = f"{model_name}_{version}_ctr"
     build_docker_image_from_context_path(context_path, image_name)
