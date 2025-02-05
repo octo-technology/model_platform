@@ -1,11 +1,11 @@
 import uuid
+
 from model_platform import CURRENT_USER
 
 from model_platform.domain.entities.project import Project
 from model_platform.domain.entities.event import Event
+from model_platform.domain.entities.project import Project
 from model_platform.domain.ports.project_db_handler import ProjectDbHandler
-from model_platform.domain.use_cases.deploy_registry import deploy_registry
-from model_platform.infrastructure.k8s_registry_deployment_adapter import K8SRegistryDeployment
 
 from model_platform.infrastructure.log_events_handler_json_adapter import LogEventsHandlerJsonAdapter
 
@@ -27,6 +27,7 @@ def list_projects(project_db_handler: ProjectDbHandler) -> list[dict]:
 
 def add_project(project_db_handler: ProjectDbHandler, project: Project) -> None:
     project_db_handler.add_project(project)
+    log_events.add_event(Event(action=add_project.__name__, user=uuid.UUID(CURRENT_USER), entity=project.name))
     log_events.add_event(
         Event(
             action=add_project.__name__,
@@ -57,3 +58,4 @@ def get_project_info(project_db_handler: ProjectDbHandler, project_name: str) ->
         )
     )
     return project.to_json()
+
