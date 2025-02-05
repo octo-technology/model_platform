@@ -60,3 +60,24 @@ or
 #Intel processors
 make run-ci-amd
 ```
+
+
+### K8S - MINIKUBE
+
+You'll need to have minikube installed
+
+Then activate the ingress addon
+```bash
+minikube addons enable ingress
+```
+
+Add the following line to your /etc/hosts
+```bash
+127.0.0.1 model-platform-registry.com
+127.0.0.1 model-platform-deployments.com
+```
+
+Then run the following command and keep it running!!!
+```bash
+minikube tunnel
+```
