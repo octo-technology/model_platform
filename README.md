@@ -66,6 +66,11 @@ make run-ci-amd
 
 You'll need to have minikube installed
 
+```bash
+#recommended configuration to avoid freezing/timeouts
+minikube start --cpus 2 --memory 7800
+```
+
 Then activate the ingress addon
 ```bash
 minikube addons enable ingress
