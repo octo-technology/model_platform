@@ -1,3 +1,5 @@
+import logging
+
 import streamlit as st
 from loguru import logger
 
