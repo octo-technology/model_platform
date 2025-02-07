@@ -76,6 +76,11 @@ Then activate the ingress addon
 minikube addons enable ingress
 ```
 
+Deploy nginx reverse proxy
+```bash
+make nginx-proxy-k8s
+```
+
 Add the following line to your /etc/hosts
 ```bash
 127.0.0.1 model-platform-registry.com

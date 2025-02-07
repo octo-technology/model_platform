@@ -17,7 +17,6 @@ from kubernetes.client.rest import ApiException
 from loguru import logger
 
 from model_platform.domain.ports.registry_deployment_handler import Deployment
-from model_platform.dot_env import DotEnv
 from model_platform.utils import sanitize_name
 
 
@@ -106,8 +105,8 @@ class K8SDeployment(Deployment):
                                     "0.0.0.0",
                                     "--port",
                                     str(self.port),
-                                    "--static-prefix",
-                                    f"/{self.sub_path}/{project_name}",
+                                    #  "--static-prefix",
+                                    #  f"/{self.sub_path}/{project_name}",
                                 ],
                             )
                         ]
@@ -130,10 +129,10 @@ class K8SDeployment(Deployment):
     def _create_ingres_deployment(self, project_name: str):
         paths = [
             V1HTTPIngressPath(
-                path=f"/{self.sub_path}/{project_name}",
+                path=f"/{self.sub_path}/{project_name}/",
                 path_type="Prefix",
                 backend=V1IngressBackend(
-                    service=V1IngressServiceBackend(name=project_name, port=V1ServiceBackendPort(number=self.port))
+                    service=V1IngressServiceBackend(name="nginx-reverse-proxy", port=V1ServiceBackendPort(number=80))
                 ),
             )
         ]
@@ -143,7 +142,7 @@ class K8SDeployment(Deployment):
             kind="Ingress",
             metadata={"name": self.ingress_name},
             spec=V1IngressSpec(
-                ingress_class_name="nginx",
+                # ingress_class_name="nginx",
                 rules=[V1IngressRule(host=self.host_name, http=V1HTTPIngressRuleValue(paths=paths))],
             ),
         )
@@ -162,12 +161,12 @@ class K8SDeployment(Deployment):
         existing_ingress = self.ingress_api_instance.read_namespaced_ingress(self.ingress_name, self.namespace)
         existing_paths = existing_ingress.spec.rules[0].http.paths if existing_ingress.spec.rules else []
         new_paths = [
-            client.V1HTTPIngressPath(
-                path=f"/{self.sub_path}/{project_name}",
+            V1HTTPIngressPath(
+                path=f"/{self.sub_path}/{project_name}/",
                 path_type="Prefix",
                 backend=client.V1IngressBackend(
                     service=client.V1IngressServiceBackend(
-                        name=project_name, port=client.V1ServiceBackendPort(number=self.port)
+                        name="nginx-reverse-proxy", port=client.V1ServiceBackendPort(number=80)
                     )
                 ),
             )
@@ -181,10 +180,3 @@ class K8SDeployment(Deployment):
             logger.info(f"✅ Ingress {self.host_name} successfully updated with new paths!")
         else:
             logger.info(f"ℹ️ No new paths to add. Ingress {self.host_name} remains unchanged.")
-
-
-if __name__ == "__main__":
-    DotEnv()
-    k8s_deployment = K8SDeployment()
-    k8s_deployment.create_deployment("my-project-2")
-    # k8s_deployment.create_deployment("my-project-2", is_first_deployment=False)

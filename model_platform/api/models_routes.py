@@ -74,8 +74,14 @@ def track_task_status(task_id: str, tasks_status: dict):
 
 def get_project_registry_tracking_uri(project_name: str, request: Request) -> str:
     tracking_uri: str = (
-        os.environ["MP_HOST_NAME"] + "/" + os.environ["MP_REGISTRY_PATH"] + "/" + sanitize_name(project_name)
+        "http://"
+        + os.environ["MP_HOST_NAME"]
+        + "/"
+        + os.environ["MP_REGISTRY_PATH"]
+        + "/"
+        + sanitize_name(project_name)
     )
+    logging.debug(f"Tracking URI: {tracking_uri} for {project_name}")
     return tracking_uri
 
 
@@ -101,7 +107,7 @@ def list_model_versions(
     project_name: str, model_name: str, request: Request, registry_pool: RegistryHandler = Depends(get_registry_pool)
 ):
     registry: ModelRegistry = registry_pool.get_registry_adapter(
-        None, get_project_registry_tracking_uri(project_name, request)
+        project_name, get_project_registry_tracking_uri(project_name, request)
     )
     model_versions = registry.list_model_versions(model_name)
     return JSONResponse(content=model_versions, media_type="application/json")
@@ -118,7 +124,7 @@ def route_deploy(
     tasks_status: dict = Depends(get_tasks_status),
 ):
     registry: ModelRegistry = registry_pool.get_registry_adapter(
-        None, get_project_registry_tracking_uri(project_name, request)
+        project_name, get_project_registry_tracking_uri(project_name, request)
     )
     task_id = str(uuid.uuid4())
     tasks_status[task_id] = "queued"
