@@ -83,8 +83,11 @@ make nginx-proxy-k8s
 
 Add the following line to your /etc/hosts
 ```bash
-127.0.0.1 model-platform-registry.com
-127.0.0.1 model-platform-deployments.com
+# Mac
+127.0.0.1 model-platform.com
+# Linux
+minkube ip
+IP.RESULT model-platform.com
 ```
 
 Then run the following command and keep it running!!!
