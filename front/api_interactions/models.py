@@ -6,9 +6,9 @@ import requests
 from front.api_interactions.endpoints import DEPLOY_MODEL_ENDPOINT
 
 
-def get_models_list(url) -> pd.DataFrame | None:
+def get_models_list(url, project_name: str) -> pd.DataFrame | None:
     try:
-        response = requests.get(url, timeout=5)
+        response = requests.get(url.format(project_name=project_name), timeout=5)
         if response.status_code == 200:
             return format_models_response(response.json())
         else:

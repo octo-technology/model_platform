@@ -1,6 +1,8 @@
 API_BASE_URL = "http://0.0.0.0:8001"
 HEALTH_ENDPOINT = f"{API_BASE_URL}/health"
-MODELS_LIST_ENDPOINT = f"{API_BASE_URL}/models/list"
+MODELS_LIST_ENDPOINT = "{API_BASE_URL}/{project_name}/models/list".format(
+    API_BASE_URL=API_BASE_URL, project_name="{project_name}"
+)
 DEPLOY_MODEL_ENDPOINT = f"{API_BASE_URL}/models/deploy"
 DEPLOYED_MODELS_LIST_ENDPOINT = f"{API_BASE_URL}/deployed_models/list"
 PROJECT_LIST_ENDPOINT = f"{API_BASE_URL}/projects/list"
