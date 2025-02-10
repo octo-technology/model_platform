@@ -24,6 +24,8 @@ class MLFlowModelRegistryAdapter(ModelRegistry):
         self.mlflow_client_manager: MLflowClientManager = mlflow_client_manager
         self.mlflow_client: MlflowClient = mlflow_client_manager.client
 
+        # TODO problème avec la tracking uri pour un list artifacts
+
     def list_all_models(self) -> list[dict[str, str | int]]:
         """List all registered models in the MLFlow Model Registry by querying the MLFlow client.
 
@@ -92,6 +94,8 @@ class MLFlowModelRegistryAdapter(ModelRegistry):
         return processed_versions
 
     def _get_model_artifacts_path(self, run_id: str) -> str:
+        logger.info(f"Using mlflow tracking uri: {self.mlflow_client_manager.tracking_uri}")
+        logger.info(f"Using mlflow tracking uri: {self.mlflow_client.tracking_uri}")
         file_info: FileInfo = self.mlflow_client.list_artifacts(run_id)[0]
         return file_info.path
 

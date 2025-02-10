@@ -16,11 +16,11 @@ from kubernetes.client import (
 from kubernetes.client.rest import ApiException
 from loguru import logger
 
-from model_platform.domain.ports.registry_deployment_handler import Deployment
+from model_platform.domain.ports.registry_deployment_handler import RegistryDeployment
 from model_platform.utils import sanitize_name
 
 
-class K8SDeployment(Deployment):
+class K8SRegistryDeployment(RegistryDeployment):
 
     def __init__(self, ingress_name: str = "registry-ingress"):
         config.load_kube_config()
@@ -33,7 +33,7 @@ class K8SDeployment(Deployment):
         self.port = int(os.environ["MP_REGISTRY_PORT"])
         self.namespace = "default"
 
-    def create_deployment(self, project_name: str):
+    def create_registry_deployment(self, project_name: str):
         project_name = sanitize_name(project_name)
         self._create_or_update_service(project_name)
         self._create_or_update_mlflow_deployment(project_name)

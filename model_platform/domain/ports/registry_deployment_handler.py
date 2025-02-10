@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 
 
-class Deployment(ABC):
+class RegistryDeployment(ABC):
 
     @abstractmethod
-    def create_deployment(self, project_name: str):
+    def create_registry_deployment(self, project_name: str):
         pass
