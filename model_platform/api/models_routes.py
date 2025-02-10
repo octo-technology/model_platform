@@ -4,6 +4,7 @@ This module provides endpoints for interacting with the model registry.
 """
 
 import logging
+import os
 import uuid
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Request
@@ -13,6 +14,7 @@ from model_platform.domain.entities.docker.task_build_statuses import TaskBuildS
 from model_platform.domain.ports.model_registry import ModelRegistry
 from model_platform.domain.ports.registry_handler import RegistryHandler
 from model_platform.domain.use_cases.generate_and_build_image import generate_and_build_and_clean_docker_image
+from model_platform.utils import sanitize_name
 
 router = APIRouter()
 
@@ -71,8 +73,15 @@ def track_task_status(task_id: str, tasks_status: dict):
 
 
 def get_project_registry_tracking_uri(project_name: str, request: Request) -> str:
-    # TODO need to implement retrieving the tracking uri from K8S deployment
-    tracking_uri: str = "http://127.0.0.1:5000"
+    tracking_uri: str = (
+        "http://"
+        + os.environ["MP_HOST_NAME"]
+        + "/"
+        + os.environ["MP_REGISTRY_PATH"]
+        + "/"
+        + sanitize_name(project_name)
+    )
+    logging.debug(f"Tracking URI: {tracking_uri} for {project_name}")
     return tracking_uri
 
 
@@ -98,7 +107,7 @@ def list_model_versions(
     project_name: str, model_name: str, request: Request, registry_pool: RegistryHandler = Depends(get_registry_pool)
 ):
     registry: ModelRegistry = registry_pool.get_registry_adapter(
-        None, get_project_registry_tracking_uri(project_name, request)
+        project_name, get_project_registry_tracking_uri(project_name, request)
     )
     model_versions = registry.list_model_versions(model_name)
     return JSONResponse(content=model_versions, media_type="application/json")
@@ -115,7 +124,7 @@ def route_deploy(
     tasks_status: dict = Depends(get_tasks_status),
 ):
     registry: ModelRegistry = registry_pool.get_registry_adapter(
-        None, get_project_registry_tracking_uri(project_name, request)
+        project_name, get_project_registry_tracking_uri(project_name, request)
     )
     task_id = str(uuid.uuid4())
     tasks_status[task_id] = "queued"

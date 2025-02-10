@@ -16,6 +16,7 @@ uvicorn = "^0.34.0"
 fastapi = "^0.115.6"
 psycopg2-binary = "^2.9.10"
 boto3 = "^1.36.2"
+kubernetes = "^32.0.0"
 
 
 [tool.poetry.dev-dependencies]
