@@ -36,7 +36,7 @@ make registry_server
 
 ### Optional: Populate SQLLite database with projects
 ```bash
-python dev_utils/populate_db.py
+python dev_utils/populate_sqlitedb.py
 ```
 
 ### Run backend
@@ -83,8 +83,7 @@ make nginx-proxy-k8s
 
 Add the following line to your /etc/hosts
 ```bash
-127.0.0.1 model-platform-registry.com
-127.0.0.1 model-platform-deployments.com
+127.0.0.1 model-platform.com
 ```
 
 Then run the following command and keep it running!!!
