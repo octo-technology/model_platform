@@ -1,10 +1,10 @@
-GET http://0.0.0.0:8001/Project 11/models/list
+GET http://0.0.0.0:8001/foo/models/list
 
 ###
 GET http://0.0.0.0:8001/Project 11/models/mlflow_explo_titanic/versions
 
 ###
-GET http://0.0.0.0:8001/Project 11/models/deploy/mlflow_explo_titanic/1
+GET http://0.0.0.0:8001/foo/models/deploy/mlflow_explo_titanic/1
 
 ###
 GET http://0.0.0.0:8001/Project 11/models/task-status/c3c0ef14-de66-41f1-86a0-449f61dba2ed

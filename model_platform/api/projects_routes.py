@@ -1,7 +1,12 @@
 from fastapi import APIRouter, Depends, Request
 
 from model_platform.domain.entities.project import Project
-from model_platform.domain.use_cases.projects_usecases import add_project, get_project_info, list_projects
+from model_platform.domain.use_cases.projects_usecases import (
+    add_project,
+    get_project_info,
+    list_projects,
+    remove_project,
+)
 from model_platform.infrastructure.project_sqlite_db_handler import ProjectSQLiteDBHandler
 
 router = APIRouter()
@@ -28,3 +33,10 @@ def route_add_project(
     project: Project, project_sqlite_db_handler: ProjectSQLiteDBHandler = Depends(get_project_sqlite_db_handler)
 ):
     return add_project(project_db_handler=project_sqlite_db_handler, project=project)
+
+
+@router.get("/{project_name}/remove")
+def route_remove_project(
+    project_name: str, project_sqlite_db_handler: ProjectSQLiteDBHandler = Depends(get_project_sqlite_db_handler)
+):
+    return remove_project(project_db_handler=project_sqlite_db_handler, project_name=project_name)

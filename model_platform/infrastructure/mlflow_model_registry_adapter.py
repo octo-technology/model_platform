@@ -5,6 +5,7 @@ This module provides an adapter for interacting with the MLFlow Model Registry.
 
 import os
 
+import mlflow
 from loguru import logger
 from mlflow import MlflowClient
 from mlflow.entities import FileInfo
@@ -103,6 +104,7 @@ class MLFlowModelRegistryAdapter(ModelRegistry):
         return self.mlflow_client.download_artifacts(run_id, artifacts_path, destination_path)
 
     def download_model_artifacts(self, model_name: str, version: str, destination_path: str) -> str:
+        mlflow.set_tracking_uri(self.mlflow_client_manager.tracking_uri)
         run_id = self._get_model_run_id(model_name, version)
         logger.info(f"Downloading model artefacts for run_id: {run_id}")
         artifacts_path: str = self._get_model_artifacts_path(run_id)

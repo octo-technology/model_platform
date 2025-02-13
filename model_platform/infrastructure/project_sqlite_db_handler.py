@@ -72,6 +72,15 @@ class ProjectSQLiteDBHandler(ProjectDbHandler):
             # Fermeture de la connexion
             connection.close()
 
+    def remove_project(self, name):
+        connection = sqlite3.connect(self.db_path)
+        try:
+            cursor = connection.cursor()
+            cursor.execute("DELETE FROM projects where name = ?", (name,))
+            connection.commit()
+        finally:
+            connection.close()
+
     def _init_table_project_if_not_exists(self):
         connection = sqlite3.connect(self.db_path)
         try:

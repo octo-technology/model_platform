@@ -50,7 +50,9 @@ def copy_fast_api_template_to_tmp_docker_folder(dest_path: str) -> None:
     shutil.copy(src_path, dest_path)
 
 
-def prepare_docker_context(registry: MLFlowModelRegistryAdapter, model_name: str, version: str) -> str:
+def prepare_docker_context(
+    registry: MLFlowModelRegistryAdapter, project_name: str, model_name: str, version: str
+) -> str:
     """
     Prepares the Docker context by creating a temporary directory, copying the FastAPI template,
     and downloading the model artifacts.
@@ -64,7 +66,7 @@ def prepare_docker_context(registry: MLFlowModelRegistryAdapter, model_name: str
         str: The path to the prepared Docker context.
     """
     timestamp_id: int = int(time.time())
-    dest_model_files = f"{timestamp_id}_{model_name}_{version}"
+    dest_model_files = f"{timestamp_id}_{project_name}_{model_name}_{version}"
     path_dest = os.path.join(PROJECT_DIR, "tmp", dest_model_files)
     recreate_directory(path_dest)
     copy_fast_api_template_to_tmp_docker_folder(path_dest)
@@ -100,21 +102,23 @@ def clean_build_context(context_path: str) -> None:
 
 
 def generate_and_build_and_clean_docker_image(
-    registry: MLFlowModelRegistryAdapter, model_name: str, version: str
+    registry: MLFlowModelRegistryAdapter, project_name: str, model_name: str, version: str
 ) -> str:
     """
     Generates and builds a Docker image for the specified model and version.
 
     Args:
         registry (MLFlowModelRegistryAdapter): The model registry adapter to use for downloading model artifacts.
+        project_name: The name of the project.
         model_name (str): The name of the model.
         version (str): The version of the model.
 
     Returns:
         str: The name of the built Docker image.
+
     """
-    context_path: str = prepare_docker_context(registry, model_name, version)
-    image_name: str = f"{model_name}_{version}_ctr"
+    context_path: str = prepare_docker_context(registry, project_name, model_name, version)
+    image_name: str = f"{project_name}_{model_name}_{version}_ctr"
     build_docker_image_from_context_path(context_path, image_name)
     clean_build_context(context_path)
     return image_name

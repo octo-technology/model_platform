@@ -15,3 +15,7 @@ class ProjectDbHandler(ABC):
     @abstractmethod
     def add_project(self, project: Project) -> None:
         pass
+
+    @abstractmethod
+    def remove_project(self, name):
+        pass

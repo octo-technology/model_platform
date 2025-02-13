@@ -12,3 +12,19 @@ Content-Type: application/json
     "Embarked": "S"
   }
 }
+
+###
+POST http://model-platform.com/deploy/foo-mlflow-explo-titanic-1-deployment/predict
+Content-Type: application/json
+
+{
+  "inputs": {
+    "Pclass": 3,
+    "Sex": "male",
+    "Age": 22.0,
+    "SibSp": 1,
+    "Parch": 0,
+    "Fare": 7.25,
+    "Embarked": "S"
+  }
+}

@@ -94,3 +94,11 @@ Then run the following command and keep it running!!!
 ```bash
 minikube tunnel
 ```
+
+Set minikube docker build environment
+
+Copy th result of this commande to your .env file
+
+```bash
+minikube docker-env
+```

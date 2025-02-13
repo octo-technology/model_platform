@@ -17,6 +17,7 @@ from kubernetes.client.rest import ApiException
 from loguru import logger
 
 from model_platform.domain.ports.registry_deployment_handler import RegistryDeployment
+from model_platform.dot_env import DotEnv
 from model_platform.utils import sanitize_name
 
 
@@ -41,8 +42,6 @@ class K8SRegistryDeployment(RegistryDeployment):
             self._create_ingres_deployment(
                 project_name,
             )
-        else:
-            self._add_path_to_ingress(project_name)
 
     def _check_if_ingress_exists(self):
         try:
@@ -129,8 +128,8 @@ class K8SRegistryDeployment(RegistryDeployment):
     def _create_ingres_deployment(self, project_name: str):
         paths = [
             V1HTTPIngressPath(
-                path=f"/{self.sub_path}/{project_name}/",
-                path_type="Prefix",
+                path=f"/{self.sub_path}/",
+                path_type="ImplementationSpecific",
                 backend=V1IngressBackend(
                     service=V1IngressServiceBackend(name="nginx-reverse-proxy", port=V1ServiceBackendPort(number=80))
                 ),
@@ -157,26 +156,30 @@ class K8SRegistryDeployment(RegistryDeployment):
             else:
                 logger.info(f"⚠️ Error while creating/updating the ingress: {e}")
 
-    def _add_path_to_ingress(self, project_name: str):
-        existing_ingress = self.ingress_api_instance.read_namespaced_ingress(self.ingress_name, self.namespace)
-        existing_paths = existing_ingress.spec.rules[0].http.paths if existing_ingress.spec.rules else []
-        new_paths = [
-            V1HTTPIngressPath(
-                path=f"/{self.sub_path}/{project_name}/",
-                path_type="Prefix",
-                backend=client.V1IngressBackend(
-                    service=client.V1IngressServiceBackend(
-                        name="nginx-reverse-proxy", port=client.V1ServiceBackendPort(number=80)
-                    )
-                ),
-            )
-        ]
-        if new_paths:
-            existing_paths.extend(new_paths)
-            ingress_patch = {"spec": {"rules": [{"host": self.host_name, "http": {"paths": existing_paths}}]}}
-            self.ingress_api_instance.patch_namespaced_ingress(
-                name=self.ingress_name, namespace=self.namespace, body=ingress_patch
-            )
-            logger.info(f"✅ Ingress {self.host_name} successfully updated with new paths!")
-        else:
-            logger.info(f"ℹ️ No new paths to add. Ingress {self.host_name} remains unchanged.")
+    def remove_mlflow_deployment(self, project_name: str):
+        """Supprime le déploiement et le service Kubernetes associés à MLflow pour un project donné."""
+        project_name = sanitize_name(project_name)
+
+        try:
+            self.apps_api_instance.delete_namespaced_deployment(name=project_name, namespace=self.namespace)
+            logger.info(f"✅ Deployment {project_name} successfully deleted!")
+        except ApiException as e:
+            if e.status == 404:
+                logger.info(f"ℹ️ Deployment {project_name} not found, skipping deletion.")
+            else:
+                logger.error(f"⚠️ Error while deleting deployment {project_name}: {e}")
+
+        try:
+            self.service_api_instance.delete_namespaced_service(name=project_name, namespace=self.namespace)
+            logger.info(f"✅ Service {project_name} successfully deleted!")
+        except ApiException as e:
+            if e.status == 404:
+                logger.info(f"ℹ️ Service {project_name} not found, skipping deletion.")
+            else:
+                logger.error(f"⚠️ Error while deleting service {project_name}: {e}")
+
+
+if __name__ == "__main__":
+    DotEnv()
+    k8s_registry_deployment = K8SRegistryDeployment()
+    k8s_registry_deployment.create_registry_deployment("foo")

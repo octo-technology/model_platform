@@ -4,99 +4,101 @@ metadata:
   name: nginx-config
 data:
   nginx.conf: |
-   events {}
-    http {
-        error_log /var/log/nginx/error.log debug;
-        resolver 10.96.0.10 valid=10s;
-        resolver_timeout 5s;
+    events {}
+     http {
+         error_log /var/log/nginx/error.log debug;
+         resolver 10.96.0.10 valid=10s;
+         resolver_timeout 5s;
 
-        server {
-            listen 80;
+         server {
+             listen 80;
 
-            location ~ ^/registry/([^/]+)(/ajax-api/.*)$ {
+             location ~ ^/registry/([^/]+)(/ajax-api/.*)$ {
+                 set $project_name $1;
+                 set $api_path $2;
+
+                 # Debug Headers
+                 add_header X-Debug-Project-Name $project_name;
+                 add_header X-Debug-API-Path $api_path;
+                 add_header X-Debug-Request-URI $request_uri;
+
+                 # Pass URL with query parameters to the backend
+                 proxy_pass http://$project_name.default.svc.cluster.local:5000$api_path$is_args$args;
+
+                 proxy_set_header Host $host;
+                 proxy_set_header X-Real-IP $remote_addr;
+                 proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                 proxy_set_header X-Forwarded-Proto $scheme;
+                 proxy_http_version 1.1;
+                 proxy_set_header Upgrade $http_upgrade;
+                 proxy_set_header Connection "upgrade";
+                 proxy_read_timeout 86400;
+             }
+
+             location ~ ^/registry/([^/]+)(/api/.*)$ {
+                 set $project_name $1;
+                 set $api_path $2;
+
+                 # Debug Headers
+                 add_header X-Debug-Project-Name $project_name;
+                 add_header X-Debug-API-Path $api_path;
+                 add_header X-Debug-Request-URI $request_uri;
+
+                 # Redirection uniquement pour l'API
+                 proxy_pass http://$project_name.default.svc.cluster.local:5000$api_path$is_args$args;
+
+                 proxy_set_header Host $host;
+                 proxy_set_header X-Real-IP $remote_addr;
+                 proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                 proxy_set_header X-Forwarded-Proto $scheme;
+                 proxy_http_version 1.1;
+                 proxy_set_header Upgrade $http_upgrade;
+                 proxy_set_header Connection "upgrade";
+                 proxy_read_timeout 86400;
+             }
+
+             location ~ ^/registry/([^/]+)(/.*)?$ {
+                 set $project_name $1;
+                 set $mlflow_path $2;
+
+                 # Debug Headers
+                 add_header X-Debug-Project-Name $project_name;
+                 add_header X-Debug-MLflow-Path $mlflow_path;
+                 add_header X-Debug-Request-URI $request_uri;
+
+                 # Redirection vers l'UI MLflow
+                 proxy_pass http://$project_name.default.svc.cluster.local:5000$mlflow_path;
+
+                 proxy_set_header Host $host;
+                 proxy_set_header X-Real-IP $remote_addr;
+                 proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                 proxy_set_header X-Forwarded-Proto $scheme;
+                 proxy_http_version 1.1;
+                 proxy_set_header Upgrade $http_upgrade;
+                 proxy_set_header Connection "upgrade";
+                 proxy_read_timeout 86400;
+             }
+
+             location ~ ^/registry/([^/]+)/api/2.0/mlflow-artifacts/(.*)$ {
                 set $project_name $1;
-                set $api_path $2;
+                set $artifact_path $2;
 
                 # Debug Headers
                 add_header X-Debug-Project-Name $project_name;
-                add_header X-Debug-API-Path $api_path;
+                add_header X-Debug-Artifact-Path $artifact_path;
                 add_header X-Debug-Request-URI $request_uri;
 
-                # Pass URL with query parameters to the backend
-                proxy_pass http://$project_name.default.svc.cluster.local:5000$api_path$is_args$args;
+                proxy_pass http://$project_name.default.svc.cluster.local:5000/api/2.0/mlflow-artifacts/$artifact_path$is_args$args;
 
                 proxy_set_header Host $host;
                 proxy_set_header X-Real-IP $remote_addr;
                 proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
                 proxy_set_header X-Forwarded-Proto $scheme;
+                proxy_buffering off;
+                proxy_request_buffering off;
                 proxy_http_version 1.1;
-                proxy_set_header Upgrade $http_upgrade;
-                proxy_set_header Connection "upgrade";
-                proxy_read_timeout 86400;
+                proxy_read_timeout 600;
             }
 
-            location ~ ^/registry/([^/]+)(/api/.*)$ {
-                set $project_name $1;
-                set $api_path $2;
 
-                # Debug Headers
-                add_header X-Debug-Project-Name $project_name;
-                add_header X-Debug-API-Path $api_path;
-                add_header X-Debug-Request-URI $request_uri;
-
-                # Redirection uniquement pour l'API
-                proxy_pass http://$project_name.default.svc.cluster.local:5000$api_path$is_args$args;
-
-                proxy_set_header Host $host;
-                proxy_set_header X-Real-IP $remote_addr;
-                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                proxy_set_header X-Forwarded-Proto $scheme;
-                proxy_http_version 1.1;
-                proxy_set_header Upgrade $http_upgrade;
-                proxy_set_header Connection "upgrade";
-                proxy_read_timeout 86400;
-            }
-
-            location ~ ^/registry/([^/]+)(/.*)?$ {
-                set $project_name $1;
-                set $mlflow_path $2;
-
-                # Debug Headers
-                add_header X-Debug-Project-Name $project_name;
-                add_header X-Debug-MLflow-Path $mlflow_path;
-                add_header X-Debug-Request-URI $request_uri;
-
-                # Redirection vers l'UI MLflow
-                proxy_pass http://$project_name.default.svc.cluster.local:5000$mlflow_path;
-
-                proxy_set_header Host $host;
-                proxy_set_header X-Real-IP $remote_addr;
-                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                proxy_set_header X-Forwarded-Proto $scheme;
-                proxy_http_version 1.1;
-                proxy_set_header Upgrade $http_upgrade;
-                proxy_set_header Connection "upgrade";
-                proxy_read_timeout 86400;
-            }
-
-            location ~ ^/registry/([^/]+)/api/2.0/mlflow-artifacts/(.*)$ {
-               set $project_name $1;
-               set $artifact_path $2;
-
-               # Debug Headers
-               add_header X-Debug-Project-Name $project_name;
-               add_header X-Debug-Artifact-Path $artifact_path;
-               add_header X-Debug-Request-URI $request_uri;
-
-               proxy_pass http://$project_name.default.svc.cluster.local:5000/api/2.0/mlflow-artifacts/$artifact_path$is_args$args;
-
-               proxy_set_header Host $host;
-               proxy_set_header X-Real-IP $remote_addr;
-               proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-               proxy_set_header X-Forwarded-Proto $scheme;
-               proxy_buffering off;
-               proxy_request_buffering off;
-               proxy_http_version 1.1;
-               proxy_read_timeout 600;
-           }
-    }
+      }}

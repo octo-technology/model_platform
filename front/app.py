@@ -27,12 +27,11 @@ status_colors = {"healthy": "🟢", "unhealthy": "🟠", "unreachable": "🔴"}
 status = check_url_health(HEALTH_ENDPOINT)
 st.sidebar.markdown(f"{status_colors[status]} {status.capitalize()}")
 
-
 if st.session_state["selected_project"]:
     st.sidebar.title("Registry status")
     status_colors = {"healthy": "🟢", "unhealthy": "🟠", "unreachable": "🔴"}
     project_name = st.session_state["selected_project"]
-    status = check_url_health(
+    project_registry_url = (
         "http://"
         + os.environ["MP_HOST_NAME"]
         + "/"
@@ -40,4 +39,6 @@ if st.session_state["selected_project"]:
         + "/"
         + sanitize_name(project_name)
     )
+    status = check_url_health(project_registry_url)
     st.sidebar.markdown(f"{status_colors[status]} {status.capitalize()}")
+    st.sidebar.link_button("Project registry homepage", project_registry_url)

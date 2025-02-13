@@ -130,7 +130,7 @@ def route_deploy(
     tasks_status[task_id] = "queued"
     logging.info(f"Deploying {model_name}:{version} with task_id: {task_id}")
     decorated_task = track_task_status(task_id, tasks_status)(generate_and_build_and_clean_docker_image)
-    background_tasks.add_task(decorated_task, registry, model_name, version)
+    background_tasks.add_task(decorated_task, registry, project_name, model_name, version)
 
     return {"task_id": task_id, "status": "Deployment initiated"}
 
