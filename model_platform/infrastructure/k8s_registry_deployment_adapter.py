@@ -133,7 +133,14 @@ class K8SRegistryDeployment(RegistryDeployment):
                 backend=V1IngressBackend(
                     service=V1IngressServiceBackend(name="nginx-reverse-proxy", port=V1ServiceBackendPort(number=80))
                 ),
-            )
+            ),
+            V1HTTPIngressPath(
+                path="/deploy/",
+                path_type="ImplementationSpecific",
+                backend=V1IngressBackend(
+                    service=V1IngressServiceBackend(name="nginx-reverse-proxy", port=V1ServiceBackendPort(number=80))
+                ),
+            ),
         ]
 
         ingress = V1Ingress(
