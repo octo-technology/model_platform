@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: registry-ingress
+  namespace: default
+spec:
+  rules:
+  - host: model-platform.com
+    http:
+      paths:
+      - path: "/registry/"
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: nginx-reverse-proxy
+            port:
+              number: 80
+      - path: "/deploy/"
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: nginx-reverse-proxy
+            port:
+              number: 80

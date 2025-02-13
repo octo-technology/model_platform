@@ -112,7 +112,7 @@ data:
                 resolver kube-dns.kube-system.svc.cluster.local valid=10s;
 
                 # Redirection vers le service Kubernetes avec gestion d'erreur
-                proxy_pass http://$deployment_name.models.svc.cluster.local:8000/predict;
+                proxy_pass http://$deployment_name.deploy.svc.cluster.local:8000/predict;
 
                 proxy_set_header Host $host;
                 proxy_set_header X-Real-IP $remote_addr;

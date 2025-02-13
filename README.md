@@ -78,7 +78,7 @@ minikube addons enable ingress
 
 Deploy nginx reverse proxy
 ```bash
-make nginx-proxy-k8s
+make k8s-network-conf
 ```
 
 Add the following line to your /etc/hosts
