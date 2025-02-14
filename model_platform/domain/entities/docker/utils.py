@@ -19,7 +19,8 @@ def _display_docker_build_logs(build_logs):
 
 
 def build_image_from_context(context_dir: str, image_name: str) -> int:
-    logger.info(f'Process will use DOCKER_HOST= {os.environ["DOCKER_HOST"]} to build image')
+    docker_host = os.environ.get("DOCKER_HOST")
+    logger.info(f"Process will use DOCKER_HOST= {docker_host} to build image")
     try:
         client = docker.from_env()
         logger.info("Connected to docker env")
