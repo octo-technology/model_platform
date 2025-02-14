@@ -12,19 +12,32 @@ from model_platform.utils import sanitize_name
 
 class K8SRegistryDeployment(RegistryDeployment):
 
-    def __init__(self):
+    def __init__(self, project_name: str):
         config.load_kube_config()
         self.service_api_instance: CoreV1Api = client.CoreV1Api()
         self.apps_api_instance: AppsV1Api = client.AppsV1Api()
         self.host_name = os.environ["MP_HOST_NAME"]
         self.sub_path = os.environ["MP_REGISTRY_PATH"]
         self.port = int(os.environ["MP_REGISTRY_PORT"])
-        self.namespace = "default"
+        self.namespace = sanitize_name(project_name)
+        self.project_name = sanitize_name(project_name)
 
-    def create_registry_deployment(self, project_name: str):
-        project_name = sanitize_name(project_name)
-        self._create_or_update_service(project_name)
-        self._create_or_update_mlflow_deployment(project_name)
+    def create_registry_deployment(self):
+        self._create_or_update_namespace()
+        self._create_or_update_service(self.project_name)
+        self._create_or_update_mlflow_deployment(self.project_name)
+
+    def _create_or_update_namespace(self):
+        try:
+            self.service_api_instance.read_namespace(self.namespace)
+            logger.info(f"ℹ️ Namespace {self.namespace} already exists.")
+        except ApiException as e:
+            if e.status == 404:
+                namespace = client.V1Namespace(metadata=client.V1ObjectMeta(name=self.namespace))
+                self.service_api_instance.create_namespace(namespace)
+                logger.info(f"✅ Namespace {self.namespace} successfully created!")
+            else:
+                logger.error(f"⚠️ Error while checking/creating the namespace: {e}")
 
     def _create_or_update_service(self, project_name: str):
         service = client.V1Service(
@@ -95,30 +108,24 @@ class K8SRegistryDeployment(RegistryDeployment):
             else:
                 logger.info(f"⚠️ Error while creating/updating the deployment: {e}")
 
-    def remove_mlflow_deployment(self, project_name: str):
-        """Supprime le déploiement et le service Kubernetes associés à MLflow pour un project donné."""
-        project_name = sanitize_name(project_name)
-
+    def delete_namespace(self):
         try:
-            self.apps_api_instance.delete_namespaced_deployment(name=project_name, namespace=self.namespace)
-            logger.info(f"✅ Deployment {project_name} successfully deleted!")
+            # Vérifier si le namespace existe
+            self.service_api_instance.read_namespace(name=self.namespace)
+            logger.info(f"ℹ️ Namespace {self.namespace} trouvé, suppression en cours...")
+
+            # Supprimer le namespace
+            self.service_api_instance.delete_namespace(name=self.namespace)
+            logger.info(f"✅ Namespace {self.namespace} supprimé avec succès!")
+
         except ApiException as e:
             if e.status == 404:
-                logger.info(f"ℹ️ Deployment {project_name} not found, skipping deletion.")
+                logger.info(f"ℹ️ Namespace {self.namespace} introuvable, rien à supprimer.")
             else:
-                logger.error(f"⚠️ Error while deleting deployment {project_name}: {e}")
-
-        try:
-            self.service_api_instance.delete_namespaced_service(name=project_name, namespace=self.namespace)
-            logger.info(f"✅ Service {project_name} successfully deleted!")
-        except ApiException as e:
-            if e.status == 404:
-                logger.info(f"ℹ️ Service {project_name} not found, skipping deletion.")
-            else:
-                logger.error(f"⚠️ Error while deleting service {project_name}: {e}")
+                logger.error(f"⚠️ Erreur lors de la suppression du namespace {self.namespace}: {e}")
 
 
 if __name__ == "__main__":
     DotEnv()
-    k8s_registry_deployment = K8SRegistryDeployment()
-    k8s_registry_deployment.create_registry_deployment("foo")
+    k8s_registry_deployment = K8SRegistryDeployment(project_name="test")
+    k8s_registry_deployment.delete_namespace()

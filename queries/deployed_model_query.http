@@ -33,4 +33,20 @@ Content-Type: application/json
 GET http://model-platform.com/deploy/test-mlflow-explo-titanic-1-deployment/health
 
 ###
-GET http://model-platform.com/deploy/test-test-model-1-deployment/health
+GET http://model-platform.com/deploy/test/test-test-model-1-deployment/predict
+
+###
+POST http://model-platform.com/deploy/test/test-test-model-1-deployment/predict
+Content-Type: application/json
+
+{
+  "inputs": {
+    "Pclass": 3,
+    "Sex": "male",
+    "Age": 22.0,
+    "SibSp": 1,
+    "Parch": 0,
+    "Fare": 7.25,
+    "Embarked": "S"
+  }
+}

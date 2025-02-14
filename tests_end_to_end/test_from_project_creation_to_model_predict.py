@@ -136,6 +136,7 @@ def test_project_list_should_return_created_project():
 
 def test_project_should_have_responding_mlflow_registry():
     status_project_registry = requests.get(f"http://model-platform.com/registry/{PROJECT_NAME}/")
+    time.sleep(30)
     assert status_project_registry.status_code == 200
 
 
