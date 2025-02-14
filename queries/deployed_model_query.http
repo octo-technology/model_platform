@@ -14,7 +14,7 @@ Content-Type: application/json
 }
 
 ###
-POST http://model-platform.com/deploy/foo-mlflow-explo-titanic-1-deployment/predict
+POST http://model-platform.com/deploy/test-mlflow-explo-titanic-1-deployment/predict
 Content-Type: application/json
 
 {
@@ -28,3 +28,9 @@ Content-Type: application/json
     "Embarked": "S"
   }
 }
+
+###
+GET http://model-platform.com/deploy/test-mlflow-explo-titanic-1-deployment/health
+
+###
+GET http://model-platform.com/deploy/test-test-model-1-deployment/health

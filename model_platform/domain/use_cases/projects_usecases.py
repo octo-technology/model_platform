@@ -8,6 +8,10 @@ def list_projects(project_db_handler: ProjectDbHandler) -> list[dict]:
     return [project.to_json() for project in projects]
 
 
+def undeploy_all_projects_models(project_name: str) -> None:
+    pass
+
+
 def add_project(project_db_handler: ProjectDbHandler, project: Project) -> None:
     project_db_handler.add_project(project)
     deploy_registry(project.name)

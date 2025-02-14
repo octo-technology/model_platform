@@ -9,14 +9,14 @@ spec:
     http:
       paths:
       - path: "/registry/"
-        pathType: ImplementationSpecific
+        pathType: Prefix
         backend:
           service:
             name: nginx-reverse-proxy
             port:
               number: 80
       - path: "/deploy/"
-        pathType: ImplementationSpecific
+        pathType: Prefix
         backend:
           service:
             name: nginx-reverse-proxy
