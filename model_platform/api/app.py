@@ -3,6 +3,7 @@
 This module initializes the FastAPI application and includes the necessary routers.
 """
 
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -25,7 +26,7 @@ async def lifespan(app: FastAPI):
         The FastAPI application instance.
     """
     app.state.registry_pool = MLFlowHandlerAdapter()
-    app.state.project_sqlite_db_handler = ProjectSQLiteDBHandler(db_path="projects.db")
+    app.state.project_sqlite_db_handler = ProjectSQLiteDBHandler(db_path=os.environ["PROJECTS_DB_PATH"])
     app.state.task_status = {}
     app.state.registry_pool.start_cleaning_task(interval=60)
     yield

@@ -78,7 +78,7 @@ minikube addons enable ingress
 
 Deploy nginx reverse proxy
 ```bash
-make nginx-proxy-k8s
+make k8s-network-conf
 ```
 
 Add the following line to your /etc/hosts
@@ -93,4 +93,12 @@ IP.RESULT model-platform.com
 Then run the following command and keep it running!!!
 ```bash
 minikube tunnel
+```
+
+Set minikube docker build environment
+
+Copy th result of this commande to your .env file
+
+```bash
+minikube docker-env
 ```

@@ -1,63 +1,44 @@
 import os
 
 from kubernetes import client, config
-from kubernetes.client import (
-    AppsV1Api,
-    CoreV1Api,
-    V1HTTPIngressPath,
-    V1HTTPIngressRuleValue,
-    V1Ingress,
-    V1IngressBackend,
-    V1IngressRule,
-    V1IngressServiceBackend,
-    V1IngressSpec,
-    V1ServiceBackendPort,
-)
+from kubernetes.client import AppsV1Api, CoreV1Api
 from kubernetes.client.rest import ApiException
 from loguru import logger
 
-from model_platform.domain.ports.registry_deployment_handler import Deployment
+from model_platform.domain.ports.registry_deployment_handler import RegistryDeployment
 from model_platform.utils import sanitize_name
 
 
-class K8SDeployment(Deployment):
+class K8SRegistryDeployment(RegistryDeployment):
 
-    def __init__(self, ingress_name: str = "registry-ingress"):
+    def __init__(self, project_name: str):
         config.load_kube_config()
         self.service_api_instance: CoreV1Api = client.CoreV1Api()
         self.apps_api_instance: AppsV1Api = client.AppsV1Api()
-        self.ingress_api_instance: client.NetworkingV1Api = client.NetworkingV1Api()
-        self.ingress_name = ingress_name
         self.host_name = os.environ["MP_HOST_NAME"]
         self.sub_path = os.environ["MP_REGISTRY_PATH"]
         self.port = int(os.environ["MP_REGISTRY_PORT"])
-        self.namespace = "default"
+        self.namespace = sanitize_name(project_name)
+        self.project_name = sanitize_name(project_name)
 
-    def create_deployment(self, project_name: str):
-        project_name = sanitize_name(project_name)
-        self._create_or_update_service(project_name)
-        self._create_or_update_mlflow_deployment(project_name)
-        if not self._check_if_ingress_exists():
-            self._create_ingres_deployment(
-                project_name,
-            )
-        else:
-            self._add_path_to_ingress(project_name)
+    def create_registry_deployment(self):
+        self._create_or_update_namespace()
+        self._create_or_update_service(self.project_name)
+        self._create_or_update_mlflow_deployment(self.project_name)
 
-    def _check_if_ingress_exists(self):
+    def _create_or_update_namespace(self):
         try:
-            self.ingress_api_instance.read_namespaced_ingress(self.ingress_name, self.namespace)
-            logger.info(f"Ingress {self.ingress_name} already exists!")
-            return True
+            self.service_api_instance.read_namespace(self.namespace)
+            logger.info(f"ℹ️ Namespace {self.namespace} already exists.")
         except ApiException as e:
             if e.status == 404:
-                return False
+                namespace = client.V1Namespace(metadata=client.V1ObjectMeta(name=self.namespace))
+                self.service_api_instance.create_namespace(namespace)
+                logger.info(f"✅ Namespace {self.namespace} successfully created!")
             else:
-                logger.info(f"⚠️ Error while checking if ingress exists: {e}")
+                logger.error(f"⚠️ Error while checking/creating the namespace: {e}")
 
     def _create_or_update_service(self, project_name: str):
-        """Crée ou met à jour un service Kubernetes exposant MLflow."""
-
         service = client.V1Service(
             metadata=client.V1ObjectMeta(name=project_name),
             spec=client.V1ServiceSpec(
@@ -126,57 +107,18 @@ class K8SDeployment(Deployment):
             else:
                 logger.info(f"⚠️ Error while creating/updating the deployment: {e}")
 
-    def _create_ingres_deployment(self, project_name: str):
-        paths = [
-            V1HTTPIngressPath(
-                path=f"/{self.sub_path}/{project_name}/",
-                path_type="Prefix",
-                backend=V1IngressBackend(
-                    service=V1IngressServiceBackend(name="nginx-reverse-proxy", port=V1ServiceBackendPort(number=80))
-                ),
-            )
-        ]
-
-        ingress = V1Ingress(
-            api_version="networking.k8s.io/v1",
-            kind="Ingress",
-            metadata={"name": self.ingress_name},
-            spec=V1IngressSpec(
-                # ingress_class_name="nginx",
-                rules=[V1IngressRule(host=self.host_name, http=V1HTTPIngressRuleValue(paths=paths))],
-            ),
-        )
+    def delete_namespace(self):
         try:
-            self.ingress_api_instance.read_namespaced_ingress(self.ingress_name, self.namespace)
-            self.ingress_api_instance.replace_namespaced_ingress(self.ingress_name, self.namespace, ingress)
-            logger.info(f"✅ Ingress {self.host_name} successfully updated!")
+            # Vérifier si le namespace existe
+            self.service_api_instance.read_namespace(name=self.namespace)
+            logger.info(f"ℹ️ Namespace {self.namespace} trouvé, suppression en cours...")
+
+            # Supprimer le namespace
+            self.service_api_instance.delete_namespace(name=self.namespace)
+            logger.info(f"✅ Namespace {self.namespace} supprimé avec succès!")
+
         except ApiException as e:
             if e.status == 404:
-                self.ingress_api_instance.create_namespaced_ingress(namespace=self.namespace, body=ingress)
-                logger.info(f"✅ Ingress {self.host_name} successfully created!")
+                logger.info(f"ℹ️ Namespace {self.namespace} introuvable, rien à supprimer.")
             else:
-                logger.info(f"⚠️ Error while creating/updating the ingress: {e}")
-
-    def _add_path_to_ingress(self, project_name: str):
-        existing_ingress = self.ingress_api_instance.read_namespaced_ingress(self.ingress_name, self.namespace)
-        existing_paths = existing_ingress.spec.rules[0].http.paths if existing_ingress.spec.rules else []
-        new_paths = [
-            V1HTTPIngressPath(
-                path=f"/{self.sub_path}/{project_name}/",
-                path_type="Prefix",
-                backend=client.V1IngressBackend(
-                    service=client.V1IngressServiceBackend(
-                        name="nginx-reverse-proxy", port=client.V1ServiceBackendPort(number=80)
-                    )
-                ),
-            )
-        ]
-        if new_paths:
-            existing_paths.extend(new_paths)
-            ingress_patch = {"spec": {"rules": [{"host": self.host_name, "http": {"paths": existing_paths}}]}}
-            self.ingress_api_instance.patch_namespaced_ingress(
-                name=self.ingress_name, namespace=self.namespace, body=ingress_patch
-            )
-            logger.info(f"✅ Ingress {self.host_name} successfully updated with new paths!")
-        else:
-            logger.info(f"ℹ️ No new paths to add. Ingress {self.host_name} remains unchanged.")
+                logger.error(f"⚠️ Erreur lors de la suppression du namespace {self.namespace}: {e}")

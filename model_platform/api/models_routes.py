@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse
 from model_platform.domain.entities.docker.task_build_statuses import TaskBuildStatuses
 from model_platform.domain.ports.model_registry import ModelRegistry
 from model_platform.domain.ports.registry_handler import RegistryHandler
-from model_platform.domain.use_cases.generate_and_build_image import generate_and_build_and_clean_docker_image
+from model_platform.domain.use_cases.deploy_model import deploy_model, remove_model_deployment
 from model_platform.utils import sanitize_name
 
 router = APIRouter()
@@ -59,7 +59,7 @@ def track_task_status(task_id: str, tasks_status: dict):
             try:
                 tasks_status[task_id] = TaskBuildStatuses.in_progress
                 result = func(*args, **kwargs)
-                tasks_status[task_id] = TaskBuildStatuses.in_progress
+                tasks_status[task_id] = TaskBuildStatuses.completed
                 # Only works if in memory task tracker. In multiple runners, we need to retrieve the status from the
                 # worker
                 return result
@@ -129,10 +129,15 @@ def route_deploy(
     task_id = str(uuid.uuid4())
     tasks_status[task_id] = "queued"
     logging.info(f"Deploying {model_name}:{version} with task_id: {task_id}")
-    decorated_task = track_task_status(task_id, tasks_status)(generate_and_build_and_clean_docker_image)
-    background_tasks.add_task(decorated_task, registry, model_name, version)
+    decorated_task = track_task_status(task_id, tasks_status)(deploy_model)
+    background_tasks.add_task(decorated_task, registry, project_name, model_name, version)
 
     return {"task_id": task_id, "status": "Deployment initiated"}
+
+
+@router.get("/undeploy/{model_name}/{version}")
+def route_undeploy(project_name: str, model_name: str, version: str):
+    remove_model_deployment(project_name, model_name, version)
 
 
 @router.get("/task-status/{task_id}")

@@ -7,7 +7,7 @@ from fastapi import FastAPI, HTTPException
 from loguru import logger
 from pydantic import BaseModel
 
-model = pickle.load(open("/opt/mlflow/python_model.pkl", "rb"))
+model = pickle.load(open("/opt/mlflow/model.pkl", "rb"))
 logger.info("Model loaded successfully")
 app = FastAPI(reload=True)
 
@@ -33,3 +33,8 @@ async def predict(request: PredictionRequest):
         return PredictionResponse(predictions=model_predict)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy"}

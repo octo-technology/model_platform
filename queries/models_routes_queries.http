@@ -1,10 +1,14 @@
-GET http://0.0.0.0:8001/Project 11/models/list
+GET http://0.0.0.0:8001/test/models/list
 
 ###
-GET http://0.0.0.0:8001/Project 11/models/mlflow_explo_titanic/versions
+GET http://0.0.0.0:8001/test/models/test_model/versions
 
 ###
-GET http://0.0.0.0:8001/Project 11/models/deploy/mlflow_explo_titanic/4
+GET http://0.0.0.0:8001/test/models/deploy/mlflow_explo_titanic/1
 
 ###
-GET http://0.0.0.0:8001/Project 11/models/task-status/032e8bfe-6829-4b17-9bb9-3d045729fdf7
+GET http://0.0.0.0:8001/foo/models/undeploy/mlflow_explo_titanic/1
+
+
+###
+GET http://0.0.0.0:8001/Project 11/models/task-status/c3c0ef14-de66-41f1-86a0-449f61dba2ed
