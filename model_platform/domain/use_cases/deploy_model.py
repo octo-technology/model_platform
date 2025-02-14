@@ -30,4 +30,4 @@ def remove_model_deployment(project_name: str, model_name: str, version: str) ->
 
     """
     k8s_deployment = K8SModelDeployment(project_name, model_name, version)
-    k8s_deployment.delete_model_deployment(project_name, model_name, version)
+    k8s_deployment.delete_model_deployment()

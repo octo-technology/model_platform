@@ -6,7 +6,6 @@ from kubernetes.client.rest import ApiException
 from loguru import logger
 
 from model_platform.domain.ports.registry_deployment_handler import RegistryDeployment
-from model_platform.dot_env import DotEnv
 from model_platform.utils import sanitize_name
 
 
@@ -123,9 +122,3 @@ class K8SRegistryDeployment(RegistryDeployment):
                 logger.info(f"ℹ️ Namespace {self.namespace} introuvable, rien à supprimer.")
             else:
                 logger.error(f"⚠️ Erreur lors de la suppression du namespace {self.namespace}: {e}")
-
-
-if __name__ == "__main__":
-    DotEnv()
-    k8s_registry_deployment = K8SRegistryDeployment(project_name="test")
-    k8s_registry_deployment.delete_namespace()

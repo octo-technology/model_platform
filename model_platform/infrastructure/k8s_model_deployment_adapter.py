@@ -9,7 +9,6 @@ from kubernetes.client.rest import ApiException
 from loguru import logger
 
 from model_platform.domain.ports.model_deployment_handler import ModelDeployment
-from model_platform.dot_env import DotEnv
 from model_platform.utils import sanitize_name
 
 
@@ -123,9 +122,3 @@ class K8SModelDeployment(ModelDeployment):
                 logger.warning(f"⚠️ Deployment {self.service_name} not found, nothing to delete.")
             else:
                 logger.error(f"⚠️ Error while deleting deployment {self.service_name}: {e}")
-
-
-if __name__ == "__main__":
-    DotEnv()
-    k8s_registry_deployment = K8SModelDeployment(project_name="test", model_name="test_model", version="1")
-    k8s_registry_deployment.create_model_deployment()

@@ -45,7 +45,7 @@ data:
                  add_header X-Debug-Request-URI $request_uri;
 
                  # Redirection uniquement pour l'API
-                 proxy_pass http://$project_name.default.svc.cluster.local:5000$api_path$is_args$args;
+                 proxy_pass http://$project_name.$project_name.svc.cluster.local:5000$api_path$is_args$args;
 
                  proxy_set_header Host $host;
                  proxy_set_header X-Real-IP $remote_addr;

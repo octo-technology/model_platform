@@ -177,7 +177,9 @@ def test_deploy_model_should_deploy_healthy_model():
         status = json_result["status"]
         time.sleep(5)
     time.sleep(60)
-    deploy_status = requests.get(f"http://model-platform.com/deploy/{PROJECT_NAME}-{model_name}-1-deployment/health")
+    deploy_status = requests.get(
+        f"http://model-platform.com/deploy/{PROJECT_NAME}/{PROJECT_NAME}-{model_name}-1-deployment/health"
+    )
     assert deploy_status.status_code == 200
     assert json.loads(deploy_status.text)["status"] == "healthy"
 
@@ -187,7 +189,9 @@ def test_undeploy_model_should_undeploy_correctly():
     status_query = requests.get(f"http://localhost:8001/{PROJECT_NAME}/models/undeploy/{MODEL_NAME}/1")
     assert status_query.status_code == 200
     time.sleep(60)
-    deploy_status = requests.get(f"http://model-platform.com/deploy/{PROJECT_NAME}-{model_name}-1-deployment/health")
+    deploy_status = requests.get(
+        f"http://model-platform.com/deploy/{PROJECT_NAME}/{PROJECT_NAME}-{model_name}-1-deployment/health"
+    )
     assert deploy_status.status_code == 502
 
 
