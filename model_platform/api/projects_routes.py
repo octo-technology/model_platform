@@ -7,6 +7,7 @@ from model_platform.domain.use_cases.projects_usecases import (
     list_projects,
     remove_project,
 )
+from model_platform.infrastructure.log_model_deploy_sqlite_adapter import SQLiteLogModelDeployment
 from model_platform.infrastructure.project_sqlite_db_handler import ProjectSQLiteDBHandler
 
 router = APIRouter()
@@ -14,6 +15,10 @@ router = APIRouter()
 
 def get_project_sqlite_db_handler(request: Request):
     return request.app.state.project_sqlite_db_handler
+
+
+def get_deployed_models_sqlite_handler(request: Request) -> SQLiteLogModelDeployment:
+    return request.app.state.deployed_models_db
 
 
 @router.get("/list")
@@ -37,6 +42,8 @@ def route_add_project(
 
 @router.get("/{project_name}/remove")
 def route_remove_project(
-    project_name: str, project_sqlite_db_handler: ProjectSQLiteDBHandler = Depends(get_project_sqlite_db_handler)
+    project_name: str,
+    project_sqlite_db_handler: ProjectSQLiteDBHandler = Depends(get_project_sqlite_db_handler),
+    deployed_models_sqlite_handler=Depends(get_deployed_models_sqlite_handler),
 ):
-    return remove_project(project_db_handler=project_sqlite_db_handler, project_name=project_name)
+    return remove_project(project_sqlite_db_handler, deployed_models_sqlite_handler, project_name=project_name)

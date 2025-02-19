@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from model_platform.api import deployed_models_routes, health_check, models_routes, projects_routes
+from model_platform.infrastructure.log_model_deploy_sqlite_adapter import SQLiteLogModelDeployment
 from model_platform.infrastructure.mlflow_handler_adapter import MLFlowHandlerAdapter
 from model_platform.infrastructure.project_sqlite_db_handler import ProjectSQLiteDBHandler
 
@@ -29,6 +30,7 @@ async def lifespan(app: FastAPI):
     app.state.project_sqlite_db_handler = ProjectSQLiteDBHandler(db_path=os.environ["PROJECTS_DB_PATH"])
     app.state.task_status = {}
     app.state.registry_pool.start_cleaning_task(interval=60)
+    app.state.deployed_models_db = SQLiteLogModelDeployment(db_path=os.environ["PROJECTS_DB_PATH"])
     yield
 
 

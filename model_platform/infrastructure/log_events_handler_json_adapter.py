@@ -4,6 +4,7 @@ This module provides an adapter of LogEventsHandler for json file storage.
 """
 
 import json
+import os
 import pathlib
 from os import listdir, path
 from typing import Optional
@@ -17,12 +18,10 @@ from model_platform.domain.ports.log_events_handler import LogEventsHandler
 class LogEventsHandlerJsonAdapter(LogEventsHandler):
     """Adapter for handling Log Events."""
 
-    # TODO Unit tests
-    # TODO Un seul gros fichier de logs / ou un fichier par jour (comme tu préfères)
-    def __init__(self, log_folder: str = None):
+    def __init__(self):
         """Initialize the LogEventsHandlerAdapter instance."""
         super().__init__()
-        self.events_folder = log_folder
+        self.events_folder = os.environ["PATH_LOG_EVENTS"]
         if not path.exists(self.events_folder):
             pathlib.Path(self.events_folder).mkdir(parents=True, exist_ok=True)
 
@@ -49,12 +48,19 @@ class LogEventsHandlerJsonAdapter(LogEventsHandler):
 
     def add_event(self, event: Event) -> bool:
         j = event.to_json()
-        file_name = path.join(self.events_folder, f"{event.timestamp}_{event.user}.json")
-
+        current_date = str(event.timestamp).split(" ")[0]
+        file_name = path.join(self.events_folder, f"events_logs_{current_date}.json")
         try:
             logger.info(f"Writing event to : {file_name}")
-            with open(file_name, "w") as f:
-                json.dump(j, f, indent=4)
+            if path.exists(file_name):
+                with open(file_name, "r+") as f:
+                    data = json.load(f)
+                    data.append(j)
+                    f.seek(0)
+                    json.dump(data, f, indent=4)
+            else:
+                with open(file_name, "w") as f:
+                    json.dump([j], f, indent=4)
             logger.info(f"Event written successfully to : {file_name}")
             return True
 
