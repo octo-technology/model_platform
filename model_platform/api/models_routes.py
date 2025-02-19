@@ -14,6 +14,7 @@ from model_platform.domain.entities.docker.task_build_statuses import TaskBuildS
 from model_platform.domain.ports.model_registry import ModelRegistry
 from model_platform.domain.ports.registry_handler import RegistryHandler
 from model_platform.domain.use_cases.deploy_model import deploy_model, remove_model_deployment
+from model_platform.domain.use_cases.deployed_models import remove_model_deployment_from_database
 from model_platform.utils import sanitize_name
 
 router = APIRouter()
@@ -94,6 +95,10 @@ def get_tasks_status(request: Request) -> dict:
     return request.app.state.task_status
 
 
+def get_deployed_models_sqlite_handler(request: Request):
+    return request.app.state.deployed_models_db
+
+
 @router.get("/list")
 def list_models(project_name: str, request: Request, registry_pool: RegistryHandler = Depends(get_registry_pool)):
     registry: ModelRegistry = registry_pool.get_registry_adapter(
@@ -122,6 +127,7 @@ def route_deploy(
     background_tasks: BackgroundTasks,
     registry_pool: RegistryHandler = Depends(get_registry_pool),
     tasks_status: dict = Depends(get_tasks_status),
+    deployed_models_sqlite_handler=Depends(get_deployed_models_sqlite_handler),
 ):
     registry: ModelRegistry = registry_pool.get_registry_adapter(
         project_name, get_project_registry_tracking_uri(project_name, request)
@@ -130,17 +136,35 @@ def route_deploy(
     tasks_status[task_id] = "queued"
     logging.info(f"Deploying {model_name}:{version} with task_id: {task_id}")
     decorated_task = track_task_status(task_id, tasks_status)(deploy_model)
-    background_tasks.add_task(decorated_task, registry, project_name, model_name, version)
+    background_tasks.add_task(
+        decorated_task, registry, deployed_models_sqlite_handler, project_name, model_name, version
+    )
 
     return {"task_id": task_id, "status": "Deployment initiated"}
 
 
 @router.get("/undeploy/{model_name}/{version}")
-def route_undeploy(project_name: str, model_name: str, version: str):
-    remove_model_deployment(project_name, model_name, version)
+def route_undeploy(
+    project_name: str,
+    model_name: str,
+    version: str,
+    deployed_models_sqlite_handler=Depends(get_deployed_models_sqlite_handler),
+):
+    remove_model_deployment(deployed_models_sqlite_handler, project_name, model_name, version)
 
 
 @router.get("/task-status/{task_id}")
 async def check_task_status(task_id: str, tasks_status: dict = Depends(get_tasks_status)):
     status = tasks_status.get(task_id, "not_found")
     return {"task_id": task_id, "status": status}
+
+
+@router.get("/remove/{model_name}/{version}")
+def remove_model_deployment_from_db(
+    project_name: str,
+    model_name: str,
+    version: str,
+    deployed_models_sqlite_handler=Depends(get_deployed_models_sqlite_handler),
+):
+    remove_model_deployment_from_database(deployed_models_sqlite_handler, project_name, model_name, version)
+    return {"status": f"Model deployment {project_name} {model_name} {version} removed from database"}

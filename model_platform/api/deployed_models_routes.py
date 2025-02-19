@@ -3,36 +3,19 @@
 This module provides endpoints for interacting with the model registry.
 """
 
-from datetime import datetime
+from fastapi import APIRouter, Depends, Request
 
-from fastapi import APIRouter
-from fastapi.responses import JSONResponse
+from model_platform.domain.use_cases.deployed_models import list_deployed_models_with_status_for_a_project
+from model_platform.infrastructure.log_model_deploy_sqlite_adapter import SQLiteLogModelDeployment
 
 router = APIRouter()
 
 
+def get_deployed_models_sqlite_handler(request: Request) -> SQLiteLogModelDeployment:
+    return request.app.state.deployed_models_db
+
+
 @router.get("/list")
-def list_models(project_name: str):
-    """Endpoint to list all registered models.
-
-    Parameters
-    ----------
-    registry : ModelRegistry, optional
-        The model registry adapter, by default Depends(get_model_registry)
-
-    Returns
-    -------
-    list[dict[str, str | int]]
-        A list of dictionaries containing model attributes.
-    """
-    return JSONResponse(
-        content=[
-            {
-                "name": "model 1",
-                "deployment_time_stamp": datetime.timestamp(datetime.now()),
-                "version": 0,
-                "uri": "https://get/a/prediction:8000/docs",
-            }
-        ],
-        media_type="application/json",
-    )
+def list_models(project_name: str, deployed_models_sqlite_handler=Depends(get_deployed_models_sqlite_handler)):
+    deployed_models = list_deployed_models_with_status_for_a_project(project_name, deployed_models_sqlite_handler)
+    return deployed_models

@@ -31,10 +31,12 @@ class K8SModelDeployment(ModelDeployment):
         self._create_or_update_namespace()
         self._create_or_update_model_service()
         self._create_model_service_deployment()
+        return self.service_name
 
     def delete_model_deployment(self):
-        logger.info(f"Deleting model deployment in {self.namespace} namespace")
-        self._delete_model_service_deployment()
+        logger.info(f"Deleting model deployment {self.service_name} in {self.namespace} namespace")
+        self._delete_model_deployment()
+        self._delete_model_service()
 
     def _create_or_update_namespace(self):
         """Crée un namespace si ce n'est pas déjà fait pour le project."""
@@ -108,7 +110,22 @@ class K8SModelDeployment(ModelDeployment):
             else:
                 logger.error(f"⚠️ Error while updating deployment {self.service_name}: {e}")
 
-    def _delete_model_service_deployment(self):
+    def _delete_model_service(self):
+        try:
+            self.service_api_instance.read_namespaced_service(self.service_name, self.namespace)
+            self.service_api_instance.delete_namespaced_service(
+                name=self.service_name,
+                namespace=self.namespace,
+                body=client.V1DeleteOptions(),
+            )
+            logger.info(f"✅ Deployment {self.service_name} successfully deleted!")
+        except ApiException as e:
+            if e.status == 404:
+                logger.warning(f"⚠️ Deployment {self.service_name} not found, nothing to delete.")
+            else:
+                logger.error(f"⚠️ Error while deleting deployment {self.service_name}: {e}")
+
+    def _delete_model_deployment(self):
         try:
             self.apps_api_instance.read_namespaced_deployment(self.service_name, self.namespace)
             self.apps_api_instance.delete_namespaced_deployment(
