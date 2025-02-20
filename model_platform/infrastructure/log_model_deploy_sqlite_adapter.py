@@ -112,3 +112,20 @@ class SQLiteLogModelDeployment(LogModelDeployment):
         except sqlite3.Error as e:
             logger.error(f"Error listing deployments: {e}")
             return []
+
+    def model_deployment_already_exists(self, project_name: str, model_name: str, version: str) -> bool:
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    SELECT * FROM model_deployments
+                    WHERE project_name = ? AND model_name = ? AND version = ?
+                """,
+                    (project_name, model_name, version),
+                )
+                results = cursor.fetchall()
+                return len(results) > 0
+        except sqlite3.Error as e:
+            logger.error(f"Error listing deployments: {e}")
+            return False

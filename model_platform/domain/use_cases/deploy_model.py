@@ -14,18 +14,19 @@ def deploy_model(
     model_name: str,
     version: str,
 ) -> None:
-    build_model_docker_image(registry, project_name, model_name, version)
-    k8s_deployment = K8SModelDeployment(project_name, model_name, version)
-    k8s_deployment.create_model_deployment()
-    deployment_name = k8s_deployment.service_name
-    model_deployment = ModelDeployment(
-        project_name=project_name,
-        model_name=model_name,
-        version=version,
-        deployment_name=deployment_name,
-        deployment_date=str(datetime.datetime.now()),
-    )
-    deployed_models_sqlite_handler.add_deployment(model_deployment=model_deployment)
+    if not deployed_models_sqlite_handler.model_deployment_already_exists(project_name, model_name, version):
+        build_model_docker_image(registry, project_name, model_name, version)
+        k8s_deployment = K8SModelDeployment(project_name, model_name, version)
+        k8s_deployment.create_model_deployment()
+        deployment_name = k8s_deployment.service_name
+        model_deployment = ModelDeployment(
+            project_name=project_name,
+            model_name=model_name,
+            version=version,
+            deployment_name=deployment_name,
+            deployment_date=str(datetime.datetime.now()),
+        )
+        deployed_models_sqlite_handler.add_deployment(model_deployment=model_deployment)
 
 
 def remove_model_deployment(

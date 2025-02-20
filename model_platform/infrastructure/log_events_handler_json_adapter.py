@@ -53,6 +53,7 @@ class LogEventsHandlerJsonAdapter(LogEventsHandler):
         try:
             logger.info(f"Writing event to : {file_name}")
             if path.exists(file_name):
+                # TODO dump à la suite
                 with open(file_name, "r+") as f:
                     data = json.load(f)
                     data.append(j)

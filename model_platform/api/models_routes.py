@@ -14,7 +14,6 @@ from model_platform.domain.entities.docker.task_build_statuses import TaskBuildS
 from model_platform.domain.ports.model_registry import ModelRegistry
 from model_platform.domain.ports.registry_handler import RegistryHandler
 from model_platform.domain.use_cases.deploy_model import deploy_model, remove_model_deployment
-from model_platform.domain.use_cases.deployed_models import remove_model_deployment_from_database
 from model_platform.utils import sanitize_name
 
 router = APIRouter()
@@ -157,14 +156,3 @@ def route_undeploy(
 async def check_task_status(task_id: str, tasks_status: dict = Depends(get_tasks_status)):
     status = tasks_status.get(task_id, "not_found")
     return {"task_id": task_id, "status": status}
-
-
-@router.get("/remove/{model_name}/{version}")
-def remove_model_deployment_from_db(
-    project_name: str,
-    model_name: str,
-    version: str,
-    deployed_models_sqlite_handler=Depends(get_deployed_models_sqlite_handler),
-):
-    remove_model_deployment_from_database(deployed_models_sqlite_handler, project_name, model_name, version)
-    return {"status": f"Model deployment {project_name} {model_name} {version} removed from database"}
