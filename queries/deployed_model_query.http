@@ -16,7 +16,7 @@ Content-Type: application/json
 }
 
 ###
-GET http://model-platform.com/deploy/test/test-test-model-1-deployment/health
+GET http://model-platform.com/deploy/test/test-second-model-1-deployment/health
 
 ###
 POST http://model-platform.com/deploy/test/test-test-model-1-deployment/predict

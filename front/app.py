@@ -9,8 +9,9 @@ from front.dot_env import DotEnv
 from front.utils import sanitize_name
 
 DotEnv()
-logger.info("Application Streamlit démarrée")
 
+logger.info("Application Streamlit démarrée")
+st.set_page_config(layout="wide")
 pg = st.navigation(
     [
         st.Page("pages/project_page.py", title="🤖 Project page"),
@@ -23,13 +24,12 @@ pg.run()
 
 # Affichage de l'état avec une pastille
 st.sidebar.title("Backend status")
-status_colors = {"healthy": "🟢", "unhealthy": "🟠", "unreachable": "🔴"}
-status = check_url_health(HEALTH_ENDPOINT)
-st.sidebar.markdown(f"{status_colors[status]} {status.capitalize()}")
 
-if st.session_state["selected_project"]:
+status, status_icon = check_url_health(HEALTH_ENDPOINT)
+st.sidebar.markdown(f"{status_icon} {status.capitalize()}")
+
+if "selected_project" in st.session_state and st.session_state["selected_project"]:
     st.sidebar.title("Registry status")
-    status_colors = {"healthy": "🟢", "unhealthy": "🟠", "unreachable": "🔴"}
     project_name = st.session_state["selected_project"]
     project_registry_url = (
         "http://"
@@ -38,7 +38,8 @@ if st.session_state["selected_project"]:
         + os.environ["MP_REGISTRY_PATH"]
         + "/"
         + sanitize_name(project_name)
+        + "/"
     )
-    status = check_url_health(project_registry_url)
-    st.sidebar.markdown(f"{status_colors[status]} {status.capitalize()}")
+    status, status_icon = check_url_health(project_registry_url)
+    st.sidebar.markdown(f"{status_icon} {status.capitalize()}")
     st.sidebar.link_button("Project registry homepage", project_registry_url)

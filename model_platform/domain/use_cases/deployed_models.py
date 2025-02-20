@@ -21,7 +21,7 @@ def _get_models_deployment_status(project_name: str, deployed_models_list: list)
     model_deployment_status_list = []
     for model_deployment in deployed_models_list:
         status = k8s_deployment_cluster.is_service_deployed(model_deployment.deployment_name, project_name)
-        model_deployment_status_list.append((model_deployment.deployment_name, status))
+        model_deployment_status_list.append((model_deployment, status))
     return model_deployment_status_list
 
 
