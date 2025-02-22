@@ -24,7 +24,9 @@ def deploy_model(
 ) -> None:
     if not deployed_models_sqlite_handler.model_deployment_already_exists(project_name, model_name, version):
         build_status = build_model_docker_image(registry, project_name, model_name, version)
+        logger.info(f"Build status for project {project_name}, model {model_name}, version {version}: {build_status}")
         if build_status == 0:
+            logger.info("Model build successful for {project_name}, model {model_name}, version {version}")
             k8s_deployment = K8SModelDeployment(project_name, model_name, version)
             k8s_deployment.create_model_deployment()
             deployment_name = k8s_deployment.service_name
@@ -36,6 +38,7 @@ def deploy_model(
                 deployment_date=str(datetime.datetime.now()),
             )
             deployed_models_sqlite_handler.add_deployment(model_deployment=model_deployment)
+
             EVENT_LOGGER.add_event(
                 Event(action=deploy_model.__name__, user=uuid.UUID(CURRENT_USER), entity=model_deployment), project_name
             )

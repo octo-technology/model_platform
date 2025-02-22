@@ -112,9 +112,9 @@ class MLFlowModelRegistryAdapter(ModelRegistry):
         downloaded_artifacts_path = self._download_run_id_artifacts(run_id, artifacts_path, destination_path)
         downloaded_artifacts_path = os.path.join(destination_path, downloaded_artifacts_path)
         timestamp = str(int(time.time()))
-        timestamp_file_path = os.path.join(downloaded_artifacts_path, timestamp)
-        with open(timestamp_file_path, "w") as f:
-            f.write("")
+        os.path.join(downloaded_artifacts_path, timestamp)
+        # with open(timestamp_file_path, "w") as f:
+        #    f.write("")
         logger.info(f"Downloaded model artefacts to: {downloaded_artifacts_path}")
         return downloaded_artifacts_path
 

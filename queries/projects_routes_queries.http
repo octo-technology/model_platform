@@ -19,3 +19,6 @@ Content-Type: application/json
   "data_perimeter": "Data Perimeter",
   "connection_parameters": "Connection Parameters"
 }
+
+###
+GET http://0.0.0.0:8001/projects/test/governance

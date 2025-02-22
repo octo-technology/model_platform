@@ -16,6 +16,6 @@ def model_versions_tab():
 
 def close_tab_button():
     if streamlit.button("Close tab", key="close_tab_button"):
-        streamlit.session_state["tabs"] = ["Project's models"]
+        streamlit.session_state["tabs"] = ["Project's models", "Governance"]
         streamlit.session_state.pop("list_versions")
         streamlit.rerun()

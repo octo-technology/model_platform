@@ -140,7 +140,7 @@ def clean_build_context(context_path: str) -> None:
 
 def build_model_docker_image(
     registry: MLFlowModelRegistryAdapter, project_name: str, model_name: str, version: str
-) -> str:
+) -> int:
     """
     Generates and builds a Docker image for the specified model and version.
 
@@ -156,6 +156,6 @@ def build_model_docker_image(
     """
     context_path: str = prepare_docker_context(registry, project_name, model_name, version)
     image_name: str = f"{project_name}_{model_name}_{version}_ctr"
-    build_docker_image_from_context_path(context_path, image_name)
+    build_status = build_docker_image_from_context_path(context_path, image_name)
     clean_build_context(context_path)
-    return image_name
+    return build_status

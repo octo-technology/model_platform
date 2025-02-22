@@ -88,7 +88,7 @@ def build_status(component_name: str, row: dict):
 
 def build_list_versions_button(component_name: str, row: dict):
     if st.button("List Versions", key=component_name + row["Name"]):
-        st.session_state["tabs"] = ["Project's models", row["Name"] + " versions"]
+        st.session_state["tabs"] = ["Project's models", "Governance", row["Name"] + " versions"]
         st.session_state["list_versions"] = row["Name"]
         st.rerun()
 

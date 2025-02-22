@@ -11,6 +11,7 @@ HEALTH_ENDPOINT = f"{API_BASE_URL}/health"
 PROJECT_LIST_ENDPOINT = f"{API_BASE_URL}/projects/list"
 PROJECT_INFO_URL = API_BASE_URL + "/projects/{PROJECT_NAME}/info"
 ADD_PROJECT_URI = API_BASE_URL + "/projects/add"
+PROJECT_GOVERNANCE = API_BASE_URL + "/projects/{project_name}/governance".format(project_name="{project_name}")
 
 ## MODEL ROUTES
 MODELS_LIST_ENDPOINT = "{API_BASE_URL}/{project_name}/models/list".format(

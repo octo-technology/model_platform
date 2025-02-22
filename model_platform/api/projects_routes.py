@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Request
 
 from model_platform.domain.entities.project import Project
 from model_platform.domain.use_cases.projects_usecases import (
+    EVENT_LOGGER,
     add_project,
     get_project_info,
     list_projects,
@@ -47,3 +48,8 @@ def route_remove_project(
     deployed_models_sqlite_handler=Depends(get_deployed_models_sqlite_handler),
 ):
     return remove_project(project_sqlite_db_handler, deployed_models_sqlite_handler, project_name=project_name)
+
+
+@router.get("/{project_name}/governance")
+def route_project_governance(project_name: str):
+    return EVENT_LOGGER.list_events(project_name)
