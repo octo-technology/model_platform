@@ -21,7 +21,7 @@ def deploy_model(
     project_name: str,
     model_name: str,
     version: str,
-) -> None:
+) -> int:
     if not deployed_models_sqlite_handler.model_deployment_already_exists(project_name, model_name, version):
         build_status = build_model_docker_image(registry, project_name, model_name, version)
         logger.info(f"Build status for project {project_name}, model {model_name}, version {version}: {build_status}")
@@ -54,7 +54,7 @@ def deploy_model(
 
 def remove_model_deployment(
     deployed_models_sqlite_handler: SQLiteLogModelDeployment, project_name: str, model_name: str, version: str
-) -> None:
+) -> int:
     """
     Removes the specified model and version from the Kubernetes cluster.
 
@@ -78,3 +78,4 @@ def remove_model_deployment(
         Event(action=remove_model_deployment.__name__, user=uuid.UUID(CURRENT_USER), entity=model_deployment),
         project_name,
     )
+    return True

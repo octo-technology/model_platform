@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, Request
+from starlette.responses import JSONResponse
 
 from model_platform.domain.entities.project import Project
 from model_platform.domain.use_cases.projects_usecases import (
@@ -37,8 +38,9 @@ def route_project_info(
 @router.post("/add")
 def route_add_project(
     project: Project, project_sqlite_db_handler: ProjectSQLiteDBHandler = Depends(get_project_sqlite_db_handler)
-):
-    return add_project(project_db_handler=project_sqlite_db_handler, project=project)
+) -> JSONResponse:
+    status = add_project(project_db_handler=project_sqlite_db_handler, project=project)
+    return JSONResponse({"status": status}, media_type="application/json")
 
 
 @router.get("/{project_name}/remove")
