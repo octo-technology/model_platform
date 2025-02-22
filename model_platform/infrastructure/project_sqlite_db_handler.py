@@ -26,7 +26,7 @@ class ProjectSQLiteDBHandler(ProjectDbHandler):
         self.db_path = db_path
         self._init_table_project_if_not_exists()
 
-    def list_projects(self) -> list[Project]:
+    def list_projects(self) -> list[Project] | None:
         try:
             connection = sqlite3.connect(self.db_path)
             cursor = connection.cursor()
@@ -36,7 +36,7 @@ class ProjectSQLiteDBHandler(ProjectDbHandler):
             connection.close()
         return map_rows_to_projects(rows)
 
-    def get_project(self, name) -> Project:
+    def get_project(self, name) -> Project | None:
         connection = sqlite3.connect(self.db_path)
         try:
             cursor = connection.cursor()
