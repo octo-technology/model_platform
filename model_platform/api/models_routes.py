@@ -59,7 +59,10 @@ def track_task_status(task_id: str, tasks_status: dict):
             try:
                 tasks_status[task_id] = TaskBuildStatuses.in_progress
                 result = func(*args, **kwargs)
-                tasks_status[task_id] = TaskBuildStatuses.completed
+                if result == 0:
+                    tasks_status[task_id] = TaskBuildStatuses.completed
+                else:
+                    tasks_status[task_id] = TaskBuildStatuses.failed
                 # Only works if in memory task tracker. In multiple runners, we need to retrieve the status from the
                 # worker
                 return result

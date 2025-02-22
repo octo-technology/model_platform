@@ -4,6 +4,7 @@ This module provides an adapter for interacting with the MLFlow Model Registry.
 """
 
 import os
+import time
 
 import mlflow
 from loguru import logger
@@ -110,6 +111,10 @@ class MLFlowModelRegistryAdapter(ModelRegistry):
         artifacts_path: str = self._get_model_artifacts_path(run_id)
         downloaded_artifacts_path = self._download_run_id_artifacts(run_id, artifacts_path, destination_path)
         downloaded_artifacts_path = os.path.join(destination_path, downloaded_artifacts_path)
+        timestamp = str(int(time.time()))
+        timestamp_file_path = os.path.join(downloaded_artifacts_path, timestamp)
+        with open(timestamp_file_path, "w") as f:
+            f.write("")
         logger.info(f"Downloaded model artefacts to: {downloaded_artifacts_path}")
         return downloaded_artifacts_path
 

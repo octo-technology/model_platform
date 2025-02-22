@@ -1,5 +1,8 @@
 import os
 
+from front.dot_env import DotEnv
+
+DotEnv()
 ## API
 API_BASE_URL = "http://0.0.0.0:8001"
 HEALTH_ENDPOINT = f"{API_BASE_URL}/health"
@@ -22,6 +25,12 @@ MODEL_VERSION_ENDPOINT = "{API_BASE_URL}/{project_name}/models/{model_name}/vers
 DEPLOY_MODEL_ENDPOINT = "{API_BASE_URL}/{project_name}/models/deploy/{model_name}/{model_version}".format(
     API_BASE_URL=API_BASE_URL, project_name="{project_name}", model_name="{model_name}", model_version="{model_version}"
 )
+
+# build status endpoint http://0.0.0.0:8001/test/models/task-status/
+BUILD_DEPLOY_STATUS_ENDPOINT = "{API_BASE_URL}/{project_name}/models/task-status/{task_id}".format(
+    API_BASE_URL=API_BASE_URL, project_name="{project_name}", task_id="{task_id}"
+)
+
 # GET http://0.0.0.0:8001/test/models/undeploy/test_model/1
 UNDEPLOY_MODEL_ENDPOINT = "{API_BASE_URL}/{project_name}/models/undeploy/{model_name}/{model_version}".format(
     API_BASE_URL=API_BASE_URL, project_name="{project_name}", model_name="{model_name}", model_version="{model_version}"

@@ -3,6 +3,8 @@ from datetime import datetime
 import pandas as pd
 import requests
 
+from front.utils import send_get_query
+
 
 def get_models_list(url, project_name: str) -> pd.DataFrame | None:
     try:
@@ -50,14 +52,6 @@ def format_models_response(models):
     return pd.DataFrame(data)
 
 
-def deploy_model(project_name: str, model_name: str, version: str, action_uri: str) -> str:
-    try:
-        response = requests.get(
-            action_uri.format(project_name=project_name, model_name=model_name, model_version=version), timeout=5
-        )
-        if response.status_code == 200:
-            return "Action complete successfully."
-        else:
-            return "Failed to perform action."
-    except requests.RequestException:
-        return "Error contacting the deployment API."
+def deploy_model(project_name: str, model_name: str, version: str, action_uri: str) -> dict:
+    data = send_get_query(action_uri.format(project_name=project_name, model_name=model_name, model_version=version))
+    return data["data"]
