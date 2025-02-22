@@ -1,17 +1,18 @@
 import os
 
 import streamlit as st
+from black.trans import defaultdict
 from loguru import logger
 
 from front.api_interactions.endpoints import HEALTH_ENDPOINT
 from front.api_interactions.health import check_url_health
-from front.dot_env import DotEnv
 from front.utils import sanitize_name
-
-DotEnv()
 
 logger.info("Application Streamlit démarrée")
 st.set_page_config(layout="wide")
+
+st.session_state["deployment_task_id"] = defaultdict()
+
 pg = st.navigation(
     [
         st.Page("pages/project_page.py", title="🤖 Project page"),

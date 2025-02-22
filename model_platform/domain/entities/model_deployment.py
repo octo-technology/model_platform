@@ -4,7 +4,7 @@ from pydantic import BaseModel
 class ModelDeployment(BaseModel):
     project_name: str
     model_name: str
-    version: int
+    version: str
     deployment_name: str
     deployment_date: str
 

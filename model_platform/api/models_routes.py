@@ -59,7 +59,10 @@ def track_task_status(task_id: str, tasks_status: dict):
             try:
                 tasks_status[task_id] = TaskBuildStatuses.in_progress
                 result = func(*args, **kwargs)
-                tasks_status[task_id] = TaskBuildStatuses.completed
+                if result == 0:
+                    tasks_status[task_id] = TaskBuildStatuses.completed
+                else:
+                    tasks_status[task_id] = TaskBuildStatuses.failed
                 # Only works if in memory task tracker. In multiple runners, we need to retrieve the status from the
                 # worker
                 return result
@@ -99,7 +102,9 @@ def get_deployed_models_sqlite_handler(request: Request):
 
 
 @router.get("/list")
-def list_models(project_name: str, request: Request, registry_pool: RegistryHandler = Depends(get_registry_pool)):
+def list_models(
+    project_name: str, request: Request, registry_pool: RegistryHandler = Depends(get_registry_pool)
+) -> JSONResponse:
     registry: ModelRegistry = registry_pool.get_registry_adapter(
         project_name, get_project_registry_tracking_uri(project_name, request)
     )
@@ -109,7 +114,7 @@ def list_models(project_name: str, request: Request, registry_pool: RegistryHand
 @router.get("/{model_name}/versions")
 def list_model_versions(
     project_name: str, model_name: str, request: Request, registry_pool: RegistryHandler = Depends(get_registry_pool)
-):
+) -> JSONResponse:
     registry: ModelRegistry = registry_pool.get_registry_adapter(
         project_name, get_project_registry_tracking_uri(project_name, request)
     )
@@ -127,7 +132,7 @@ def route_deploy(
     registry_pool: RegistryHandler = Depends(get_registry_pool),
     tasks_status: dict = Depends(get_tasks_status),
     deployed_models_sqlite_handler=Depends(get_deployed_models_sqlite_handler),
-):
+) -> JSONResponse:
     registry: ModelRegistry = registry_pool.get_registry_adapter(
         project_name, get_project_registry_tracking_uri(project_name, request)
     )
@@ -139,7 +144,7 @@ def route_deploy(
         decorated_task, registry, deployed_models_sqlite_handler, project_name, model_name, version
     )
 
-    return {"task_id": task_id, "status": "Deployment initiated"}
+    return JSONResponse({"task_id": task_id, "status": "Deployment initiated"}, media_type="application/json")
 
 
 @router.get("/undeploy/{model_name}/{version}")
@@ -148,11 +153,12 @@ def route_undeploy(
     model_name: str,
     version: str,
     deployed_models_sqlite_handler=Depends(get_deployed_models_sqlite_handler),
-):
-    remove_model_deployment(deployed_models_sqlite_handler, project_name, model_name, version)
+) -> JSONResponse:
+    return_code = remove_model_deployment(deployed_models_sqlite_handler, project_name, model_name, version)
+    return JSONResponse({"return_code": return_code}, media_type="application/json")
 
 
 @router.get("/task-status/{task_id}")
-async def check_task_status(task_id: str, tasks_status: dict = Depends(get_tasks_status)):
+async def check_task_status(task_id: str, tasks_status: dict = Depends(get_tasks_status)) -> JSONResponse:
     status = tasks_status.get(task_id, "not_found")
-    return {"task_id": task_id, "status": status}
+    return JSONResponse({"task_id": task_id, "status": status}, media_type="application/json")

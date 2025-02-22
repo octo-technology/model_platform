@@ -4,6 +4,7 @@ This module provides endpoints for interacting with the model registry.
 """
 
 from fastapi import APIRouter, Depends, Request
+from starlette.responses import JSONResponse
 
 from model_platform.domain.use_cases.deployed_models import (
     list_deployed_models_with_status_for_a_project,
@@ -19,9 +20,11 @@ def get_deployed_models_sqlite_handler(request: Request) -> SQLiteLogModelDeploy
 
 
 @router.get("/list")
-def list_models(project_name: str, deployed_models_sqlite_handler=Depends(get_deployed_models_sqlite_handler)):
+def list_models(
+    project_name: str, deployed_models_sqlite_handler=Depends(get_deployed_models_sqlite_handler)
+) -> JSONResponse:
     deployed_models = list_deployed_models_with_status_for_a_project(project_name, deployed_models_sqlite_handler)
-    return deployed_models
+    return JSONResponse(deployed_models, media_type="application/json")
 
 
 @router.get("/remove/{model_name}/{version}")
@@ -30,6 +33,6 @@ def remove_model_deployment_from_db(
     model_name: str,
     version: str,
     deployed_models_sqlite_handler=Depends(get_deployed_models_sqlite_handler),
-):
-    remove_model_deployment_from_database(deployed_models_sqlite_handler, project_name, model_name, version)
-    return {"status": f"Model deployment {project_name} {model_name} {version} removed from database"}
+) -> JSONResponse:
+    status = remove_model_deployment_from_database(deployed_models_sqlite_handler, project_name, model_name, version)
+    return JSONResponse({"status": status}, media_type="application/json")

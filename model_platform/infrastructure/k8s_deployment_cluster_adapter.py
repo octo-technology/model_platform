@@ -1,24 +1,14 @@
-import os
-
-from kubernetes import client, config
-from kubernetes.client import (
-    AppsV1Api,
-    CoreV1Api,
-)
+from kubernetes import client
 from loguru import logger
 
 from model_platform.domain.ports.deployment_cluster_handler import DeploymentClusterHandler
+from model_platform.infrastructure.k8s_deployment import K8SDeployment
 
 
-class K8SDeploymentClusterAdapter(DeploymentClusterHandler):
+class K8SDeploymentClusterAdapter(DeploymentClusterHandler, K8SDeployment):
 
     def __init__(self):
-        config.load_kube_config()
-        self.service_api_instance: CoreV1Api = client.CoreV1Api()
-        self.apps_api_instance: AppsV1Api = client.AppsV1Api()
-        self.ingress_api_instance: client.NetworkingV1Api = client.NetworkingV1Api()
-        self.host_name = os.environ["MP_HOST_NAME"]
-        self.sub_path = os.environ["MP_DEPLOYMENT_PATH"]
+        super().__init__()
 
     def get_status(self) -> bool:
         try:

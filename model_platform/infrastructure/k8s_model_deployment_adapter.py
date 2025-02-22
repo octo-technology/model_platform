@@ -1,27 +1,16 @@
-import os
-
-from kubernetes import client, config
-from kubernetes.client import (
-    AppsV1Api,
-    CoreV1Api,
-)
+from kubernetes import client
 from kubernetes.client.rest import ApiException
 from loguru import logger
 
 from model_platform.domain.ports.model_deployment_handler import ModelDeployment
+from model_platform.infrastructure.k8s_deployment import K8SDeployment
 from model_platform.utils import sanitize_name
 
 
-class K8SModelDeployment(ModelDeployment):
+class K8SModelDeployment(ModelDeployment, K8SDeployment):
 
     def __init__(self, project_name: str, model_name: str, version: str):
-        config.load_kube_config()
-        self.service_api_instance: CoreV1Api = client.CoreV1Api()
-        self.apps_api_instance: AppsV1Api = client.AppsV1Api()
-        self.ingress_api_instance: client.NetworkingV1Api = client.NetworkingV1Api()
-        self.host_name = os.environ["MP_HOST_NAME"]
-        self.sub_path = os.environ["MP_DEPLOYMENT_PATH"]
-        self.port = int(os.environ["MP_DEPLOYMENT_PORT"])
+        super().__init__()
         self.namespace = sanitize_name(project_name)
         self.docker_image_name = f"{project_name}_{model_name}_{version}_ctr"
         self.service_name = sanitize_name(f"{project_name}-{model_name}-{version}-deployment")
@@ -37,19 +26,6 @@ class K8SModelDeployment(ModelDeployment):
         logger.info(f"Deleting model deployment {self.service_name} in {self.namespace} namespace")
         self._delete_model_deployment()
         self._delete_model_service()
-
-    def _create_or_update_namespace(self):
-        """Crée un namespace si ce n'est pas déjà fait pour le project."""
-        try:
-            self.service_api_instance.read_namespace(self.namespace)
-            logger.info(f"ℹ️ Namespace {self.namespace} already exists.")
-        except ApiException as e:
-            if e.status == 404:
-                namespace = client.V1Namespace(metadata=client.V1ObjectMeta(name=self.namespace))
-                self.service_api_instance.create_namespace(namespace)
-                logger.info(f"✅ Namespace {self.namespace} successfully created!")
-            else:
-                logger.error(f"⚠️ Error while checking/creating the namespace: {e}")
 
     def _create_or_update_model_service(self):
         service = client.V1Service(

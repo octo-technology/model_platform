@@ -3,7 +3,7 @@
 This module provides an adapter of LogEventsHandler for json file storage.
 """
 
-import json
+import csv
 import os
 import pathlib
 from os import listdir, path
@@ -15,7 +15,7 @@ from model_platform.domain.entities.event import Event
 from model_platform.domain.ports.log_events_handler import LogEventsHandler
 
 
-class LogEventsHandlerJsonAdapter(LogEventsHandler):
+class LogEventsHandlerFileAdapter(LogEventsHandler):
     """Adapter for handling Log Events."""
 
     def __init__(self):
@@ -25,43 +25,37 @@ class LogEventsHandlerJsonAdapter(LogEventsHandler):
         if not path.exists(self.events_folder):
             pathlib.Path(self.events_folder).mkdir(parents=True, exist_ok=True)
 
-    def list_events(self) -> Optional[list[Event]]:
+    def list_events(self, project_name: str) -> Optional[list]:
+        project_event_log_folder = path.join(self.events_folder, project_name)
         events = []
         try:
-            logger.info("Retrieving events...")
-            events_files = [f for f in listdir(self.events_folder)]
+            logger.info(f"Retrieving events from {project_event_log_folder}...")
+            events_files = [f for f in listdir(project_event_log_folder) if f.endswith(".csv")]
             for file in events_files:
-                with open(file) as json_data:
-                    d = json.loads(json_data)
-                    event = Event(
-                        d.get("action"),
-                        d.get("timestamp"),
-                        d.get("user"),
-                        d.get("action"),
-                    )
-                    events.append(event)
-                    json_data.close()
-            logger.info("All events where retrieved successfully !")
+                with open(path.join(project_event_log_folder, file), newline="") as csvfile:
+                    reader = csv.DictReader(csvfile)
+                    for row in reader:
+                        events.append(row)
+            logger.info("All events were retrieved successfully!")
             return events
         except Exception as e:
-            logger.error(f"Failed to list events : {e}")
+            logger.error(f"Failed to list events: {e}")
+            return None
 
-    def add_event(self, event: Event) -> bool:
-        j = event.to_json()
+    def add_event(self, event: Event, project_name: str) -> bool:
+        event_to_log = event.to_json()
         current_date = str(event.timestamp).split(" ")[0]
-        file_name = path.join(self.events_folder, f"events_logs_{current_date}.json")
+        project_event_log_folder = path.join(self.events_folder, project_name)
+        if not os.path.exists(project_event_log_folder):
+            pathlib.Path(project_event_log_folder).mkdir(parents=True, exist_ok=True)
+        file_name = path.join(project_event_log_folder, f"events_logs_{current_date}.csv")
         try:
             logger.info(f"Writing event to : {file_name}")
-            if path.exists(file_name):
-                # TODO dump à la suite
-                with open(file_name, "r+") as f:
-                    data = json.load(f)
-                    data.append(j)
-                    f.seek(0)
-                    json.dump(data, f, indent=4)
-            else:
-                with open(file_name, "w") as f:
-                    json.dump([j], f, indent=4)
+            with open(file_name, "a", newline="") as f:
+                writer = csv.writer(f)
+                if f.tell() == 0:
+                    writer.writerow(event_to_log.keys())  # Write header if file is empty
+                writer.writerow(event_to_log.values())
             logger.info(f"Event written successfully to : {file_name}")
             return True
 

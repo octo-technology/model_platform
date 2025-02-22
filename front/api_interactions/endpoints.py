@@ -1,5 +1,8 @@
 import os
 
+from front.dot_env import DotEnv
+
+DotEnv()
 ## API
 API_BASE_URL = "http://0.0.0.0:8001"
 HEALTH_ENDPOINT = f"{API_BASE_URL}/health"
@@ -8,6 +11,7 @@ HEALTH_ENDPOINT = f"{API_BASE_URL}/health"
 PROJECT_LIST_ENDPOINT = f"{API_BASE_URL}/projects/list"
 PROJECT_INFO_URL = API_BASE_URL + "/projects/{PROJECT_NAME}/info"
 ADD_PROJECT_URI = API_BASE_URL + "/projects/add"
+PROJECT_GOVERNANCE = API_BASE_URL + "/projects/{project_name}/governance".format(project_name="{project_name}")
 
 ## MODEL ROUTES
 MODELS_LIST_ENDPOINT = "{API_BASE_URL}/{project_name}/models/list".format(
@@ -22,6 +26,12 @@ MODEL_VERSION_ENDPOINT = "{API_BASE_URL}/{project_name}/models/{model_name}/vers
 DEPLOY_MODEL_ENDPOINT = "{API_BASE_URL}/{project_name}/models/deploy/{model_name}/{model_version}".format(
     API_BASE_URL=API_BASE_URL, project_name="{project_name}", model_name="{model_name}", model_version="{model_version}"
 )
+
+# build status endpoint http://0.0.0.0:8001/test/models/task-status/
+BUILD_DEPLOY_STATUS_ENDPOINT = "{API_BASE_URL}/{project_name}/models/task-status/{task_id}".format(
+    API_BASE_URL=API_BASE_URL, project_name="{project_name}", task_id="{task_id}"
+)
+
 # GET http://0.0.0.0:8001/test/models/undeploy/test_model/1
 UNDEPLOY_MODEL_ENDPOINT = "{API_BASE_URL}/{project_name}/models/undeploy/{model_name}/{model_version}".format(
     API_BASE_URL=API_BASE_URL, project_name="{project_name}", model_name="{model_name}", model_version="{model_version}"

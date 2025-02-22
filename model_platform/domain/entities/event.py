@@ -1,12 +1,13 @@
-import uuid
 import datetime
+import uuid
+from typing import Any
 
 
-class Event():
+class Event:
     action: str
     timestamp: datetime.datetime
     user: uuid.UUID
-    entity: str
+    entity: str | Any
 
     def __init__(self, action, user, entity):
         self.action = action
@@ -19,5 +20,5 @@ class Event():
             "action": self.action,
             "timestamp": self.timestamp.isoformat(),
             "user": str(self.user),
-            "entity": self.entity,
+            "entity": self.entity.to_json() if hasattr(self.entity, "to_json") else str(self.entity),
         }

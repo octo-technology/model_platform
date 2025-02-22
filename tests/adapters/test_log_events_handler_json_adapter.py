@@ -1,5 +1,5 @@
 def test_add_event():
-    handler = LogEventsHandlerJsonAdapter()
+    handler = LogEventsHandlerFileAdapter()
     event = Event(action="create_project", user="test_user", entity="test_project")
 
     mock_file_path = os.path.join(handler.events_folder, f"{event.timestamp}_{event.user}.json")
@@ -17,7 +17,7 @@ import os
 from unittest.mock import mock_open, patch
 
 from model_platform.domain.entities.event import Event
-from model_platform.infrastructure.log_events_handler_json_adapter import LogEventsHandlerJsonAdapter
+from model_platform.infrastructure.log_events_handler_json_adapter import LogEventsHandlerFileAdapter
 
 
 def test_add_event_failure():

@@ -26,7 +26,7 @@ class ProjectSQLiteDBHandler(ProjectDbHandler):
         self.db_path = db_path
         self._init_table_project_if_not_exists()
 
-    def list_projects(self) -> list[Project]:
+    def list_projects(self) -> list[Project] | None:
         try:
             connection = sqlite3.connect(self.db_path)
             cursor = connection.cursor()
@@ -36,7 +36,7 @@ class ProjectSQLiteDBHandler(ProjectDbHandler):
             connection.close()
         return map_rows_to_projects(rows)
 
-    def get_project(self, name) -> Project:
+    def get_project(self, name) -> Project | None:
         connection = sqlite3.connect(self.db_path)
         try:
             cursor = connection.cursor()
@@ -48,7 +48,7 @@ class ProjectSQLiteDBHandler(ProjectDbHandler):
             return map_rows_to_projects(rows)[0]
         raise ProjectDoesntExistError(message="Project doesn't exist", name=name)
 
-    def add_project(self, project: Project) -> None:
+    def add_project(self, project: Project) -> bool:
         connection = sqlite3.connect(self.db_path)
         try:
             self.get_project(name=project.name)
@@ -57,7 +57,6 @@ class ProjectSQLiteDBHandler(ProjectDbHandler):
             logging.info("Project name not used yet, ok")
         try:
             cursor = connection.cursor()
-
             cursor.execute(
                 """
                 INSERT INTO projects (name, owner, scope, data_perimeter)
@@ -67,10 +66,9 @@ class ProjectSQLiteDBHandler(ProjectDbHandler):
             )
 
             connection.commit()
-
         finally:
-            # Fermeture de la connexion
             connection.close()
+            return True
 
     def remove_project(self, name):
         connection = sqlite3.connect(self.db_path)
@@ -80,6 +78,7 @@ class ProjectSQLiteDBHandler(ProjectDbHandler):
             connection.commit()
         finally:
             connection.close()
+            return True
 
     def _init_table_project_if_not_exists(self):
         connection = sqlite3.connect(self.db_path)

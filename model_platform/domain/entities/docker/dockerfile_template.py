@@ -20,11 +20,8 @@ class DockerfileTemplate:
         ENV GUNICORN_CMD_ARGS="--timeout 60 -k gevent"
 
         #Copy artefacts and dependencies lists
-        COPY custom_model/conda.yaml /opt/mlflow
-        COPY custom_model/requirements.txt /opt/mlflow/requirements.txt
-        COPY custom_model/model.pkl /opt/mlflow
+        COPY custom_model /opt/mlflow
         COPY fast_api_template.py /opt/mlflow
-
         # Install python model version
 
         RUN YAML_PYTHON_VERSION=$(grep -E "^ *- python=" /opt/mlflow/conda.yaml \
@@ -43,7 +40,6 @@ class DockerfileTemplate:
 
         # Activate conda environment and start the application
         CMD ["bash", "-c", "uv run uvicorn fast_api_template:app --host 0.0.0.0 --port 8000"]
-
         """
 
     def generate_dockerfile(self, output_dir: str) -> None:

@@ -4,8 +4,9 @@ import pandas as pd
 import requests
 import streamlit
 
-from front.api_interactions.endpoints import DEPLOYED_MODEL_URI
+from front.api_interactions.endpoints import BUILD_DEPLOY_STATUS_ENDPOINT, DEPLOYED_MODEL_URI
 from front.api_interactions.health import check_url_health
+from front.utils import send_get_query
 
 
 def get_deployed_models_list(url) -> pd.DataFrame | None:
@@ -47,3 +48,9 @@ def format_response(models):
         )
 
     return pd.DataFrame(data)
+
+
+def get_build_status(project_name, task_id):
+    url = BUILD_DEPLOY_STATUS_ENDPOINT.format(project_name=project_name, task_id=task_id)
+    data = send_get_query(url)
+    return data["data"]["status"]

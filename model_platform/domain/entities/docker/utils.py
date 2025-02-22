@@ -38,7 +38,7 @@ def build_image_from_context(context_dir: str, image_name: str) -> int:
         logger.info(f"Image '{image_name}' built successfully.")
         _display_docker_build_logs(build_logs)
         return 0
-    except docker.errors.BuildError as e:
+    except (docker.errors.BuildError, docker.errors.APIError) as e:
         logger.error(f"Docker build failed: {e}")
         return 1
 
@@ -107,7 +107,7 @@ def prepare_docker_context(
     return path_dest
 
 
-def build_docker_image_from_context_path(context_path: str, image_name: str) -> None:
+def build_docker_image_from_context_path(context_path: str, image_name: str) -> int:
     """
     Builds a Docker image from the specified context path and image name.
 
@@ -120,8 +120,12 @@ def build_docker_image_from_context_path(context_path: str, image_name: str) -> 
     )
     dockerfile.generate_dockerfile(context_path)
     logger.info(f"Starting docker build in {context_path}")
-    build_image_from_context(context_path, image_name)
-    logger.info(f"Docker image {image_name} built successfully")
+    status = build_image_from_context(context_path, image_name)
+    if status == 1:
+        logger.error(f"Failed to build Docker image {image_name}")
+    else:
+        logger.info(f"Docker image {image_name} built successfully")
+    return status
 
 
 def clean_build_context(context_path: str) -> None:
@@ -136,7 +140,7 @@ def clean_build_context(context_path: str) -> None:
 
 def build_model_docker_image(
     registry: MLFlowModelRegistryAdapter, project_name: str, model_name: str, version: str
-) -> str:
+) -> int:
     """
     Generates and builds a Docker image for the specified model and version.
 
@@ -152,6 +156,6 @@ def build_model_docker_image(
     """
     context_path: str = prepare_docker_context(registry, project_name, model_name, version)
     image_name: str = f"{project_name}_{model_name}_{version}_ctr"
-    build_docker_image_from_context_path(context_path, image_name)
+    build_status = build_docker_image_from_context_path(context_path, image_name)
     clean_build_context(context_path)
-    return image_name
+    return build_status
