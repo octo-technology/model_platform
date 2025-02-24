@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Request
 from starlette.responses import JSONResponse
 
+from model_platform.api.auth import get_current_admin
 from model_platform.domain.entities.project import Project
 from model_platform.domain.use_cases.projects_usecases import (
     EVENT_LOGGER,
@@ -32,7 +33,9 @@ def route_project_info(
 
 @router.post("/add")
 def route_add_project(
-    project: Project, project_sqlite_db_handler: ProjectSQLiteDBHandler = Depends(get_project_sqlite_db_handler)
+    project: Project,
+    project_sqlite_db_handler: ProjectSQLiteDBHandler = Depends(get_project_sqlite_db_handler),
+    current_admin: dict = Depends(get_current_admin),
 ) -> JSONResponse:
     status = add_project(project_db_handler=project_sqlite_db_handler, project=project)
     return JSONResponse(content={"status": status}, media_type="application/json")

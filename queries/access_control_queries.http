@@ -1,0 +1,18 @@
+###
+POST http://0.0.0.0:8001/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username=alice&password=password
+
+###
+POST http://0.0.0.0:8001/projects/add
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhbGljZSIsInJvbGUiOiJhZG1pbiIsImV4cCI6MTc0MDI1MDc2OX0.AwYH74iTNhcv7pXE4XEygpFX45lZLTkF5rpstcpa21M
+Content-Type: application/json
+
+{
+  "name": "test2",
+  "owner": "Owner Name",
+  "scope": "Project Scope",
+  "data_perimeter": "Data Perimeter",
+  "connection_parameters": "Connection Parameters"
+}
