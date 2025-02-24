@@ -21,7 +21,6 @@ def list_projects(project_db_handler: ProjectDbHandler) -> list[dict]:
 
 def add_project(project_db_handler: ProjectDbHandler, project: Project) -> None:
     log_events.add_event(Event(action=add_project.__name__, user=uuid.UUID(CURRENT_USER), entity=project.name))
-    log_events.add_event(Event(action=add_project.__name__, user=uuid.UUID(CURRENT_USER), entity=project.name))
     deploy_registry(project.name)
     project_db_handler.add_project(project)
 
