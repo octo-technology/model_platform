@@ -55,6 +55,7 @@ def build_model_version_listing(models_df, name="model_listing", elements_to_add
 
 def build_deploy_button(component_name: str, row: dict):
     key = "_".join([str(value) for key, value in row.items()])
+
     state_task_id_key = "task_id_" + key
     button_key = component_name + key
     if state_task_id_key not in st.session_state or st.session_state[state_task_id_key] is None:
