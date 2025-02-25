@@ -35,7 +35,7 @@ def route_add_project(
     project: Project, project_sqlite_db_handler: ProjectSQLiteDBHandler = Depends(get_project_sqlite_db_handler)
 ) -> JSONResponse:
     status = add_project(project_db_handler=project_sqlite_db_handler, project=project)
-    return JSONResponse({"status": status}, media_type="application/json")
+    return JSONResponse(content={"status": status}, media_type="application/json")
 
 
 @router.get("/{project_name}/remove")

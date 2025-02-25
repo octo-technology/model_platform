@@ -26,11 +26,10 @@ def format_timestamp(timestamp):
 
 def format_response(models):
     data = []
-    for model, status in models:
+    for model in models:
         model_name = model["model_name"]
         deployment_time_stamp = model["deployment_date"]
         versions = model["version"]
-        status = status
         uri = DEPLOYED_MODEL_URI.format(
             project_name=streamlit.session_state["selected_project"], deployment_name=model["deployment_name"]
         )
@@ -41,7 +40,6 @@ def format_response(models):
                 "Name": model_name,
                 "Deployment Date": deployment_time_stamp,
                 "version": versions,
-                "Deployment exists": status,
                 "Health check": health,
                 "uri": uri,
             }

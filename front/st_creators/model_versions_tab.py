@@ -10,7 +10,7 @@ def model_versions_tab():
     model_versions = get_model_versions_list(
         MODEL_VERSION_ENDPOINT, streamlit.session_state["selected_project"], model_name
     )
-    build_model_version_listing(model_versions, elements_to_add=["Deploy"])
+    build_model_version_listing(model_versions, name="model versions", elements_to_add=["Deploy"])
     close_tab_button()
 
 
