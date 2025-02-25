@@ -9,7 +9,6 @@ from model_platform.domain.ports.project_db_handler import ProjectDbHandler
 from model_platform.domain.use_cases.deploy_registry import deploy_registry
 from model_platform.domain.use_cases.deployed_models import _remove_project_namespace
 from model_platform.infrastructure.log_events_handler_json_adapter import LogEventsHandlerFileAdapter
-from model_platform.infrastructure.log_model_deploy_sqlite_adapter import SQLiteLogModelDeployment
 
 EVENT_LOGGER = LogEventsHandlerFileAdapter()
 
@@ -34,12 +33,9 @@ def get_project_info(project_db_handler: ProjectDbHandler, project_name: str) ->
     return JSONResponse(project.to_json(), media_type="application/json")
 
 
-def remove_project(
-    project_db_handler: ProjectDbHandler, deployed_models_sqlite_handler: SQLiteLogModelDeployment, project_name: str
-) -> JSONResponse:
+def remove_project(project_db_handler: ProjectDbHandler, project_name: str) -> JSONResponse:
     _remove_project_namespace(project_name)
     project_db_handler.remove_project(project_name)
-    deployed_models_sqlite_handler.remove_project_deployments(project_name)
     EVENT_LOGGER.add_event(
         Event(action=remove_project.__name__, user=uuid.UUID(CURRENT_USER), entity=project_name), project_name
     )

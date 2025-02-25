@@ -1,3 +1,5 @@
+import time
+
 from kubernetes import client
 from kubernetes.client.rest import ApiException
 from loguru import logger
@@ -9,11 +11,14 @@ from model_platform.utils import sanitize_name
 
 class K8SModelDeployment(ModelDeployment, K8SDeployment):
 
-    def __init__(self, project_name: str, model_name: str, version: str):
+    def __init__(self, project_name: str, model_name: str, model_version: str):
         super().__init__()
         self.namespace = sanitize_name(project_name)
-        self.docker_image_name = f"{project_name}_{model_name}_{version}_ctr"
-        self.service_name = sanitize_name(f"{project_name}-{model_name}-{version}-deployment")
+        self.docker_image_name = f"{project_name}_{model_name}_{model_version}_ctr"
+        self.service_name = sanitize_name(f"{project_name}-{model_name}-{model_version}-deployment")
+        self.project_name = project_name
+        self.model_name = model_name
+        self.model_version = model_version
 
     def create_model_deployment(self):
         logger.info(f"Creating model deployment in {self.namespace} namespace")
@@ -49,7 +54,16 @@ class K8SModelDeployment(ModelDeployment, K8SDeployment):
 
     def _create_model_service_deployment(self):
         deployment = client.V1Deployment(
-            metadata=client.V1ObjectMeta(name=self.service_name),
+            metadata=client.V1ObjectMeta(
+                name=self.service_name,
+                labels={
+                    "app": self.service_name,
+                    "model_name": self.model_name,
+                    "model_version": self.model_version,
+                    "project_name": self.project_name,
+                    "deployment_date": str(int(time.time())),
+                },
+            ),
             spec=client.V1DeploymentSpec(
                 replicas=1,
                 selector=client.V1LabelSelector(match_labels={"app": self.service_name}),

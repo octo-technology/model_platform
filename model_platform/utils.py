@@ -1,3 +1,5 @@
+import hashlib
+import os
 import re
 
 
@@ -7,3 +9,24 @@ def sanitize_name(project_name: str) -> str:
     sanitized_name = re.sub(r"^-+", "", sanitized_name)  # Supprimer tirets au début
     sanitized_name = re.sub(r"-+$", "", sanitized_name)  # Supprimer tirets à la fin
     return sanitized_name
+
+
+def hash_directory(directory, hash_algo="sha256"):
+    hasher = hashlib.new(hash_algo)
+    for root, _, files in sorted(os.walk(directory)):
+        for file in sorted(files):
+            file_path = os.path.join(root, file)
+
+            rel_path = os.path.relpath(file_path, directory).encode()
+            hasher.update(rel_path)
+
+            with open(file_path, "rb") as f:
+                while chunk := f.read(4096):
+                    hasher.update(chunk)
+
+    return hasher.hexdigest()
+
+
+if __name__ == "__main__":
+    print(hash_directory("../tmp/1740239973_test_test_model_2"))
+# b97e3ffba719ebbd5c9b125ecd79a3d8436b3e50e28bfd6f9df3d9c9b0dfa895

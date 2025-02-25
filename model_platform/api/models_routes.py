@@ -97,10 +97,6 @@ def get_tasks_status(request: Request) -> dict:
     return request.app.state.task_status
 
 
-def get_deployed_models_sqlite_handler(request: Request):
-    return request.app.state.deployed_models_db
-
-
 @router.get("/list")
 def list_models(
     project_name: str, request: Request, registry_pool: RegistryHandler = Depends(get_registry_pool)
@@ -131,7 +127,6 @@ def route_deploy(
     background_tasks: BackgroundTasks,
     registry_pool: RegistryHandler = Depends(get_registry_pool),
     tasks_status: dict = Depends(get_tasks_status),
-    deployed_models_sqlite_handler=Depends(get_deployed_models_sqlite_handler),
 ) -> JSONResponse:
     registry: ModelRegistry = registry_pool.get_registry_adapter(
         project_name, get_project_registry_tracking_uri(project_name, request)
@@ -140,21 +135,14 @@ def route_deploy(
     tasks_status[task_id] = "queued"
     logging.info(f"Deploying {model_name}:{version} with task_id: {task_id}")
     decorated_task = track_task_status(task_id, tasks_status)(deploy_model)
-    background_tasks.add_task(
-        decorated_task, registry, deployed_models_sqlite_handler, project_name, model_name, version
-    )
+    background_tasks.add_task(decorated_task, registry, project_name, model_name, version)
 
     return JSONResponse({"task_id": task_id, "status": "Deployment initiated"}, media_type="application/json")
 
 
 @router.get("/undeploy/{model_name}/{version}")
-def route_undeploy(
-    project_name: str,
-    model_name: str,
-    version: str,
-    deployed_models_sqlite_handler=Depends(get_deployed_models_sqlite_handler),
-) -> JSONResponse:
-    return_code = remove_model_deployment(deployed_models_sqlite_handler, project_name, model_name, version)
+def route_undeploy(project_name: str, model_name: str, version: str) -> JSONResponse:
+    return_code = remove_model_deployment(project_name, model_name, version)
     return JSONResponse({"return_code": return_code}, media_type="application/json")
 
 

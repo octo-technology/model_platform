@@ -1,8 +1,11 @@
 from kubernetes import client
 from loguru import logger
 
+from model_platform.domain.entities.model_deployment import ModelDeployment
 from model_platform.domain.ports.deployment_cluster_handler import DeploymentClusterHandler
+from model_platform.dot_env import DotEnv
 from model_platform.infrastructure.k8s_deployment import K8SDeployment
+from model_platform.utils import sanitize_name
 
 
 class K8SDeploymentClusterAdapter(DeploymentClusterHandler, K8SDeployment):
@@ -44,3 +47,33 @@ class K8SDeploymentClusterAdapter(DeploymentClusterHandler, K8SDeployment):
         except client.ApiException as e:
             logger.info(f"Error while retrieving service {service_name} in namespace {namespace}: {e}")
             return False
+
+    def list_deployments_for_project(self, project_name: str) -> list[ModelDeployment]:
+        project_name = sanitize_name(project_name)
+        label_selector = f"project_name={project_name}"
+        deployments = self.apps_api_instance.list_namespaced_deployment(
+            namespace=project_name, label_selector=label_selector
+        )
+        deployment_list = []
+        for deployment in deployments.items:
+            labels = deployment.metadata.labels
+            labels["deployment_name"] = deployment.metadata.name
+            deployment_list.append(ModelDeployment(**labels))
+        return deployment_list
+
+    def check_if_model_deployment_exists(self, project_name: str, model_name: str, model_version: str) -> bool:
+        project_name = sanitize_name(project_name)
+        label_selector = f"project_name={project_name},model_name={model_name},model_version={model_version}"
+        deployments = self.apps_api_instance.list_namespaced_deployment(
+            namespace=project_name, label_selector=label_selector
+        )
+        if deployments.items:
+            return True
+        return False
+
+
+if __name__ == "__main__":
+    DotEnv()
+    k8s_deployment = K8SDeploymentClusterAdapter()
+    print(k8s_deployment.list_deployments_for_project("test"))
+    print(k8s_deployment.check_if_model_deployment_exists("test", "test_model", "2"))
