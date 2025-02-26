@@ -1,0 +1,29 @@
+
+from model_platform.domain.entities.role import Role
+from model_platform.domain.entities.user_input import UserInput
+from model_platform.domain.ports.user_handler import UserHandler
+from model_platform.domain.entities.user import User
+from model_platform.infrastructure.log_events_handler_json_adapter import LogEventsHandlerFileAdapter
+
+from passlib.context import CryptContext
+
+
+EVENT_LOGGER = LogEventsHandlerFileAdapter()
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def get_user(user_handler: UserHandler, user_input: UserInput) -> User:
+    user = user_handler.get_user(
+        user_input.email, 
+        user_input.password
+        )
+    return user
+
+
+def add_user(user_adapter: UserHandler, user_input: UserInput) -> bool:
+    success = user_adapter.add_user(
+        email=user_input.email,
+        hashed_password=pwd_context.hash(user_input.password),
+        role=Role.SIMPLE_USER.value
+    )
+    return success
