@@ -16,7 +16,8 @@ from model_platform.domain.ports.registry_handler import RegistryHandler
 from model_platform.domain.use_cases.deploy_model import deploy_model, remove_model_deployment
 from model_platform.utils import sanitize_name
 
-from .auth import get_current_user
+from model_platform.domain.use_cases.auth_usecases import get_current_user
+
 router = APIRouter()
 
 

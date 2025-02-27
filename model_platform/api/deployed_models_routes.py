@@ -9,7 +9,7 @@ from starlette.responses import JSONResponse
 from model_platform.domain.use_cases.deployed_models import (
     list_deployed_models_with_status_for_a_project,
 )
-from model_platform.api.auth import get_current_user
+from model_platform.domain.use_cases.auth_usecases import get_current_user
 
 router = APIRouter()
 

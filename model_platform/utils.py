@@ -2,6 +2,13 @@ import hashlib
 import os
 import re
 
+class Singleton(type):
+    _instances = {}
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
+
 
 def sanitize_name(project_name: str) -> str:
     """Nettoie et format le nom pour être valid dans Kubernetes."""

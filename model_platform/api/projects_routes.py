@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Request
 from starlette.responses import JSONResponse
 
-from model_platform.api.auth import get_current_admin, get_current_user
+from model_platform.domain.use_cases.auth_usecases import get_current_admin, get_current_user
 from model_platform.domain.entities.project import Project
 from model_platform.domain.use_cases.projects_usecases import (
     EVENT_LOGGER,
