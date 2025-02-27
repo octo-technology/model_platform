@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Request
 from starlette.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
 
-from .auth import get_current_admin, get_current_user, login_for_access_token
+from .auth import get_current_admin, get_current_user, login_for_access_token, get_user_adapter
 
 from model_platform.domain.use_cases import user_usecases
 from model_platform.domain.entities.user_input import UserInput
@@ -26,15 +26,12 @@ async def admin_only_route(current_admin: dict = Depends(get_current_admin)):
     return {"message": "Bienvenue Admin !"}
 
 
-def get_user_adapter(request: Request):
-    return request.app.state.user_adapter
-
-
 @router.get("/user/get")
 def get_user(
     email: str,
     password: str,
-    user_adapter: UserHandler = Depends(get_user_adapter)
+    user_adapter: UserHandler = Depends(get_user_adapter),
+    current_user: dict = Depends(get_current_user)
 ) -> JSONResponse:
     user_input = UserInput(
         email = email,
@@ -49,9 +46,11 @@ def get_user(
 
 @router.post("/user/add")
 async def create_user(
-    email: str,
-    password: str,
-    user_adapter: UserHandler = Depends(get_user_adapter)
+        email: str,
+        password: str,
+        role: str,
+        user_adapter: UserHandler = Depends(get_user_adapter),
+        current_admin: dict = Depends(get_current_admin)
     ) -> JSONResponse :
     user_input = UserInput(
         email = email,
@@ -59,7 +58,8 @@ async def create_user(
     )
     success = user_usecases.add_user(
         user_adapter=user_adapter,
-        user_input=user_input
+        user_input=user_input,
+        role=role
     )
     return JSONResponse(
         content={"status":success},

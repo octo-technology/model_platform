@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Request
 from starlette.responses import JSONResponse
 
-from model_platform.api.auth import get_current_admin
+from model_platform.api.auth import get_current_admin, get_current_user
 from model_platform.domain.entities.project import Project
 from model_platform.domain.use_cases.projects_usecases import (
     EVENT_LOGGER,
@@ -20,13 +20,18 @@ def get_project_sqlite_db_handler(request: Request):
 
 
 @router.get("/list")
-def route_list_projects(project_sqlite_db_handler: ProjectSQLiteDBHandler = Depends(get_project_sqlite_db_handler)):
+def route_list_projects(
+    project_sqlite_db_handler: ProjectSQLiteDBHandler = Depends(get_project_sqlite_db_handler), 
+    current_user: dict = Depends(get_current_user)
+):
     return list_projects(project_db_handler=project_sqlite_db_handler)
 
 
 @router.get("/{project_name}/info")
 def route_project_info(
-    project_name: str, project_sqlite_db_handler: ProjectSQLiteDBHandler = Depends(get_project_sqlite_db_handler)
+    project_name: str, 
+    project_sqlite_db_handler: ProjectSQLiteDBHandler = Depends(get_project_sqlite_db_handler), 
+    current_user: dict = Depends(get_current_user),
 ):
     return get_project_info(project_sqlite_db_handler, project_name=project_name)
 
@@ -45,10 +50,14 @@ def route_add_project(
 def route_remove_project(
     project_name: str,
     project_sqlite_db_handler: ProjectSQLiteDBHandler = Depends(get_project_sqlite_db_handler),
+    current_user: dict = Depends(get_current_user),
 ):
     return remove_project(project_sqlite_db_handler, project_name=project_name)
 
 
 @router.get("/{project_name}/governance")
-def route_project_governance(project_name: str):
+def route_project_governance(
+    project_name: str, 
+    current_user: dict = Depends(get_current_user)
+):
     return EVENT_LOGGER.list_events(project_name)

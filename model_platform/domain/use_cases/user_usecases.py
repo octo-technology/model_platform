@@ -20,10 +20,21 @@ def get_user(user_handler: UserHandler, user_input: UserInput) -> User:
     return user
 
 
-def add_user(user_adapter: UserHandler, user_input: UserInput) -> bool:
-    success = user_adapter.add_user(
-        email=user_input.email,
-        hashed_password=pwd_context.hash(user_input.password),
-        role=Role.SIMPLE_USER.value
-    )
+def add_user(user_adapter: UserHandler, user_input: UserInput, role: str) -> bool:
+    if role == Role.SIMPLE_USER.value : 
+        success = user_adapter.add_user(
+            email=user_input.email,
+            hashed_password=pwd_context.hash(user_input.password),
+            role=Role.SIMPLE_USER.value
+        )
+    elif role == Role.ADMIN.value:
+        success = user_adapter.add_user(
+            email=user_input.email,
+            hashed_password=pwd_context.hash(user_input.password),
+            role=Role.ADMIN.value
+        )
+    else:
+        success = False
+        print("Role doesn't exist")
+        #TODO
     return success

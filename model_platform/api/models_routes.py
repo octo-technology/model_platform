@@ -16,6 +16,7 @@ from model_platform.domain.ports.registry_handler import RegistryHandler
 from model_platform.domain.use_cases.deploy_model import deploy_model, remove_model_deployment
 from model_platform.utils import sanitize_name
 
+from .auth import get_current_user
 router = APIRouter()
 
 
@@ -99,7 +100,7 @@ def get_tasks_status(request: Request) -> dict:
 
 @router.get("/list")
 def list_models(
-    project_name: str, request: Request, registry_pool: RegistryHandler = Depends(get_registry_pool)
+    project_name: str, request: Request, registry_pool: RegistryHandler = Depends(get_registry_pool), current_user: dict = Depends(get_current_user)
 ) -> JSONResponse:
     registry: ModelRegistry = registry_pool.get_registry_adapter(
         project_name, get_project_registry_tracking_uri(project_name, request)
@@ -109,7 +110,7 @@ def list_models(
 
 @router.get("/{model_name}/versions")
 def list_model_versions(
-    project_name: str, model_name: str, request: Request, registry_pool: RegistryHandler = Depends(get_registry_pool)
+    project_name: str, model_name: str, request: Request, registry_pool: RegistryHandler = Depends(get_registry_pool), current_user: dict = Depends(get_current_user)
 ) -> JSONResponse:
     registry: ModelRegistry = registry_pool.get_registry_adapter(
         project_name, get_project_registry_tracking_uri(project_name, request)
@@ -127,6 +128,7 @@ def route_deploy(
     background_tasks: BackgroundTasks,
     registry_pool: RegistryHandler = Depends(get_registry_pool),
     tasks_status: dict = Depends(get_tasks_status),
+    current_user: dict = Depends(get_current_user),
 ) -> JSONResponse:
     registry: ModelRegistry = registry_pool.get_registry_adapter(
         project_name, get_project_registry_tracking_uri(project_name, request)
@@ -141,12 +143,12 @@ def route_deploy(
 
 
 @router.get("/undeploy/{model_name}/{version}")
-def route_undeploy(project_name: str, model_name: str, version: str) -> JSONResponse:
+def route_undeploy(project_name: str, model_name: str, version: str, current_user: dict = Depends(get_current_user)) -> JSONResponse:
     return_code = remove_model_deployment(project_name, model_name, version)
     return JSONResponse({"return_code": return_code}, media_type="application/json")
 
 
 @router.get("/task-status/{task_id}")
-async def check_task_status(task_id: str, tasks_status: dict = Depends(get_tasks_status)) -> JSONResponse:
+async def check_task_status(task_id: str, tasks_status: dict = Depends(get_tasks_status), current_user: dict = Depends(get_current_user)) -> JSONResponse:
     status = tasks_status.get(task_id, "not_found")
     return JSONResponse({"task_id": task_id, "status": status}, media_type="application/json")
