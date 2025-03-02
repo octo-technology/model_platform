@@ -39,12 +39,3 @@ def remove_project(project_db_handler: ProjectDbHandler, project_name: str) -> b
     )
     return True
 
-
-def user_id(current_user_id: str):
-    def inner(func):
-        def wrapper(*args, **kwargs):
-            return func(*args, **kwargs)
-
-        return wrapper
-
-    return inner

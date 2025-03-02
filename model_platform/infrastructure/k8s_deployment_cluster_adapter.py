@@ -3,6 +3,7 @@ from loguru import logger
 
 from model_platform.domain.entities.model_deployment import ModelDeployment
 from model_platform.domain.ports.deployment_cluster_handler import DeploymentClusterHandler
+from model_platform.dot_env import DotEnv
 from model_platform.infrastructure.k8s_deployment import K8SDeployment
 from model_platform.utils import sanitize_name
 
