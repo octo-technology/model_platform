@@ -3,7 +3,6 @@ from loguru import logger
 
 from model_platform.domain.entities.model_deployment import ModelDeployment
 from model_platform.domain.ports.deployment_cluster_handler import DeploymentClusterHandler
-from model_platform.dot_env import DotEnv
 from model_platform.infrastructure.k8s_deployment import K8SDeployment
 from model_platform.utils import sanitize_name
 
@@ -70,10 +69,3 @@ class K8SDeploymentClusterAdapter(DeploymentClusterHandler, K8SDeployment):
         if deployments.items:
             return True
         return False
-
-
-if __name__ == "__main__":
-    DotEnv()
-    k8s_deployment = K8SDeploymentClusterAdapter()
-    print(k8s_deployment.list_deployments_for_project("test"))
-    print(k8s_deployment.check_if_model_deployment_exists("test", "test_model", "2"))

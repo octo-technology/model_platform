@@ -22,6 +22,12 @@ class K8SRegistryDeployment(RegistryDeployment, K8SDeployment):
         self.port = int(os.environ["MP_REGISTRY_PORT"])
         self.namespace = sanitize_name(project_name)
         self.project_name = sanitize_name(project_name)
+        self.pgsql_password = os.environ["POSTGRES_PASSWORD"]
+        self.pgsql_user = os.environ["POSTGRES_USER"]
+        self.pgsql_cluster_host = (
+            f"{os.environ['PGSQL_HOST']}-postgresql.{os.environ['PGSQL_NAMESPACE']}.svc.cluster.local"
+        )
+        self.mlflow_db_name = self.project_name
 
     def create_registry_deployment(self):
         self._create_or_update_namespace()
@@ -58,16 +64,33 @@ class K8SRegistryDeployment(RegistryDeployment, K8SDeployment):
                 template=client.V1PodTemplateSpec(
                     metadata=client.V1ObjectMeta(labels={"app": project_name}),
                     spec=client.V1PodSpec(
+                        init_containers=[
+                            client.V1Container(
+                                name="init-db",
+                                image="postgres:13",
+                                command=[
+                                    "sh",
+                                    "-c",
+                                    f"psql -h {self.pgsql_cluster_host} -U {self.pgsql_user} -d postgres -tc \"SELECT 1 FROM pg_database WHERE datname = '{self.mlflow_db_name}';\" | grep -q 1 || psql -h {self.pgsql_cluster_host} -U {self.pgsql_user} -d postgres -c 'CREATE DATABASE {self.mlflow_db_name};'",
+                                ],
+                                env=[
+                                    client.V1EnvVar(name="PGPASSWORD", value=self.pgsql_password),
+                                ],
+                            )
+                        ],
                         containers=[
                             client.V1Container(
                                 name="mlflow",
-                                image="ghcr.io/mlflow/mlflow:v2.9.2",
+                                # image="ghcr.io/mlflow/mlflow:v2.9.2",
+                                image="mlflow:latest",
+                                image_pull_policy="IfNotPresent",
                                 ports=[client.V1ContainerPort(container_port=self.port)],
                                 env=[
                                     client.V1EnvVar(name="MLFLOW_SERVER_HOST", value="0.0.0.0"),
                                     client.V1EnvVar(name="MLFLOW_SERVER_PORT", value=str(self.port)),
-                                    client.V1EnvVar(name="BACKEND_STORE_URI", value="sqlite:///mlflow.db"),
-                                    client.V1EnvVar(name="ARTIFACT_STORE_URI", value="/mnt/artifacts"),
+                                    client.V1EnvVar(name="AWS_ACCESS_KEY_ID", value="minio_user"),
+                                    client.V1EnvVar(name="AWS_SECRET_ACCESS_KEY", value="minio_password"),
+                                    client.V1EnvVar(name="MLFLOW_S3_ENDPOINT_URL", value="http://10.18.228.94:9000"),
                                 ],
                                 command=[
                                     "mlflow",
@@ -76,11 +99,26 @@ class K8SRegistryDeployment(RegistryDeployment, K8SDeployment):
                                     "0.0.0.0",
                                     "--port",
                                     str(self.port),
+                                    "--backend-store-uri",
+                                    f"postgresql://{self.pgsql_user}:{self.pgsql_password}@{self.pgsql_cluster_host}/{self.mlflow_db_name}",
+                                    "--artifacts-destination",
+                                    "s3://bucket",
                                     #  "--static-prefix",
                                     #  f"/{self.sub_path}/{project_name}",
                                 ],
+                                lifecycle=client.V1Lifecycle(
+                                    pre_stop=client.V1LifecycleHandler(
+                                        _exec=client.V1ExecAction(
+                                            command=[
+                                                "sh",
+                                                "-c",
+                                                f'psql -h {self.pgsql_cluster_host} -U {self.pgsql_user} -d postgres -tc "DROP DATABASE IF EXISTS {self.mlflow_db_name};" ',
+                                            ],
+                                        )
+                                    )
+                                ),
                             )
-                        ]
+                        ],
                     ),
                 ),
             ),
@@ -96,3 +134,45 @@ class K8SRegistryDeployment(RegistryDeployment, K8SDeployment):
                 logger.info(f"✅ Deployment {project_name} successfully created!")
             else:
                 logger.info(f"⚠️ Error while creating/updating the deployment: {e}")
+
+    def create_db_dropper_job(self):
+        logger.info(f"Creating job to drop database {self.mlflow_db_name}...")
+        batch_api_instance = client.BatchV1Api()
+        job_name = "drop-db-job"
+        try:
+            logger.info("Checking if job already exists...")
+            batch_api_instance.read_namespaced_job(name=job_name, namespace="pgsql")
+            batch_api_instance.delete_namespaced_job(
+                name=job_name, namespace="pgsql", body=client.V1DeleteOptions(propagation_policy="Foreground")
+            )
+            logger.info(f"ℹ️ Job {job_name} existent supprimé avant recréation.")
+        except ApiException as e:
+            if e.status != 404:
+                logger.error(f"⚠️ Erreur en vérifiant/supprimant le job existent {job_name}: {e}")
+                return
+
+        container = client.V1Container(
+            name="drop-db-container",
+            image="postgres:latest",
+            command=[
+                "/bin/sh",
+                "-c",
+                f"PGPASSWORD=$PGPASSWORD psql -h {self.pgsql_cluster_host} -U {self.pgsql_user} -c 'DROP DATABASE IF EXISTS {self.mlflow_db_name};'",
+            ],
+            env=[client.V1EnvVar(name="PGPASSWORD", value=self.pgsql_password)],
+        )
+
+        template = client.V1PodTemplateSpec(
+            metadata=client.V1ObjectMeta(labels={"job-name": job_name}),
+            spec=client.V1PodSpec(restart_policy="Never", containers=[container]),
+        )
+
+        job_spec = client.V1JobSpec(template=template, backoff_limit=4, ttl_seconds_after_finished=30)
+
+        job = client.V1Job(metadata=client.V1ObjectMeta(name=job_name), spec=job_spec)
+
+        try:
+            batch_api_instance.create_namespaced_job(namespace="pgsql", body=job)
+            logger.info(f"✅ Job {job_name} created to drop database {self.mlflow_db_name}.")
+        except ApiException as e:
+            logger.error(f"⚠️ Error while creating job {job_name}: {e}")

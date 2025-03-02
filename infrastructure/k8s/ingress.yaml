@@ -22,3 +22,10 @@ spec:
             name: nginx-reverse-proxy
             port:
               number: 80
+      - path: "/pgsql/"
+        pathType: Prefix
+        backend:
+          service:
+            name: modelplatform-pgsql
+            port:
+              number: 5432

@@ -16,3 +16,4 @@ def list_deployed_models_with_status_for_a_project(project_name: str) -> list[st
 def _remove_project_namespace(project_name: str) -> None:
     k8s_deployment = K8SRegistryDeployment(project_name)
     k8s_deployment.delete_namespace()
+    k8s_deployment.create_db_dropper_job()
