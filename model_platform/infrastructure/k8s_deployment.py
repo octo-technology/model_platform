@@ -36,16 +36,30 @@ class K8SDeployment:
 
     def delete_namespace(self):
         try:
-            # Vérifier si le namespace existe
+            # Check if the namespace exists
             self.service_api_instance.read_namespace(name=self.namespace)
-            logger.info(f"ℹ️ Namespace {self.namespace} trouvé, suppression en cours...")
+            logger.info(f"ℹ️ Namespace {self.namespace} found, deleting resources...")
 
-            # Supprimer le namespace
+            # Delete all Deployments in the namespace
+            deployments = self.apps_api_instance.list_namespaced_deployment(namespace=self.namespace)
+            for deployment in deployments.items:
+                self.apps_api_instance.delete_namespaced_deployment(
+                    name=deployment.metadata.name, namespace=self.namespace
+                )
+                logger.info(f"✅ Deployment {deployment.metadata.name} deleted.")
+
+            # Delete all Pods in the namespace
+            pods = self.service_api_instance.list_namespaced_pod(namespace=self.namespace)
+            for pod in pods.items:
+                self.service_api_instance.delete_namespaced_pod(name=pod.metadata.name, namespace=self.namespace)
+                logger.info(f"✅ Pod {pod.metadata.name} deleted.")
+
+            # Delete the namespace after all resources are removed
             self.service_api_instance.delete_namespace(name=self.namespace)
-            logger.info(f"✅ Namespace {self.namespace} supprimé avec succès!")
+            logger.info(f"✅ Namespace {self.namespace} successfully deleted!")
 
         except ApiException as e:
             if e.status == 404:
-                logger.info(f"ℹ️ Namespace {self.namespace} introuvable, rien à supprimer.")
+                logger.info(f"ℹ️ Namespace {self.namespace} not found, nothing to delete.")
             else:
-                logger.error(f"⚠️ Erreur lors de la suppression du namespace {self.namespace}: {e}")
+                logger.error(f"⚠️ Error while deleting namespace {self.namespace}: {e}")

@@ -97,8 +97,12 @@ minikube tunnel
 
 Set minikube docker build environment
 
-Copy th result of this commande to your .env file
+```bash
+eval $(minikube docker-env)
+```
+
+Launch minio local instance
 
 ```bash
-minikube docker-env
+docker-compose -f infrastructure/minio/docker-compose.yml up
 ```

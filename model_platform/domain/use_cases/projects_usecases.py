@@ -38,3 +38,4 @@ def remove_project(project_db_handler: ProjectDbHandler, project_name: str) -> b
         Event(action=remove_project.__name__, user=uuid.UUID(CURRENT_USER), entity=project_name), project_name
     )
     return True
+

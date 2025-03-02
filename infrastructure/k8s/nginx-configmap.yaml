@@ -67,7 +67,7 @@ data:
                  add_header X-Debug-Request-URI $request_uri;
 
                  # Redirection vers l'UI MLflow
-                 proxy_pass http://$project_name.$project_name.svc.cluster.local:5000$mlflow_path;
+                 proxy_pass http://$project_name.$project_name.svc.cluster.local:5000$mlflow_path$is_args$args;
 
                  proxy_set_header Host $host;
                  proxy_set_header X-Real-IP $remote_addr;
