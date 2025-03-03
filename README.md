@@ -101,6 +101,14 @@ Set minikube docker build environment
 eval $(minikube docker-env)
 ```
 
+Get local ip for minio:
+
+```bash
+ipconfig getifaddr en0
+or
+make get-ip
+```
+
 Launch minio local instance
 
 ```bash

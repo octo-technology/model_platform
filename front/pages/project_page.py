@@ -33,7 +33,6 @@ with tabs[1]:
     if "selected_project" in st.session_state:
         model_gov = get_governance_per_model(st.session_state["selected_project"])
         for model in model_gov:
-            st.write(f"### Model: {model} Deployment history")
-            st.table(model_gov[model])
+            st.table(model)
 
 create_project_selection_sidebar(project_list)

@@ -33,4 +33,7 @@ back:
 build-mlflow:
 	docker build -t mlflow -f infrastructure/registry/Dockerfile .
 
+get-ip:
+	ipconfig getifaddr en0
+
 model-platform: back frontend

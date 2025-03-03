@@ -13,4 +13,4 @@ GET http://0.0.0.0:8001/test/models/undeploy/test_model/1
 GET http://0.0.0.0:8001/test/deployed_models/list
 
 ###
-GET http://0.0.0.0:8001/test/models/task-status/c9914dcf-8bb7-457a-859d-550dd8f7188e
+GET http://0.0.0.0:8001/test/models/task-status/bbd69a91-e424-426c-9ef7-156ca800f5c6
