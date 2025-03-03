@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Depends
-from starlette.responses import JSONResponse
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import JSONResponse
 
 from model_platform.domain.use_cases import user_usecases
 from model_platform.domain.ports.user_handler import UserHandler
@@ -14,8 +14,13 @@ def get_user(
     password: str,
     user_adapter: UserHandler = Depends(get_user_adapter),
     current_user: dict = Depends(get_current_user)
-) -> JSONResponse:
+) :
     user = user_usecases.get_user(user_adapter, email, password)
+    if user is None:
+        raise HTTPException(
+            status_code=403, 
+            detail="User does not exist"
+            )
     return JSONResponse(
         content={
             "email": user.email, 
@@ -40,9 +45,15 @@ async def create_user(
         password=password,
         role=role
     )
-    return JSONResponse(
-        content={
-            "status":success
-        },
-        media_type="application/json"
-    )
+    if success:
+        return JSONResponse(
+                content={
+                    "status":success
+                },
+                media_type="application/json"
+            )
+    else:
+        raise HTTPException(
+            status_code=403, 
+            detail="Unexpected error has occured"
+            )

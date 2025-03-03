@@ -1,4 +1,4 @@
-
+from model_platform.domain.entities.exceptions.user_role_does_not_exist_exception import UserRoleDoesNotExistException
 from model_platform.domain.entities.role import Role
 from model_platform.domain.ports.user_handler import UserHandler
 from model_platform.domain.entities.user import User
@@ -20,20 +20,12 @@ def get_user(user_adapter: UserHandler, email: str, password: str) -> User:
 
 
 def add_user(user_adapter: UserHandler, email: str, password: str, role: str) -> bool:
-    if role == Role.SIMPLE_USER.value : 
+    if role in (Role.SIMPLE_USER.value, Role.ADMIN.value) : 
         success = user_adapter.add_user(
             email=email,
             hashed_password=pwd_context.hash(password),
-            role=Role.SIMPLE_USER.value
+            role=role
         )
-    elif role == Role.ADMIN.value:
-        success = user_adapter.add_user(
-            email=email,
-            hashed_password=pwd_context.hash(password),
-            role=Role.ADMIN.value
-        )
+        return success
     else:
-        success = False
-        print("Role doesn't exist")
-        #TODO
-    return success
+        raise UserRoleDoesNotExistException

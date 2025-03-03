@@ -1,6 +1,11 @@
 import logging
 import sqlite3
+from typing import Optional
 
+from fastapi import HTTPException
+
+from model_platform.domain.entities.exceptions.already_existing_user_exception import AlreadyExistingUserException
+from model_platform.domain.entities.exceptions.internal_server_error_exception import InternalServerErrorException
 from model_platform.domain.entities.role import Role
 from model_platform.domain.entities.user import User
 from model_platform.domain.ports.user_handler import UserHandler
@@ -34,29 +39,24 @@ class UserSqliteDbAdapter(UserHandler):
         finally:
             connection.close()
 
-    def get_user(self, email: str, password: str) -> User:
+    def get_user(self, email: str, password: str) -> Optional[User]:
         try:
             connection = sqlite3.connect(self.db_path)
             connection.row_factory = sqlite3.Row
             cursor = connection.cursor()
             cursor.execute("SELECT * FROM users WHERE email = ?", (email,))
             row = cursor.fetchone()
-            print(row["hashed_password"])
             if pwd_context.verify(password, row["hashed_password"]) :
-
-                print(f"showing the row : {row}")
                 user = User(
                     id=row["id"],
                     email=row["email"],
                     hashed_password=row["hashed_password"],
                     role=row["role"],
                 )
-                print(user)
             else:
                 print("Wrond password") #TODO
         except Exception as e:
             user = None
-            print("\n\n\n there error is :", e, "\n\n\n\n") 
 
         finally:
             connection.close()
@@ -75,8 +75,7 @@ class UserSqliteDbAdapter(UserHandler):
             )
             row = cursor.fetchone()
             if row :
-                print("utilisateur existant") #TODO
-                success = False
+                raise AlreadyExistingUserException
             else : 
                 cursor.execute(
                     """
@@ -88,8 +87,7 @@ class UserSqliteDbAdapter(UserHandler):
                 connection.commit()
                 success = True
         except Exception as e:
-            print(e) #TODO
-            success = False
+            raise InternalServerErrorException
         finally:
             connection.close()
         return success

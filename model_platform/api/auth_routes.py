@@ -17,7 +17,7 @@ async def login(response: Response, form_data: OAuth2PasswordRequestForm = Depen
         secure=False  # si True : Indique au navigateur d'envoyer le cookie uniquement sur des connexions HTTPS sécurisées.
     )
 
-    return {"status": "Authentificated"}
+    return token_info_dict
 
 
 @router.get("/me")
