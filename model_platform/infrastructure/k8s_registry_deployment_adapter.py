@@ -24,6 +24,7 @@ class K8SRegistryDeployment(RegistryDeployment, K8SDeployment):
         self.project_name = sanitize_name(project_name)
         self.pgsql_password = os.environ["POSTGRES_PASSWORD"]
         self.pgsql_user = os.environ["POSTGRES_USER"]
+        self.local_ip = os.environ["LOCAL_IP"]
         self.pgsql_cluster_host = (
             f"{os.environ['PGSQL_HOST']}-postgresql.{os.environ['PGSQL_NAMESPACE']}.svc.cluster.local"
         )
@@ -90,7 +91,9 @@ class K8SRegistryDeployment(RegistryDeployment, K8SDeployment):
                                     client.V1EnvVar(name="MLFLOW_SERVER_PORT", value=str(self.port)),
                                     client.V1EnvVar(name="AWS_ACCESS_KEY_ID", value="minio_user"),
                                     client.V1EnvVar(name="AWS_SECRET_ACCESS_KEY", value="minio_password"),
-                                    client.V1EnvVar(name="MLFLOW_S3_ENDPOINT_URL", value="http://10.18.228.94:9000"),
+                                    client.V1EnvVar(
+                                        name="MLFLOW_S3_ENDPOINT_URL", value=f"http://{self.local_ip}:9000"
+                                    ),
                                 ],
                                 command=[
                                     "mlflow",
