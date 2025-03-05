@@ -3,6 +3,7 @@
 This module provides endpoints for interacting with the model registry.
 """
 
+import inspect
 import logging
 import os
 import uuid
@@ -13,10 +14,10 @@ from fastapi.responses import JSONResponse
 from model_platform.domain.entities.docker.task_build_statuses import TaskBuildStatuses
 from model_platform.domain.ports.model_registry import ModelRegistry
 from model_platform.domain.ports.registry_handler import RegistryHandler
-from model_platform.domain.use_cases.deploy_model import deploy_model, remove_model_deployment
-from model_platform.utils import sanitize_name
-
 from model_platform.domain.use_cases.auth_usecases import get_current_user
+from model_platform.domain.use_cases.deploy_model import deploy_model, remove_model_deployment
+from model_platform.domain.use_cases.user_usecases import user_can_perform_action_for_project
+from model_platform.utils import sanitize_name
 
 router = APIRouter()
 
@@ -101,27 +102,48 @@ def get_tasks_status(request: Request) -> dict:
 
 @router.get("/list")
 def list_models(
-    project_name: str, request: Request, registry_pool: RegistryHandler = Depends(get_registry_pool), current_user: dict = Depends(get_current_user)
+    project_name: str,
+    request: Request,
+    registry_pool: RegistryHandler = Depends(get_registry_pool),
+    current_user: dict = Depends(get_current_user),
+    user_adapter: dict = Depends(get_current_user),
 ) -> JSONResponse:
     registry: ModelRegistry = registry_pool.get_registry_adapter(
         project_name, get_project_registry_tracking_uri(project_name, request)
+    )
+    user_can_perform_action_for_project(
+        current_user,
+        project_name=project_name,
+        action_name=inspect.currentframe().f_code.co_name,
+        user_adapter=user_adapter,
     )
     return JSONResponse(content=registry.list_all_models(), media_type="application/json")
 
 
 @router.get("/{model_name}/versions")
 def list_model_versions(
-    project_name: str, model_name: str, request: Request, registry_pool: RegistryHandler = Depends(get_registry_pool), current_user: dict = Depends(get_current_user)
+    project_name: str,
+    model_name: str,
+    request: Request,
+    registry_pool: RegistryHandler = Depends(get_registry_pool),
+    current_user: dict = Depends(get_current_user),
+    user_adapter: dict = Depends(get_current_user),
 ) -> JSONResponse:
     registry: ModelRegistry = registry_pool.get_registry_adapter(
         project_name, get_project_registry_tracking_uri(project_name, request)
+    )
+    user_can_perform_action_for_project(
+        current_user,
+        project_name=project_name,
+        action_name=inspect.currentframe().f_code.co_name,
+        user_adapter=user_adapter,
     )
     model_versions = registry.list_model_versions(model_name)
     return JSONResponse(content=model_versions, media_type="application/json")
 
 
 @router.get("/deploy/{model_name}/{version}")
-def route_deploy(
+def route_deploy_model(
     project_name: str,
     model_name: str,
     version: str,
@@ -130,7 +152,14 @@ def route_deploy(
     registry_pool: RegistryHandler = Depends(get_registry_pool),
     tasks_status: dict = Depends(get_tasks_status),
     current_user: dict = Depends(get_current_user),
+    user_adapter: dict = Depends(get_current_user),
 ) -> JSONResponse:
+    user_can_perform_action_for_project(
+        current_user,
+        project_name=project_name,
+        action_name=inspect.currentframe().f_code.co_name,
+        user_adapter=user_adapter,
+    )
     registry: ModelRegistry = registry_pool.get_registry_adapter(
         project_name, get_project_registry_tracking_uri(project_name, request)
     )
@@ -144,12 +173,36 @@ def route_deploy(
 
 
 @router.get("/undeploy/{model_name}/{version}")
-def route_undeploy(project_name: str, model_name: str, version: str, current_user: dict = Depends(get_current_user)) -> JSONResponse:
+def route_undeploy(
+    project_name: str,
+    model_name: str,
+    version: str,
+    current_user: dict = Depends(get_current_user),
+    user_adapter: dict = Depends(get_current_user),
+) -> JSONResponse:
+    user_can_perform_action_for_project(
+        current_user,
+        project_name=project_name,
+        action_name=inspect.currentframe().f_code.co_name,
+        user_adapter=user_adapter,
+    )
     return_code = remove_model_deployment(project_name, model_name, version)
     return JSONResponse({"return_code": return_code}, media_type="application/json")
 
 
 @router.get("/task-status/{task_id}")
-async def check_task_status(task_id: str, tasks_status: dict = Depends(get_tasks_status), current_user: dict = Depends(get_current_user)) -> JSONResponse:
+async def check_task_status(
+    task_id: str,
+    project_name: str,
+    tasks_status: dict = Depends(get_tasks_status),
+    current_user: dict = Depends(get_current_user),
+    user_adapter: dict = Depends(get_current_user),
+) -> JSONResponse:
+    user_can_perform_action_for_project(
+        current_user,
+        project_name=project_name,
+        action_name=inspect.currentframe().f_code.co_name,
+        user_adapter=user_adapter,
+    )
     status = tasks_status.get(task_id, "not_found")
     return JSONResponse({"task_id": task_id, "status": status}, media_type="application/json")

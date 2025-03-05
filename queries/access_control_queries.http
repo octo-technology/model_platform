@@ -1,18 +1,24 @@
 ###
+POST http://0.0.0.0:8001/users/add?email=bob&password=pass!&role=simple_user
+Authorization: {{Authorization}}
+
+
+###
+GET http://0.0.0.0:8001/auth/me
+Authorization: {{Authorization}}
+### admin
 POST http://0.0.0.0:8001/auth/token
 Content-Type: application/x-www-form-urlencoded
 
-username=alice&password=password
+username=alice@example.com&password=pass!
+
+
+### maintainer
+POST http://0.0.0.0:8001/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username=bob&password=pass!
 
 ###
-POST http://0.0.0.0:8001/projects/add
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhbGljZSIsInJvbGUiOiJhZG1pbiIsImV4cCI6MTc0MDI1MDc2OX0.AwYH74iTNhcv7pXE4XEygpFX45lZLTkF5rpstcpa21M
-Content-Type: application/json
-
-{
-  "name": "test2",
-  "owner": "Owner Name",
-  "scope": "Project Scope",
-  "data_perimeter": "Data Perimeter",
-  "connection_parameters": "Connection Parameters"
-}
+POST http://0.0.0.0:8001/projects/test/add_user?email=bob&role=maintainer
+Authorization: {{Authorization}}
