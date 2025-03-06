@@ -9,6 +9,10 @@ class ProjectDbHandler(ABC):
         pass
 
     @abstractmethod
+    def list_projects_for_user(self, user: str) -> list[Project]:
+        pass
+
+    @abstractmethod
     def get_project(self, name) -> Project:
         pass
 

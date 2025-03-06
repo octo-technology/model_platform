@@ -11,9 +11,9 @@ from front.utils import send_get_query
 
 def get_deployed_models_list(url) -> pd.DataFrame | None:
     try:
-        response = requests.get(url, timeout=5)
-        if response.status_code == 200:
-            return format_response(response.json())
+        response = send_get_query(url)
+        if response["http_code"] == 200:
+            return format_response(response["data"])
         else:
             return None
     except requests.RequestException:

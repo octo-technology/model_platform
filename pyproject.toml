@@ -21,6 +21,7 @@ notebook = "^7.3.2"
 passlib = "^1.7.4"
 python-jose = "^3.4.0"
 bcrypt = "^4.2.1"
+streamlit-cookies-controller = "^0.0.4"
 
 
 [tool.poetry.dev-dependencies]

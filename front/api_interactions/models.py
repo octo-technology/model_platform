@@ -2,16 +2,18 @@ from datetime import datetime
 
 import pandas as pd
 import requests
+import streamlit
 
 from front.utils import send_get_query
 
 
 def get_models_list(url, project_name: str) -> pd.DataFrame | None:
     try:
-        response = requests.get(url.format(project_name=project_name), timeout=5)
-        if response.status_code == 200:
-            return format_models_response(response.json())
+        response = send_get_query(url.format(project_name=project_name))
+        if response["http_code"] == 200:
+            return format_models_response(response["data"])
         else:
+            streamlit.info(response["data"]["detail"])
             return None
     except requests.RequestException:
         return None
@@ -19,10 +21,11 @@ def get_models_list(url, project_name: str) -> pd.DataFrame | None:
 
 def get_model_versions_list(url, project_name: str, model_name: str) -> pd.DataFrame | None:
     try:
-        response = requests.get(url.format(project_name=project_name, model_name=model_name), timeout=5)
-        if response.status_code == 200:
-            return format_models_response(response.json())
+        response = send_get_query(url.format(project_name=project_name, model_name=model_name))
+        if response["http_code"] == 200:
+            return format_models_response(response["data"])
         else:
+            streamlit.info(response["data"]["detail"])
             return None
     except requests.RequestException:
         return None

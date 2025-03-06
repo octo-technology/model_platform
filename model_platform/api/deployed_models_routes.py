@@ -25,7 +25,10 @@ def list_deployed_models(
     user_adapter: UserHandler = Depends(get_user_adapter),
 ) -> JSONResponse:
     user_can_perform_action_for_project(
-        current_user, project_name="", action_name=inspect.currentframe().f_code.co_name, user_adapter=user_adapter
+        current_user,
+        project_name=project_name,
+        action_name=inspect.currentframe().f_code.co_name,
+        user_adapter=user_adapter,
     )
     deployed_models = list_deployed_models_with_status_for_a_project(project_name)
     return JSONResponse(deployed_models, media_type="application/json")

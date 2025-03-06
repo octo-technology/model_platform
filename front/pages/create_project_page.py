@@ -18,9 +18,5 @@ with st.form(key="create_project_form"):
             success = add_project(
                 name=project_name, owner=project_owner, scope=project_scope, data_perimeter=project_data_perimeter
             )
-            if success:
-                st.success(f"Project '{project_name}' created successfully!")
-            else:
-                st.error("Project creation failed")
         else:
             st.error("Please fill in all the fields.")

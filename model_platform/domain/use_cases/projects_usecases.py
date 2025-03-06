@@ -17,6 +17,12 @@ def list_projects(project_db_handler: ProjectDbHandler) -> list[dict]:
     return l_projects
 
 
+def list_projects_for_user(user: str, project_db_handler: ProjectDbHandler) -> list[dict]:
+    projects = project_db_handler.list_projects_for_user(user)
+    l_projects = [project.to_json() for project in projects]
+    return l_projects
+
+
 def add_project(project_db_handler: ProjectDbHandler, project: Project) -> bool:
     EVENT_LOGGER.add_event(
         Event(action=add_project.__name__, user=uuid.UUID(CURRENT_USER), entity=project), project_name=project.name
