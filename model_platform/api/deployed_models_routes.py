@@ -3,17 +3,29 @@
 This module provides endpoints for interacting with the model registry.
 """
 
-from fastapi import APIRouter
+import inspect
+
+from fastapi import APIRouter, Depends
 from starlette.responses import JSONResponse
 
+from model_platform.domain.ports.user_handler import UserHandler
+from model_platform.domain.use_cases.auth_usecases import get_current_user, get_user_adapter
 from model_platform.domain.use_cases.deployed_models import (
     list_deployed_models_with_status_for_a_project,
 )
+from model_platform.domain.use_cases.user_usecases import user_can_perform_action_for_project
 
 router = APIRouter()
 
 
 @router.get("/list")
-def list_models(project_name: str) -> JSONResponse:
+def list_deployed_models(
+    project_name: str,
+    current_user: dict = Depends(get_current_user),
+    user_adapter: UserHandler = Depends(get_user_adapter),
+) -> JSONResponse:
+    user_can_perform_action_for_project(
+        current_user, project_name="", action_name=inspect.currentframe().f_code.co_name, user_adapter=user_adapter
+    )
     deployed_models = list_deployed_models_with_status_for_a_project(project_name)
     return JSONResponse(deployed_models, media_type="application/json")

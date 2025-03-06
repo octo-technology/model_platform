@@ -1,16 +1,22 @@
 GET http://0.0.0.0:8001/test/models/list
+Authorization: {{Authorization}}
 
 ###
 GET http://0.0.0.0:8001/test/models/test_model/versions
+Authorization: {{Authorization}}
 
 ###
 GET http://0.0.0.0:8001/test/models/deploy/test_model/1
+Authorization: {{Authorization}}
 
 ###
 GET http://0.0.0.0:8001/test/models/undeploy/test_model/1
+Authorization: {{Authorization}}
 
 ###
 GET http://0.0.0.0:8001/test/deployed_models/list
+Authorization: {{Authorization}}
 
 ###
 GET http://0.0.0.0:8001/test/models/task-status/bbd69a91-e424-426c-9ef7-156ca800f5c6
+Authorization: {{Authorization}}
