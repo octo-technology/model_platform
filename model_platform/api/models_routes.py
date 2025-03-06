@@ -14,7 +14,8 @@ from fastapi.responses import JSONResponse
 from model_platform.domain.entities.docker.task_build_statuses import TaskBuildStatuses
 from model_platform.domain.ports.model_registry import ModelRegistry
 from model_platform.domain.ports.registry_handler import RegistryHandler
-from model_platform.domain.use_cases.auth_usecases import get_current_user
+from model_platform.domain.ports.user_handler import UserHandler
+from model_platform.domain.use_cases.auth_usecases import get_current_user, get_user_adapter
 from model_platform.domain.use_cases.deploy_model import deploy_model, remove_model_deployment
 from model_platform.domain.use_cases.user_usecases import user_can_perform_action_for_project
 from model_platform.utils import sanitize_name
@@ -106,7 +107,7 @@ def list_models(
     request: Request,
     registry_pool: RegistryHandler = Depends(get_registry_pool),
     current_user: dict = Depends(get_current_user),
-    user_adapter: dict = Depends(get_current_user),
+    user_adapter: UserHandler = Depends(get_user_adapter),
 ) -> JSONResponse:
     registry: ModelRegistry = registry_pool.get_registry_adapter(
         project_name, get_project_registry_tracking_uri(project_name, request)
@@ -127,7 +128,7 @@ def list_model_versions(
     request: Request,
     registry_pool: RegistryHandler = Depends(get_registry_pool),
     current_user: dict = Depends(get_current_user),
-    user_adapter: dict = Depends(get_current_user),
+    user_adapter: UserHandler = Depends(get_user_adapter),
 ) -> JSONResponse:
     registry: ModelRegistry = registry_pool.get_registry_adapter(
         project_name, get_project_registry_tracking_uri(project_name, request)
@@ -152,7 +153,7 @@ def route_deploy_model(
     registry_pool: RegistryHandler = Depends(get_registry_pool),
     tasks_status: dict = Depends(get_tasks_status),
     current_user: dict = Depends(get_current_user),
-    user_adapter: dict = Depends(get_current_user),
+    user_adapter: UserHandler = Depends(get_user_adapter),
 ) -> JSONResponse:
     user_can_perform_action_for_project(
         current_user,
@@ -178,7 +179,7 @@ def route_undeploy(
     model_name: str,
     version: str,
     current_user: dict = Depends(get_current_user),
-    user_adapter: dict = Depends(get_current_user),
+    user_adapter: UserHandler = Depends(get_user_adapter),
 ) -> JSONResponse:
     user_can_perform_action_for_project(
         current_user,
@@ -196,7 +197,7 @@ async def check_task_status(
     project_name: str,
     tasks_status: dict = Depends(get_tasks_status),
     current_user: dict = Depends(get_current_user),
-    user_adapter: dict = Depends(get_current_user),
+    user_adapter: UserHandler = Depends(get_user_adapter),
 ) -> JSONResponse:
     user_can_perform_action_for_project(
         current_user,

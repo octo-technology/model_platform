@@ -7,16 +7,16 @@ GET http://0.0.0.0:8001/projects/test/info
 Authorization: {{Authorization}}
 
 ###
-GET http://0.0.0.0:8001/projects/test/remove
-Authorization: {{bob_authorization}}
+GET http://0.0.0.0:8001/projects/dgdsfgsd/remove
+Authorization: {{Authorization}}
 
 ###
 POST http://0.0.0.0:8001/projects/add
 Content-Type: application/json
-Authorization: {{bob_authorization}}
+Authorization: {{Authorization}}
 
 {
-  "name": "testfedfdsffdsfds",
+  "name": "test",
   "owner": "Owner Name",
   "scope": "Project Scope",
   "data_perimeter": "Data Perimeter",

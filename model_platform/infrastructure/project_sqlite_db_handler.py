@@ -36,6 +36,20 @@ class ProjectSQLiteDBHandler(ProjectDbHandler):
             connection.close()
         return map_rows_to_projects(rows)
 
+    def list_projects_for_user(self, user: str) -> list[Project] | None:
+        try:
+            connection = sqlite3.connect(self.db_path)
+            cursor = connection.cursor()
+            cursor.execute(
+                "SELECT * FROM projects JOIN project_users ON projects.name = project_users.project_name "
+                "WHERE project_users.email = ?",
+                (user,),
+            )
+            rows = cursor.fetchall()
+        finally:
+            connection.close()
+        return map_rows_to_projects(rows)
+
     def get_project(self, name) -> Project | None:
         connection = sqlite3.connect(self.db_path)
         try:

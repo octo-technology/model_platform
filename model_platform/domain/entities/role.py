@@ -20,6 +20,7 @@ PROJECT_ACTIONS_MINIMUM_LEVEL[ProjectRole.VIEWER] = PROJECT_ACTIONS_MINIMUM_LEVE
     "list_models",
     "list_deployed_models",
     "list_model_versions",
+    "route_list_projects",
 ]
 PROJECT_ACTIONS_MINIMUM_LEVEL[ProjectRole.DEVELOPER] = PROJECT_ACTIONS_MINIMUM_LEVEL[ProjectRole.VIEWER] + [
     "route_deploy_model",

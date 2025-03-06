@@ -15,6 +15,7 @@ st.session_state["deployment_task_id"] = defaultdict()
 
 pg = st.navigation(
     [
+        st.Page("pages/login_page.py", title="🔒 Login"),
         st.Page("pages/project_page.py", title="🤖 Project page"),
         st.Page("pages/project_manage_page.py", title="⚙️ Manage project"),
         st.Page("pages/create_project_page.py", title="➕️ Create project"),

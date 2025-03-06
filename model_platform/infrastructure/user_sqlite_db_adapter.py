@@ -162,7 +162,8 @@ class UserSqliteDbAdapter(UserHandler):
             row = cursor.fetchone()
             if row is None:
                 return ProjectRole.NO_ROLE
-            role = Role[row["role"].upper()]
+
+            role = ProjectRole[row[0].upper()]
         finally:
             connection.close()
         return role

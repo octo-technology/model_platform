@@ -7,9 +7,7 @@ from front.api_interactions.projects import get_project_info
 
 
 def create_project_selection_sidebar(project_list: list):
-    if project_list is not None and (len(project_list) == 0 or project_list.empty):
-        st.warning("No projects found or the API is unreachable.")
-    else:
+    if project_list is not None and (len(project_list) > 0 or not project_list.empty):
         project_names = project_list["Name"].tolist()
         # Titre
         st.sidebar.title("Select a Project")
@@ -48,9 +46,6 @@ def build_model_version_listing(models_df, name="model_listing", elements_to_add
                         build_undeploy_button(name, row)
             with col_objects[-1]:
                 build_status(name, row)
-
-    else:
-        st.warning("No models found or the API is unreachable.")
 
 
 def build_deploy_button(component_name: str, row: dict):
