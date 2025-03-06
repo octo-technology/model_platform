@@ -2,9 +2,7 @@ import requests
 import streamlit as st
 from streamlit_cookies_controller import CookieController
 
-# Définir le contrôleur de cookies
 controller = CookieController()
-print(controller.getAll())
 
 API_URL = "http://0.0.0.0:8001/auth/token"
 
@@ -25,6 +23,8 @@ if token is None:
                 st.session_state["token"] = token_data["access_token"]
                 controller.set("access_token", token_data["access_token"], max_age=3600, secure=False, same_site="Lax")
                 st.success("Connexion réussie 🎉")
+                if st.session_state["token"] is not None:
+                    st.rerun()
             else:
                 st.error("Échec de l'authentication ❌")
 
