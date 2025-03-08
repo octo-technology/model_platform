@@ -1,6 +1,5 @@
 import os
 import shutil
-import time
 
 import docker
 from docker.errors import DockerException
@@ -8,6 +7,7 @@ from loguru import logger
 
 from model_platform import PROJECT_DIR
 from model_platform.domain.entities.docker.dockerfile_template import DockerfileTemplate
+from model_platform.domain.use_cases.files_management import create_tmp_artefacts_folder, remove_directory
 from model_platform.infrastructure.mlflow_model_registry_adapter import MLFlowModelRegistryAdapter
 
 
@@ -43,34 +43,6 @@ def build_image_from_context(context_dir: str, image_name: str) -> int:
         return 1
 
 
-def recreate_directory(directory_path: str):
-    """
-    Recreates a directory at the specified path.
-
-    If the directory already exists, it is removed and then recreated.
-
-    Args:
-        directory_path (str): The path of the directory to recreate.
-    """
-    if os.path.exists(directory_path):
-        shutil.rmtree(directory_path)
-    os.makedirs(directory_path)
-
-
-def remove_directory(directory_path: str):
-    """
-    Removes a directory at the specified path if it exists.
-
-    Logs the removal action.
-
-    Args:
-        directory_path (str): The path of the directory to remove.
-    """
-    if os.path.exists(directory_path):
-        logger.info("Removing {directory_path}")
-        shutil.rmtree(directory_path)
-
-
 def copy_fast_api_template_to_tmp_docker_folder(dest_path: str) -> None:
     """
     Copies the FastAPI template to the specified destination path.
@@ -98,10 +70,7 @@ def prepare_docker_context(
     Returns:
         str: The path to the prepared Docker context.
     """
-    timestamp_id: int = int(time.time())
-    dest_model_files = f"{timestamp_id}_{project_name}_{model_name}_{version}"
-    path_dest = os.path.join(PROJECT_DIR, "tmp", dest_model_files)
-    recreate_directory(path_dest)
+    path_dest = create_tmp_artefacts_folder(model_name, project_name, version, path=os.path.join(PROJECT_DIR, "tmp"))
     copy_fast_api_template_to_tmp_docker_folder(path_dest)
     registry.download_model_artifacts(model_name, version, path_dest)
     return path_dest

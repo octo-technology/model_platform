@@ -1,9 +1,7 @@
 import time
-import uuid
 
 from loguru import logger
 
-from model_platform import CURRENT_USER
 from model_platform.domain.entities.docker.utils import build_model_docker_image
 from model_platform.domain.entities.event import Event
 from model_platform.domain.entities.model_deployment import ModelDeployment
@@ -16,10 +14,7 @@ EVENT_LOGGER = LogEventsHandlerFileAdapter()
 
 
 def deploy_model(
-    registry: MLFlowModelRegistryAdapter,
-    project_name: str,
-    model_name: str,
-    version: str,
+    registry: MLFlowModelRegistryAdapter, project_name: str, model_name: str, version: str, current_user: str = None
 ) -> int:
     k8s_deployment = K8SDeploymentClusterAdapter()
     if not k8s_deployment.check_if_model_deployment_exists(project_name, model_name, version):
@@ -38,7 +33,7 @@ def deploy_model(
                 deployment_date=int(time.time()),
             )
             EVENT_LOGGER.add_event(
-                Event(action=deploy_model.__name__, user=uuid.UUID(CURRENT_USER), entity=model_deployment), project_name
+                Event(action=deploy_model.__name__, user=current_user, entity=model_deployment), project_name
             )
         elif build_status == 1:
             logger.error("Docker build failed for project {project_name}, model {model_name}, version {version")
@@ -50,7 +45,7 @@ def deploy_model(
     return build_status
 
 
-def remove_model_deployment(project_name: str, model_name: str, version: str) -> int:
+def remove_model_deployment(project_name: str, model_name: str, version: str, current_user: str = None) -> int:
     """
     Removes the specified model and version from the Kubernetes cluster.
 
@@ -58,6 +53,7 @@ def remove_model_deployment(project_name: str, model_name: str, version: str) ->
         project_name (str): The name of the project.
         model_name (str): The name of the model.
         version (str): The version of the model.
+        current_user (str): The name of the user who is removing the model deployment.
 
     """
     k8s_deployment = K8SModelDeployment(project_name, model_name, version)
@@ -70,7 +66,7 @@ def remove_model_deployment(project_name: str, model_name: str, version: str) ->
         deployment_date=0,
     )
     EVENT_LOGGER.add_event(
-        Event(action=remove_model_deployment.__name__, user=uuid.UUID(CURRENT_USER), entity=model_deployment),
+        Event(action=remove_model_deployment.__name__, user=current_user, entity=model_deployment),
         project_name,
     )
     return True

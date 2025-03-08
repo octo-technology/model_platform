@@ -168,7 +168,7 @@ def route_deploy_model(
     tasks_status[task_id] = "queued"
     logging.info(f"Deploying {model_name}:{version} with task_id: {task_id}")
     decorated_task = track_task_status(task_id, tasks_status)(deploy_model)
-    background_tasks.add_task(decorated_task, registry, project_name, model_name, version)
+    background_tasks.add_task(decorated_task, registry, project_name, model_name, version, current_user["email"])
 
     return JSONResponse({"task_id": task_id, "status": "Deployment initiated"}, media_type="application/json")
 
@@ -187,7 +187,7 @@ def route_undeploy(
         action_name=inspect.currentframe().f_code.co_name,
         user_adapter=user_adapter,
     )
-    return_code = remove_model_deployment(project_name, model_name, version)
+    return_code = remove_model_deployment(project_name, model_name, version, current_user["email"])
     return JSONResponse({"return_code": return_code}, media_type="application/json")
 
 

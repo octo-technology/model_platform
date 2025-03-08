@@ -1,15 +1,18 @@
 import inspect
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from starlette.responses import JSONResponse
+from starlette.responses import FileResponse, JSONResponse
 
+from model_platform.api.models_routes import get_project_registry_tracking_uri, get_registry_pool
 from model_platform.domain.entities.project import Project
 from model_platform.domain.entities.role import Role
+from model_platform.domain.ports.model_registry import ModelRegistry
+from model_platform.domain.ports.registry_handler import RegistryHandler
 from model_platform.domain.ports.user_handler import UserHandler
 from model_platform.domain.use_cases import user_usecases
 from model_platform.domain.use_cases.auth_usecases import get_current_user, get_user_adapter
+from model_platform.domain.use_cases.governance_usecases import extract_project_models_governance_information
 from model_platform.domain.use_cases.projects_usecases import (
-    EVENT_LOGGER,
     add_project,
     get_project_info,
     list_projects,
@@ -81,21 +84,6 @@ def route_remove_project(
     return remove_project(project_sqlite_db_handler, project_name=project_name)
 
 
-@router.get("/{project_name}/governance")
-def route_project_governance(
-    project_name: str,
-    current_user: dict = Depends(get_current_user),
-    user_adapter: UserHandler = Depends(get_user_adapter),
-):
-    user_can_perform_action_for_project(
-        current_user,
-        project_name=project_name,
-        action_name=inspect.currentframe().f_code.co_name,
-        user_adapter=user_adapter,
-    )
-    return EVENT_LOGGER.list_events(project_name)
-
-
 @router.post("/{project_name}/add_user")
 def route_add_user_to_project(
     project_name: str,
@@ -117,3 +105,27 @@ def route_add_user_to_project(
         return JSONResponse(content={"status": success}, media_type="application/json")
     else:
         raise HTTPException(status_code=403, detail="Unexpected error has occurred")
+
+
+@router.get("/{project_name}/governance")
+def governance_route(
+    project_name: str,
+    request: Request,
+    registry_pool: RegistryHandler = Depends(get_registry_pool),
+    current_user: dict = Depends(get_current_user),
+    user_adapter: UserHandler = Depends(get_user_adapter),
+) -> FileResponse:
+    registry: ModelRegistry = registry_pool.get_registry_adapter(
+        project_name, get_project_registry_tracking_uri(project_name, request)
+    )
+    if current_user["role"] != Role.ADMIN:
+        user_can_perform_action_for_project(
+            current_user,
+            project_name=project_name,
+            action_name=inspect.currentframe().f_code.co_name,
+            user_adapter=user_adapter,
+        )
+
+    zip_path = extract_project_models_governance_information(project_name, registry)
+
+    return FileResponse(zip_path, media_type="application/zip", filename=f"{project_name+'governance'}.zip")

@@ -123,3 +123,17 @@ class MLFlowModelRegistryAdapter(ModelRegistry):
         run_id = [model_version["run_id"] for model_version in model_versions if model_version["version"] == version][0]
 
         return run_id
+
+    def get_model_governance_information(self, model_name: str, version: str) -> dict:
+        run_id = self._get_model_run_id(model_name, version)
+        model_tags = self.mlflow_client.get_run(run_id).data.tags
+        model_params = self.mlflow_client.get_run(run_id).data.params
+        model_metrics = self.mlflow_client.get_run(run_id).data.metrics
+        return {"run_id": run_id, "tags": model_tags, "params": model_params, "metrics": model_metrics}
+
+
+if __name__ == "__main__":
+    mlflow_client_manager = MLflowClientManager(tracking_uri="http://model-platform.com/registry/test/")
+    mlflow_client_manager.initialize()
+    registry_adapter = MLFlowModelRegistryAdapter(mlflow_client_manager=mlflow_client_manager)
+    print(registry_adapter.get_model_governance_information("test_model", "4"))
