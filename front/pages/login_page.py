@@ -1,3 +1,5 @@
+import time
+
 import requests
 import streamlit as st
 from streamlit_cookies_controller import CookieController
@@ -24,9 +26,11 @@ if token is None:
                 controller.set("access_token", token_data["access_token"], max_age=3600, secure=False, same_site="Lax")
                 st.success("Connexion réussie 🎉")
                 if st.session_state["token"] is not None:
+                    time.sleep(1)
                     st.rerun()
             else:
                 st.error("Échec de l'authentication ❌")
+
 
 if token is not None:
     if st.button("Se déconnecter"):
