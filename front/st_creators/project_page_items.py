@@ -3,24 +3,6 @@ import streamlit as st
 from front.api_interactions import endpoints
 from front.api_interactions.deployed_models import get_build_status
 from front.api_interactions.models import deploy_model
-from front.api_interactions.projects import get_project_info
-
-
-def create_project_selection_sidebar(project_list: list):
-    if project_list is not None and (len(project_list) > 0 or not project_list.empty):
-        project_names = project_list["Name"].tolist()
-        # Titre
-        st.sidebar.title("Select a Project")
-
-        # Menu déroulant pour sélectionner un project
-        selected_project = st.sidebar.selectbox("Choose a project", project_names)
-        st.session_state["selected_project"] = selected_project
-        model_info = get_project_info(selected_project)
-        # Project infos
-        st.sidebar.title("Project infos")
-        st.sidebar.dataframe(
-            model_info,
-        )
 
 
 def build_model_version_listing(models_df, name="model_listing", elements_to_add=None):
@@ -66,7 +48,7 @@ def build_deploy_button(component_name: str, row: dict):
             st.session_state[state_task_id_key] = task_id
 
 
-def build_status(component_name: str, row: dict):
+def build_status(row: dict):
     key = "_".join([str(value) for key, value in row.items()])
     state_task_id_key = "task_id_" + key
     if state_task_id_key in st.session_state and st.session_state[state_task_id_key] is not None:

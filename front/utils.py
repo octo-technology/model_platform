@@ -41,3 +41,4 @@ def set_token_in_session_state():
     controller = CookieController()
     token = controller.get("access_token")
     st.session_state["token"] = token
+    return controller

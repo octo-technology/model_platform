@@ -56,3 +56,6 @@ REMOVE_DEPLOYMENT_FROM_DB_ENDPOINT = (
 DEPLOYED_MODEL_URI = "http://{MP_HOST_NAME}/deploy/{project_name}/{deployment_name}".format(
     MP_HOST_NAME=os.environ["MP_HOST_NAME"], project_name="{project_name}", deployment_name="{deployment_name}"
 )
+
+### AUTH
+AUTH_URI = f"{API_BASE_URL}/auth/token"
