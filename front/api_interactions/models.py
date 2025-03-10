@@ -48,7 +48,7 @@ def format_models_response(models):
                 "Name": model_name,
                 "Creation Date": creation_timestamp,
                 "Aliases": aliases,
-                "version": versions,
+                "Version": versions,
             }
         )
 

@@ -3,7 +3,8 @@ import streamlit as st
 
 from front.api_interactions import endpoints
 from front.api_interactions.deployed_models import get_build_status
-from front.api_interactions.models import deploy_model
+from front.api_interactions.endpoints import MODELS_LIST_ENDPOINT
+from front.api_interactions.models import deploy_model, get_models_list
 from front.api_interactions.projects import get_users_for_project
 from front.api_interactions.users import (
     ROLE_OPTIONS,
@@ -13,7 +14,7 @@ from front.api_interactions.users import (
 )
 
 
-def build_model_version_listing(models_df, name="model_listing", elements_to_add=None):
+def build_model_version_listing(models_df, project_name: str, name="model_listing", elements_to_add=None):
     if models_df is not None and not models_df.empty:
         columns = list(models_df.columns) + elements_to_add
         col_sizes = [2] * (len(columns) + len(elements_to_add))
@@ -24,27 +25,38 @@ def build_model_version_listing(models_df, name="model_listing", elements_to_add
             col_objects = st.columns(col_sizes)
             for col_obj, col_name in zip(col_objects, columns):
                 if col_name in models_df.columns:
-                    col_obj.write(row[col_name])
-                elif col_name in ["Deploy", "Deploy latest"]:
+                    if col_name in ["Version"] and name == "available_models":
+                        with col_obj:
+                            build_model_versions_sel(project_name, name, row["Name"])
+                    else:
+                        col_obj.write(row[col_name])
+                elif col_name in ["Action"] and name == "available_models":
                     with col_obj:
                         build_deploy_button(name, row)
-                elif col_name == "List versions":
-                    with col_obj:
-                        build_list_versions_button(name, row)
-                elif col_name == "Undeploy":
+                elif col_name in ["Action"] and name == "deployed_models":
                     with col_obj:
                         build_undeploy_button(name, row)
+
             with col_objects[-1]:
-                build_status(name, row)
+                build_status(row)
+
+
+def build_model_versions_sel(project_name: str, name: str, model_name: str):
+    st.selectbox(
+        label="",
+        options=[1, 2, 3],
+        key=f"{name}_version_{project_name}_{model_name}",
+        index=0,
+        label_visibility="collapsed",
+    )
 
 
 def build_deploy_button(component_name: str, row: dict):
     key = "_".join([str(value) for key, value in row.items()])
-
     state_task_id_key = "task_id_" + key
     button_key = component_name + key
     if state_task_id_key not in st.session_state or st.session_state[state_task_id_key] is None:
-        if st.button("Deploy", key=button_key):
+        if st.button("Deploy", key=button_key, type="primary"):
             action_uri = endpoints.DEPLOY_MODEL_ENDPOINT
             result = deploy_model(
                 project_name=st.session_state.get("selected_project", "unknown"),
@@ -81,7 +93,7 @@ def build_list_versions_button(component_name: str, row: dict):
 
 def build_undeploy_button(component_name: str, row: dict):
     key = component_name + "_".join([str(value) for key, value in row.items()])
-    if st.button("Undeploy", key=key):
+    if st.button("Undeploy", key=key, type="primary"):
         action_uri = endpoints.UNDEPLOY_MODEL_ENDPOINT
         deploy_model(
             project_name=st.session_state.get("selected_project", "unknown"),
@@ -143,9 +155,12 @@ def create_project_settings(projects_list_df: pd.DataFrame, project_name: str):
         )
         create_users_listing(project_name)
     with available_models:
-        st.write("")
+        models = get_models_list(MODELS_LIST_ENDPOINT, project_name)
+        build_model_version_listing(models, project_name, elements_to_add=["Action"], name="available_models")
     with deployed_models:
-        st.write("")
+        build_model_version_listing(
+            models, project_name, elements_to_add=["Health check", "Action"], name="deployed_models"
+        )
 
 
 def set_bool_display_delete_dialog(value: bool):
@@ -248,8 +263,12 @@ def create_users_listing(project_name: str):
                             col_obj.write(row[col_name])
             if display_line_add_user:
                 col_objects = st.columns(col_sizes + [2])
-                col_objects[0].selectbox(label="", options=get_all_users(), key="selected_add_user")
-                col_objects[1].selectbox(label="", options=ROLE_OPTIONS, key="selected_role_user")
+                col_objects[0].selectbox(
+                    label="", options=get_all_users(), key="selected_add_user", label_visibility="collapsed"
+                )
+                col_objects[1].selectbox(
+                    label="", options=ROLE_OPTIONS, key="selected_role_user", label_visibility="collapsed"
+                )
                 col_objects[2].button(
                     "➕", type="tertiary", key="add_user_confirmation_button", on_click=add_user_to_project_with_role
                 )
