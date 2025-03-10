@@ -8,6 +8,10 @@ from front.utils import set_token_in_session_state
 
 logger.info("Application Streamlit démarrée")
 st.set_page_config(layout="wide")
+
+with open("front/assets/style.css") as css:
+    st.markdown(f"<style>{css.read()}</style>", unsafe_allow_html=True)
+
 cookie_controller = set_token_in_session_state()
 
 
@@ -21,13 +25,18 @@ with st.container(border=True):
         create_login_container(cookie_controller)
     else:
         with st.sidebar:
+            st.image("front/assets/octo_logo_png.png", use_container_width=True)
             st.markdown("# Model Platform")
             with st.container(border=True):
                 st.markdown("### GENERAL")
                 st.button(
-                    "Projects", key="sidebar_projects_button", on_click=set_current_page_to_display, args=["Projects"]
+                    ":blue[Projects]",
+                    key="sidebar_projects_button",
+                    on_click=set_current_page_to_display,
+                    args=["Projects"],
+                    type="tertiary",
                 )
-                st.button("Governance", key="sidebar_governance_button")
+                st.button(":blue[Governance]", key="sidebar_governance_button", type="tertiary")
             with st.container(border=True):
                 st.markdown("### OTHER")
                 create_logout_container(cookie_controller)

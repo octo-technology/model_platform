@@ -38,7 +38,7 @@ def create_login_container(cookie_controller):
 def create_logout_container(cookie_controller):
     token = cookie_controller.get("access_token")
     if token is not None:
-        if st.button("Logout"):
+        if st.button(":blue[Logout]", type="tertiary"):
             st.session_state["token"] = None
             cookie_controller.remove("access_token")
             cookie_controller.refresh()
