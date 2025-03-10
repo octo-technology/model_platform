@@ -13,6 +13,7 @@ cookie_controller = set_token_in_session_state()
 
 def set_current_page_to_display(page_to_display):
     st.session_state["current_page_to_display"] = page_to_display
+    st.session_state["project_users_to_display"] = None
 
 
 with st.container(border=True):

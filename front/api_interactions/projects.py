@@ -87,68 +87,21 @@ def add_project(name, owner, scope, data_perimeter) -> bool:
         st.error(f"Failed to add project:{response['data']['detail']}")
 
 
-def create_projects_listing(show_delete_button: bool = True):
-    projects_list_df = get_projects_list()
-    if projects_list_df is not None and not projects_list_df.empty:
-        if show_delete_button:
-            columns = list(projects_list_df.columns) + ["Delete project"]
-        else:
-            columns = list(projects_list_df.columns)
-        col_sizes = [2] * (len(columns))
-        col_objects = st.columns(col_sizes)
-        for col_obj, col_name in zip(col_objects, columns):
-            col_obj.write(f"**{col_name}**")
-        for _, row in projects_list_df.iterrows():
-            col_objects = st.columns(col_sizes)
-            for col_obj, col_name in zip(col_objects, columns):
-                if col_name in projects_list_df.columns:
-                    col_obj.write(row[col_name])
-            if show_delete_button:
-                with col_objects[-1]:
-                    build_project_deletion_bin(row["Name"])
+def format_users_list(users_df: list[dict]) -> pd.DataFrame:
+    data = []
+    for user in users_df:
+        data.append(
+            {
+                "Name": user.get("email", "Unknown"),
+                "Role": user.get("role", "Unknown"),
+            }
+        )
+    return pd.DataFrame(data)
 
 
-def set_bool_display_delete_dialog(value: bool) -> bool:
-    st.session_state["display_delete_dialog"] = value
-
-
-def build_project_deletion_bin(project_name: str):
-    st.session_state["show_delete_dialog"] = None
-    st.button(
-        label="",
-        icon="🗑️",
-        type="tertiary",
-        key=f"delete_project_{project_name}",
-        use_container_width=True,
-        on_click=set_bool_display_delete_dialog,
-        args=[True],
-    )
-
-    if st.session_state.get("display_delete_dialog", False):
-        create_st_dialog_delete_project(project_name)
-
-
-@st.dialog("Project Deletion Confirmation")
-def create_st_dialog_delete_project(project_name: str):
-    st.write(f"Are you sure you want to delete the project **{project_name}**?")
-    st.session_state["current_page_to_display"] = "Projects"
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("Yes, delete", key=f"confirm_delete_{project_name}"):
-            delete_project(project_name)
-            st.session_state["display_delete_dialog"] = False
-            st.rerun()
-
-    with col2:
-        if st.button("Cancel", key=f"cancel_delete_{project_name}"):
-            st.session_state["display_delete_dialog"] = False
-            st.rerun()
-
-
-def delete_project(project_name: str):
-    st.session_state["display_delete_project_success"] = project_name
-
-
-def display_delete_project_success(project_name: str):
-    st.toast(f"Delete project {project_name} successfully", icon="✅")
-    st.session_state["display_delete_project_success"] = False
+def get_users_for_project(project_name: str) -> pd.DataFrame:
+    users = [
+        {"email": "alice@example.com", "role": "Admin"},
+        {"email": "bob@example.com", "role": "Maintainer"},
+    ]
+    return format_users_list(users)
