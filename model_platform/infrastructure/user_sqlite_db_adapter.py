@@ -48,9 +48,10 @@ class UserSqliteDbAdapter(UserHandler):
                 """
                 CREATE TABLE IF NOT EXISTS project_users (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    email TEXT NOT NULL UNIQUE,
+                    email TEXT NOT NULL,
                     project_name TEXT NOT NULL,
-                    role TEXT NOT NULL
+                    role TEXT NOT NULL,
+                    UNIQUE(email, project_name)
                 )
             """
             )
@@ -92,6 +93,22 @@ class UserSqliteDbAdapter(UserHandler):
                 )
                 connection.commit()
                 success = True
+        finally:
+            connection.close()
+        return success
+
+    def delete_project_user(self, email: str, project_name: str):
+        connection = sqlite3.connect(self.db_path)
+        try:
+            cursor = connection.cursor()
+            cursor.execute(
+                """
+                DELETE FROM project_users WHERE email = ? AND project_name = ?
+                """,
+                (email, project_name),
+            )
+            connection.commit()
+            success = True
         finally:
             connection.close()
         return success
@@ -167,3 +184,46 @@ class UserSqliteDbAdapter(UserHandler):
         finally:
             connection.close()
         return role
+
+    def get_all_users(self) -> list[str]:
+        connection = sqlite3.connect(self.db_path)
+        try:
+            cursor = connection.cursor()
+            cursor.execute("SELECT email FROM users")
+            users = cursor.fetchall()
+            users = [user[0] for user in users]
+        finally:
+            connection.close()
+        return users
+
+    def get_users_for_project(self, project_name: str) -> list[dict]:
+        connection = sqlite3.connect(self.db_path)
+        try:
+            cursor = connection.cursor()
+            cursor.execute(
+                """
+                SELECT email, role FROM project_users WHERE project_name = ?
+                """,
+                (project_name,),
+            )
+            users = cursor.fetchall()
+            users = [{"email": user[0], "role": user[1]} for user in users]
+        finally:
+            connection.close()
+        return users
+
+    def change_user_role_for_project(self, email: str, project_name: str, role: ProjectRole):
+        connection = sqlite3.connect(self.db_path)
+        try:
+            cursor = connection.cursor()
+            cursor.execute(
+                """
+                UPDATE project_users SET role = ? WHERE email = ? AND project_name = ?
+                """,
+                (role.value, email, project_name),
+            )
+            connection.commit()
+            success = True
+        finally:
+            connection.close()
+        return success

@@ -1,6 +1,6 @@
 ###
 POST http://0.0.0.0:8001/users/add?email=bob&password=pass!&role=simple_user
-Authorization: {{Authorization}}
+
 
 
 ###
@@ -21,4 +21,9 @@ username=bob&password=pass!
 
 ###
 POST http://0.0.0.0:8001/projects/test/add_user?email=bob&role=maintainer
+Authorization: {{Authorization}}
+
+###
+###
+POST http://0.0.0.0:8001/projects/test/change_user_role?email=bob&role=DEVELOPPER
 Authorization: {{Authorization}}

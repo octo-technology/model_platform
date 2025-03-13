@@ -6,7 +6,7 @@ from front.api_interactions.governance import get_governance_per_model
 from front.api_interactions.models import get_models_list
 from front.api_interactions.projects import get_projects_list
 from front.st_creators.model_versions_tab import model_versions_tab
-from front.st_creators.project_page_items import build_model_version_listing
+from front.st_creators.project_page.project_model_listing import build_model_version_listing
 
 if "tabs" not in st.session_state:
     st.session_state["tabs"] = ["Project's models", "Governance"]

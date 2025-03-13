@@ -1,12 +1,12 @@
 import streamlit as st
 
 from front.api_interactions.projects import get_projects_list
-from front.st_creators.project_page_items import (
+from front.st_creators.project_page.project_listing import create_projects_listing
+from front.st_creators.project_page.project_page_items import (
     create_add_user_success,
     create_changed_user_role_success,
     create_delete_project_success,
     create_project_settings,
-    create_projects_listing,
 )
 
 
@@ -21,7 +21,7 @@ def create_projects_page():
         st.markdown("# Projects")
         create_projects_listing(projects_list_df)
     if st.session_state.get("display_delete_project_success", False):
-        create_delete_project_success(st.session_state["display_delete_project_success"])
+        create_delete_project_success()
     if st.session_state.get("added_user_to_project_success", False):
         create_add_user_success()
     if st.session_state.get("changed_user_role_project_success", False):

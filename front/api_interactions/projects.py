@@ -5,7 +5,7 @@ import pandas as pd
 import requests
 import streamlit as st
 
-from front.api_interactions.endpoints import ADD_PROJECT_URI, PROJECT_INFO_URL, PROJECT_LIST_ENDPOINT
+from front.api_interactions.endpoints import ADD_PROJECT_URI, DELETE_PROJECT, PROJECT_INFO_URL, PROJECT_LIST_ENDPOINT
 from front.api_interactions.health import check_url_health
 from front.utils import sanitize_name, send_get_query, send_post_query
 
@@ -82,9 +82,9 @@ def add_project(name, owner, scope, data_perimeter) -> bool:
     }
     response = send_post_query(ADD_PROJECT_URI, json)
     if response["http_code"] == 200:
-        st.success("Project added successfully")
+        st.toast("Project added successfully", icon="✅")
     else:
-        st.error(f"Failed to add project:{response['data']['detail']}")
+        st.error(f"Failed to add project:{response['data']['detail']}", icon="❌")
 
 
 def format_users_list(users_df: list[dict]) -> pd.DataFrame:
@@ -99,9 +99,11 @@ def format_users_list(users_df: list[dict]) -> pd.DataFrame:
     return pd.DataFrame(data)
 
 
-def get_users_for_project(project_name: str) -> pd.DataFrame:
-    users = [
-        {"email": "alice@example.com", "role": "Admin"},
-        {"email": "bob@example.com", "role": "Maintainer"},
-    ]
-    return format_users_list(users)
+def delete_project(project_name: str):
+    url = DELETE_PROJECT.format(project_name=project_name)
+    result = send_get_query(url)
+    if result["http_code"] != 200:
+        st.session_state["display_delete_project_success"] = False
+    else:
+        st.session_state["display_delete_project_success"] = project_name
+    return result

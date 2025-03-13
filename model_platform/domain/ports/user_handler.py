@@ -17,3 +17,11 @@ class UserHandler(ABC):
     @abstractmethod
     def add_project_user(self, project_name: str, email: str, role: ProjectRole) -> bool:
         pass
+
+    @abstractmethod
+    def get_all_users(self) -> list[str]:
+        pass
+
+    @abstractmethod
+    def get_users_for_project(self) -> list[dict]:
+        pass

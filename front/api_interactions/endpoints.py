@@ -12,6 +12,7 @@ PROJECT_LIST_ENDPOINT = f"{API_BASE_URL}/projects/list"
 PROJECT_INFO_URL = API_BASE_URL + "/projects/{PROJECT_NAME}/info"
 ADD_PROJECT_URI = API_BASE_URL + "/projects/add"
 PROJECT_GOVERNANCE = API_BASE_URL + "/projects/{project_name}/governance".format(project_name="{project_name}")
+DELETE_PROJECT = API_BASE_URL + "/projects/{project_name}/remove".format(project_name="{project_name}")
 
 ## MODEL ROUTES
 MODELS_LIST_ENDPOINT = "{API_BASE_URL}/{project_name}/models/list".format(
@@ -59,3 +60,21 @@ DEPLOYED_MODEL_URI = "http://{MP_HOST_NAME}/deploy/{project_name}/{deployment_na
 
 ### AUTH
 AUTH_URI = f"{API_BASE_URL}/auth/token"
+CREATE_USER_URI = "{API_BASE_URL}/users/add?email={email}&password={password}&role=SIMPLE_USER".format(
+    API_BASE_URL=API_BASE_URL, email="{email}", password="{password}"
+)
+GET_ALL_USERS_URI = "{API_BASE_URL}/users/get_all".format(API_BASE_URL=API_BASE_URL)
+ADD_USER_TO_PROJECT = "{API_BASE_URL}/projects/{project_name}/add_user?email={email}&role={role}".format(
+    API_BASE_URL=API_BASE_URL, project_name="{project_name}", email="{email}", role="{role}"
+)
+GET_USERS_FOR_PROJECT = "{API_BASE_URL}/projects/{project_name}/users".format(
+    API_BASE_URL=API_BASE_URL, project_name="{project_name}"
+)
+DELETE_USER_FOR_PROJECT = "{API_BASE_URL}/projects/{project_name}/remove_user?email={email}".format(
+    API_BASE_URL=API_BASE_URL, project_name="{project_name}", email="{email}"
+)
+CHANGE_USER_ROLE_FOR_PROJECT = (
+    "{API_BASE_URL}/projects/{project_name}/change_user_role?email={email}&role={role}".format(
+        API_BASE_URL=API_BASE_URL, project_name="{project_name}", email="{email}", role="{role}"
+    )
+)

@@ -128,4 +128,55 @@ def governance_route(
 
     zip_path = extract_project_models_governance_information(project_name, registry)
 
-    return FileResponse(zip_path, media_type="application/zip", filename=f"{project_name+'governance'}.zip")
+    return FileResponse(zip_path, media_type="application/zip", filename=f"{project_name + 'governance'}.zip")
+
+
+@router.get("/{project_name}/users")
+def get_users_for_project(
+    project_name: str,
+    current_user: dict = Depends(get_current_user),
+    user_adapter: UserHandler = Depends(get_user_adapter),
+):
+    user_can_perform_action_for_project(
+        current_user,
+        project_name=project_name,
+        action_name=inspect.currentframe().f_code.co_name,
+        user_adapter=user_adapter,
+    )
+    users = user_usecases.get_users_for_project(project_name, user_adapter)
+    return JSONResponse(content={"users": users}, media_type="application/json")
+
+
+@router.post("/{project_name}/remove_user")
+def route_remove_user_from_project(
+    project_name: str,
+    email: str,
+    current_user: dict = Depends(get_current_user),
+    user_adapter: UserHandler = Depends(get_user_adapter),
+):
+    user_can_perform_action_for_project(
+        current_user,
+        project_name=project_name,
+        action_name=inspect.currentframe().f_code.co_name,
+        user_adapter=user_adapter,
+    )
+    success = user_usecases.remove_user_from_project(user_adapter, email, project_name)
+    return JSONResponse(content={"status": success}, media_type="application/json")
+
+
+@router.post("/{project_name}/change_user_role")
+def route_change_user_role_for_project(
+    project_name: str,
+    email: str,
+    role: str,
+    current_user: dict = Depends(get_current_user),
+    user_adapter: UserHandler = Depends(get_user_adapter),
+):
+    user_can_perform_action_for_project(
+        current_user,
+        project_name=project_name,
+        action_name=inspect.currentframe().f_code.co_name,
+        user_adapter=user_adapter,
+    )
+    success = user_usecases.change_user_role_for_project(email, project_name, role, user_adapter)
+    return JSONResponse(content={"status": success}, media_type="application/json")

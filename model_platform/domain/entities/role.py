@@ -30,6 +30,9 @@ PROJECT_ACTIONS_MINIMUM_LEVEL[ProjectRole.DEVELOPER] = PROJECT_ACTIONS_MINIMUM_L
 PROJECT_ACTIONS_MINIMUM_LEVEL[ProjectRole.MAINTAINER] = PROJECT_ACTIONS_MINIMUM_LEVEL[ProjectRole.DEVELOPER] + [
     "route_project_governance",
     "route_add_user_to_project",
+    "get_users_for_project",
+    "route_remove_user_from_project",
+    "route_change_user_role_for_project",
 ]
 PROJECT_ACTIONS_MINIMUM_LEVEL[ProjectRole.ADMIN] = PROJECT_ACTIONS_MINIMUM_LEVEL[ProjectRole.MAINTAINER] + [
     "governance_route"
