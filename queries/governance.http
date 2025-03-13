@@ -1,2 +1,2 @@
-GET http://0.0.0.0:8001/projects/test/governance/
+GET http://0.0.0.0:8001/projects/test/download_governance
 Authorization: {{Authorization}}

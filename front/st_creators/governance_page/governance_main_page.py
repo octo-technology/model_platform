@@ -4,48 +4,61 @@ from collections import defaultdict
 import pandas as pd
 import streamlit as st
 
-from front.api_interactions.governance import get_project_full_governance
+from front.api_interactions.governance import download_project_governance, get_project_full_governance
 from front.api_interactions.projects import get_projects_list
 
 
 def create_governance_main_page():
     st.markdown("# Model Governance")
-    st.write("")
-    st.write("")
-    with st.container():
-        cols = st.columns(2)
-        with cols[0]:
-            create_project_selection_list()
-        with cols[1]:
-            create_project_governance_download("test")
-    st.divider()
-    create_project_governance_frame("test")
+    st.write(
+        "Select a project and find the complete list of the related models: its description, their versions and their deployment events."
+    )
+
+    create_project_selection_list()
+    selected_project = st.session_state.get("governance_project_selection", None)
+    if selected_project is not None:
+        create_project_governance_download(selected_project)
+        create_project_governance_frame(selected_project)
 
 
 def create_project_governance_download(project_name: str):
-    with st.container(border=True):
-        st.markdown("#### Download all information and artifacts for this project")
-        # download_project_governance(project_name)
-        if st.download_button("Download", data="", type="primary"):
-            pass
+    st.write("")
+    st.write("")
+    with st.container(border=False):
+        cols = st.columns([0.9, 0.1])
+        cols[0].markdown(f"## {project_name}")
+        with cols[1]:
+            if st.download_button(
+                "Download",
+                file_name=f"{project_name}_governance_archive.zip",
+                data=download_project_governance(project_name),
+                type="primary",
+            ):
+                pass
+    st.divider()
 
 
 def create_project_selection_list():
     projects_list_df = get_projects_list()
     projects_name_list = projects_list_df["Name"].tolist()
-    with st.container(border=True):
-        st.markdown("#### Please select a project to analyse:")
-        st.selectbox(
-            label="Select User",
-            options=projects_name_list,
-            key="governance_project_selection",
-            label_visibility="collapsed",
-        )
+    with st.container(border=False):
+        cols = st.columns([0.2, 0.8])
+        with cols[0]:
+            st.markdown("##### Project:")
+            st.selectbox(
+                label="Select User",
+                options=projects_name_list,
+                index=projects_name_list.index(
+                    st.session_state.get("governance_project_selection", projects_name_list[0])
+                ),
+                placeholder="Project Name",
+                key="governance_project_selection",
+                label_visibility="collapsed",
+            )
 
 
 def create_project_governance_frame(project_name: str):
     json_data = get_project_full_governance(project_name)["data"]
-    print(json_data)
     if isinstance(json_data, str):
         data = json.loads(json_data)
     else:
@@ -54,13 +67,6 @@ def create_project_governance_frame(project_name: str):
     if "project_gouvernance" not in data:
         st.error("Invalid JSON format: 'project_gouvernance' key not found")
         return
-    st.markdown("## Registered Models")
-
-    st.write(
-        "You will find the list of all the models of your project, including their description (model card) "
-        "as well as their versions and deployment events."
-    )
-    st.write(" ")
 
     model_groups = defaultdict(list)
     for model_data in data["project_gouvernance"]:
@@ -76,9 +82,8 @@ def create_project_governance_frame(project_name: str):
 
     for model_name, model_versions in model_groups.items():
         with st.container(border=False):
-            st.markdown("## Model overview")
-            cols = st.columns([0.01, 0.99])
-            cols[1].markdown(f"#### Model name : {model_name}")
+            st.markdown("### Model overview")
+            st.markdown(f"##### Model name : {model_name}")
 
             versions_data = []
             all_events = []
@@ -113,12 +118,10 @@ def create_project_governance_frame(project_name: str):
                 latest_version = max(model_versions, key=lambda x: x["model_information"].get("version", "0"))
                 if "mlflow.note.content" in latest_version["model_information"]["tags"]:
                     description = latest_version["model_information"]["tags"]["mlflow.note.content"]
-                    cols_card = st.columns([0.01, 0.99])
-                    with cols_card[1]:
-                        st.markdown("#### Model card:")
-                        st.text_area("", description, height=300, label_visibility="collapsed")
+                    st.markdown("##### Model card:")
+                    st.text_area("", description, height=300, label_visibility="collapsed")
 
-            st.markdown("#### Model Versions")
+            st.markdown("##### Model Versions")
             if versions_data:
                 versions_df = pd.DataFrame(versions_data)
                 if "Version" in versions_df.columns:
@@ -128,7 +131,7 @@ def create_project_governance_frame(project_name: str):
             else:
                 st.info("No version information available")
 
-            st.markdown("#### Deployment Events")
+            st.markdown("##### Deployment Events")
             if all_events:
                 events_df = pd.DataFrame(all_events)
 

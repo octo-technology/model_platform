@@ -13,6 +13,9 @@ PROJECT_INFO_URL = API_BASE_URL + "/projects/{PROJECT_NAME}/info"
 ADD_PROJECT_URI = API_BASE_URL + "/projects/add"
 PROJECT_GOVERNANCE = API_BASE_URL + "/projects/{project_name}/governance".format(project_name="{project_name}")
 DELETE_PROJECT = API_BASE_URL + "/projects/{project_name}/remove".format(project_name="{project_name}")
+DOWNLOAD_GOVERNANCE = API_BASE_URL + "/projects/{project_name}/download_governance".format(
+    project_name="{project_name}"
+)
 
 ## MODEL ROUTES
 MODELS_LIST_ENDPOINT = "{API_BASE_URL}/{project_name}/models/list".format(
