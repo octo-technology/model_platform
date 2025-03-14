@@ -1,5 +1,6 @@
 import streamlit as st
 from loguru import logger
+from streamlit_autorefresh import st_autorefresh
 
 from front.st_creators.governance_page.governance_main_page import create_governance_main_page
 from front.st_creators.host_status import create_backend_status
@@ -15,6 +16,9 @@ from front.utils import set_token_in_session_state
 
 logger.info("Application Streamlit démarrée")
 st.set_page_config(layout="wide")
+
+st_autorefresh(interval=10 * 1000, key="refresh")
+
 
 with open("front/assets/style.css") as css:
     st.markdown(f"<style>{css.read()}</style>", unsafe_allow_html=True)
