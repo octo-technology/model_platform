@@ -32,7 +32,7 @@ def build_model_version_listing(models_df, project_name: str, component_name="mo
                         build_undeploy_button(project_name, component_name, row)
 
             with col_objects[-1]:
-                build_status(row)
+                build_status(project_name, row)
 
 
 def build_model_versions_sel(project_name: str, component_name: str, model_name: str):
@@ -66,12 +66,12 @@ def build_deploy_button(project_name: str, component_name: str, row: dict):
             st.rerun()
 
 
-def build_status(row: dict):
+def build_status(project_name: str, row: dict):
     key = "_".join([str(value) for key, value in row.items()])
     state_task_id_key = "task_id_" + key
     if state_task_id_key in st.session_state and st.session_state[state_task_id_key] is not None:
         task_id = st.session_state[state_task_id_key]
-        status = get_build_status(st.session_state.get("selected_project", "unknown"), task_id)
+        status = get_build_status(project_name, task_id)
         if "PROGRESS" in status:
             st.status("Deploying")
         elif "COMPLETED" in status:
