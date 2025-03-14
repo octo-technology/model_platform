@@ -129,7 +129,14 @@ class MLFlowModelRegistryAdapter(ModelRegistry):
         model_tags = self.mlflow_client.get_run(run_id).data.tags
         model_params = self.mlflow_client.get_run(run_id).data.params
         model_metrics = self.mlflow_client.get_run(run_id).data.metrics
-        return {"run_id": run_id, "tags": model_tags, "params": model_params, "metrics": model_metrics}
+        return {
+            "model_name": model_name,
+            "version": version,
+            "run_id": run_id,
+            "tags": model_tags,
+            "params": model_params,
+            "metrics": model_metrics,
+        }
 
 
 if __name__ == "__main__":

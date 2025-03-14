@@ -11,7 +11,10 @@ from model_platform.domain.ports.registry_handler import RegistryHandler
 from model_platform.domain.ports.user_handler import UserHandler
 from model_platform.domain.use_cases import user_usecases
 from model_platform.domain.use_cases.auth_usecases import get_current_user, get_user_adapter
-from model_platform.domain.use_cases.governance_usecases import extract_project_models_governance_information
+from model_platform.domain.use_cases.governance_usecases import (
+    download_project_models_governance_information,
+    return_project_models_governance_information,
+)
 from model_platform.domain.use_cases.projects_usecases import (
     add_project,
     get_project_info,
@@ -107,17 +110,14 @@ def route_add_user_to_project(
         raise HTTPException(status_code=403, detail="Unexpected error has occurred")
 
 
-@router.get("/{project_name}/governance")
-def governance_route(
+@router.get("/{project_name}/download_governance")
+def download_governance_route(
     project_name: str,
     request: Request,
     registry_pool: RegistryHandler = Depends(get_registry_pool),
     current_user: dict = Depends(get_current_user),
     user_adapter: UserHandler = Depends(get_user_adapter),
 ) -> FileResponse:
-    registry: ModelRegistry = registry_pool.get_registry_adapter(
-        project_name, get_project_registry_tracking_uri(project_name, request)
-    )
     if current_user["role"] != Role.ADMIN:
         user_can_perform_action_for_project(
             current_user,
@@ -125,7 +125,82 @@ def governance_route(
             action_name=inspect.currentframe().f_code.co_name,
             user_adapter=user_adapter,
         )
+    registry: ModelRegistry = registry_pool.get_registry_adapter(
+        project_name, get_project_registry_tracking_uri(project_name, request)
+    )
+    zip_path = download_project_models_governance_information(project_name, registry)
 
-    zip_path = extract_project_models_governance_information(project_name, registry)
+    return FileResponse(zip_path, media_type="application/zip", filename=f"{project_name + 'governance'}.zip")
 
-    return FileResponse(zip_path, media_type="application/zip", filename=f"{project_name+'governance'}.zip")
+
+@router.get("/{project_name}/governance")
+def governance_route(
+    project_name: str,
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+    registry_pool: RegistryHandler = Depends(get_registry_pool),
+    user_adapter: UserHandler = Depends(get_user_adapter),
+):
+    if current_user["role"] != Role.ADMIN:
+        user_can_perform_action_for_project(
+            current_user,
+            project_name=project_name,
+            action_name=inspect.currentframe().f_code.co_name,
+            user_adapter=user_adapter,
+        )
+    registry: ModelRegistry = registry_pool.get_registry_adapter(
+        project_name, get_project_registry_tracking_uri(project_name, request)
+    )
+    project_governance = return_project_models_governance_information(project_name, registry)
+    return JSONResponse(content={"project_gouvernance": project_governance}, media_type="application/json")
+
+
+@router.get("/{project_name}/users")
+def get_users_for_project(
+    project_name: str,
+    current_user: dict = Depends(get_current_user),
+    user_adapter: UserHandler = Depends(get_user_adapter),
+):
+    user_can_perform_action_for_project(
+        current_user,
+        project_name=project_name,
+        action_name=inspect.currentframe().f_code.co_name,
+        user_adapter=user_adapter,
+    )
+    users = user_usecases.get_users_for_project(project_name, user_adapter)
+    return JSONResponse(content={"users": users}, media_type="application/json")
+
+
+@router.post("/{project_name}/remove_user")
+def route_remove_user_from_project(
+    project_name: str,
+    email: str,
+    current_user: dict = Depends(get_current_user),
+    user_adapter: UserHandler = Depends(get_user_adapter),
+):
+    user_can_perform_action_for_project(
+        current_user,
+        project_name=project_name,
+        action_name=inspect.currentframe().f_code.co_name,
+        user_adapter=user_adapter,
+    )
+    success = user_usecases.remove_user_from_project(user_adapter, email, project_name)
+    return JSONResponse(content={"status": success}, media_type="application/json")
+
+
+@router.post("/{project_name}/change_user_role")
+def route_change_user_role_for_project(
+    project_name: str,
+    email: str,
+    role: str,
+    current_user: dict = Depends(get_current_user),
+    user_adapter: UserHandler = Depends(get_user_adapter),
+):
+    user_can_perform_action_for_project(
+        current_user,
+        project_name=project_name,
+        action_name=inspect.currentframe().f_code.co_name,
+        user_adapter=user_adapter,
+    )
+    success = user_usecases.change_user_role_for_project(email, project_name, role, user_adapter)
+    return JSONResponse(content={"status": success}, media_type="application/json")

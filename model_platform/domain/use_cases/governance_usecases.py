@@ -79,7 +79,7 @@ def extract_model_governance_information(
     return {"model_information": information, "events": _get_events_for_model(project_name, model_name, version)}
 
 
-def extract_project_models_governance_information(project_name: str, registry: MLFlowModelRegistryAdapter):
+def download_project_models_governance_information(project_name: str, registry: MLFlowModelRegistryAdapter):
     """
     Extract model governance information for all models in a project
     """
@@ -100,6 +100,18 @@ def extract_project_models_governance_information(project_name: str, registry: M
     )
     remove_directory(artifacts_path_tmp)
     return zip_path
+
+
+def return_project_models_governance_information(project_name: str, registry: MLFlowModelRegistryAdapter):
+    project_information = []
+    versions = _get_project_models_versions(registry)
+    for model_name in versions.keys():
+        for version in versions[model_name]:
+            version_name = version["version"]
+            model_information = extract_model_governance_information(registry, project_name, model_name, version_name)
+            project_information.append(model_information)
+
+    return project_information
 
 
 def _write_project_information_to_json(project_information: list, path: str):
@@ -124,4 +136,4 @@ if __name__ == "__main__":
     mlflow_client_manager.initialize()
     registry_adapter = MLFlowModelRegistryAdapter(mlflow_client_manager=mlflow_client_manager)
     # print(extract_model_governance_information(registry_adapter, "test", "test_model", "3"))
-    print(extract_project_models_governance_information("test", registry_adapter))
+    print(download_project_models_governance_information("test", registry_adapter))

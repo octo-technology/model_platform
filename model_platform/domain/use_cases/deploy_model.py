@@ -20,7 +20,7 @@ def deploy_model(
     if not k8s_deployment.check_if_model_deployment_exists(project_name, model_name, version):
         build_status = build_model_docker_image(registry, project_name, model_name, version)
         logger.info(f"Build status for project {project_name}, model {model_name}, version {version}: {build_status}")
-        if build_status == 0:
+        if build_status == 1:
             logger.info("Model build successful for {project_name}, model {model_name}, version {version}")
             k8s_deployment = K8SModelDeployment(project_name, model_name, version)
             k8s_deployment.create_model_deployment()
@@ -35,7 +35,7 @@ def deploy_model(
             EVENT_LOGGER.add_event(
                 Event(action=deploy_model.__name__, user=current_user, entity=model_deployment), project_name
             )
-        elif build_status == 1:
+        elif build_status == 0:
             logger.error("Docker build failed for project {project_name}, model {model_name}, version {version")
     else:
         build_status = 0

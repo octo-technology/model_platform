@@ -58,7 +58,9 @@ class K8SRegistryDeployment(RegistryDeployment, K8SDeployment):
     def _create_or_update_mlflow_deployment(self, project_name: str):
         """Crée ou met à jour un déploiement Kubernetes pour MLflow."""
         deployment = client.V1Deployment(
-            metadata=client.V1ObjectMeta(name=project_name),
+            metadata=client.V1ObjectMeta(
+                name=project_name, labels={"project_name": self.project_name, "type": "model_registry"}
+            ),
             spec=client.V1DeploymentSpec(
                 replicas=1,
                 selector=client.V1LabelSelector(match_labels={"app": project_name}),

@@ -26,7 +26,7 @@ def build_image_from_context(context_dir: str, image_name: str) -> int:
         logger.info("Connected to docker env")
     except DockerException as e:
         logger.error(f"Could not connect to Docker daemon: {e}. Have you set DOCKER_HOST environment variable?")
-        return 1
+        return 0
 
     # In Docker < 19, `docker build` doesn't support the `--platform` option
     is_platform_supported = int(client.version()["Version"].split(".")[0]) >= 19
@@ -37,10 +37,10 @@ def build_image_from_context(context_dir: str, image_name: str) -> int:
         _, build_logs = client.images.build(path=context_dir, tag=image_name, platform=platform_option)
         logger.info(f"Image '{image_name}' built successfully.")
         _display_docker_build_logs(build_logs)
-        return 0
+        return 1
     except (docker.errors.BuildError, docker.errors.APIError) as e:
         logger.error(f"Docker build failed: {e}")
-        return 1
+        return 0
 
 
 def copy_fast_api_template_to_tmp_docker_folder(dest_path: str) -> None:
@@ -90,7 +90,7 @@ def build_docker_image_from_context_path(context_path: str, image_name: str) -> 
     dockerfile.generate_dockerfile(context_path)
     logger.info(f"Starting docker build in {context_path}")
     status = build_image_from_context(context_path, image_name)
-    if status == 1:
+    if status == 0:
         logger.error(f"Failed to build Docker image {image_name}")
     else:
         logger.info(f"Docker image {image_name} built successfully")
@@ -126,5 +126,6 @@ def build_model_docker_image(
     context_path: str = prepare_docker_context(registry, project_name, model_name, version)
     image_name: str = f"{project_name}_{model_name}_{version}_ctr"
     build_status = build_docker_image_from_context_path(context_path, image_name)
-    clean_build_context(context_path)
+    if build_status:
+        clean_build_context(context_path)
     return build_status
