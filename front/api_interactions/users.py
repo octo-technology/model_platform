@@ -48,6 +48,7 @@ def change_user_role_for_project(email, role, project_name):
 def create_user(email: str, password: str):
     url = CREATE_USER_URI.format(email=email, password=password)
     result = send_post_query(url, json_data={})
+    print(result)
     if result["http_code"] != 200:
         st.toast(result["data"]["detail"], icon="❌")
         return False

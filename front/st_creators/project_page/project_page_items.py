@@ -1,6 +1,7 @@
 import pandas as pd
 import streamlit as st
 
+from front.api_interactions.deployed_models import get_deployed_models_list
 from front.api_interactions.endpoints import MODELS_LIST_ENDPOINT
 from front.api_interactions.models import get_models_list
 from front.api_interactions.users import (
@@ -29,10 +30,11 @@ def create_project_settings(projects_list_df: pd.DataFrame, project_name: str):
         create_users_listing(project_name)
     with available_models:
         models = get_models_list(MODELS_LIST_ENDPOINT, project_name)
-        build_model_version_listing(models, project_name, elements_to_add=["Action"], name="available_models")
+        build_model_version_listing(models, project_name, elements_to_add=["Action"], component_name="available_models")
     with deployed_models:
+        deployed_models_list = get_deployed_models_list(project_name)
         build_model_version_listing(
-            models, project_name, elements_to_add=["Health check", "Action"], name="deployed_models"
+            deployed_models_list, project_name, elements_to_add=["Action"], component_name="deployed_models"
         )
 
 
@@ -50,6 +52,22 @@ def create_add_user_success():
 def create_changed_user_role_success():
     st.toast("User role successfully changed", icon="✅")
     st.session_state["change_user_role_for_project_success"] = False
+
+
+def create_add_model_deployment_success():
+    if st.session_state.get("action_model_deployment_ok", False):
+        st.toast("Model successfully deployed", icon="✅")
+        st.session_state["action_model_deployment_ok"] = False
+    else:
+        st.toast("Error while deploying model", icon="❌")
+
+
+def create_add_model_undeploy_success():
+    if st.session_state.get("action_model_undeploy_ok", False):
+        st.toast("Model successfully deployed", icon="✅")
+        st.session_state["action_model_undeploy_ok"] = False
+    else:
+        st.toast("Error while deploying model", icon="❌")
 
 
 def create_users_listing(project_name: str):

@@ -26,7 +26,7 @@ def format_projects_response(projects: dict) -> pd.DataFrame:
     data = []
     for project in projects:
         registry_homepage = build_project_registry_url(project.get("name", "Unknown"))
-        registry_status = build_project_registry_status_url(registry_homepage)
+        registry_status = build_healthcheck_status_url(registry_homepage)
         data.append(
             {
                 "Name": project.get("name", "Unknown"),
@@ -53,7 +53,7 @@ def build_project_registry_url(project_name: str) -> str:
     return project_registry_url
 
 
-def build_project_registry_status_url(registry_homepage: str) -> str:
+def build_healthcheck_status_url(registry_homepage: str) -> str:
     status, status_icon = check_url_health(registry_homepage)
     if status == "healthy":
         return ":green[Healthy] " + status_icon

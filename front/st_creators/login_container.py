@@ -58,7 +58,7 @@ def create_account_creation_form():
         submitted = st.form_submit_button("Create account")
         if submitted and password != "" and password_password_confirmation == password:
             response = create_user(username, password)
-            if response["http_code"] == 200:
+            if response:
                 st.success("Account created successfully 🎉")
             else:
                 st.error("Account creation failed ❌")
@@ -72,3 +72,4 @@ def create_logout_container(cookie_controller):
             st.session_state["token"] = None
             cookie_controller.remove("access_token")
             cookie_controller.refresh()
+            st.session_state["current_page_to_display"] = None

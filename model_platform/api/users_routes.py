@@ -45,6 +45,6 @@ async def create_user(
 ) -> JSONResponse:
     success = user_usecases.add_user(user_adapter=user_adapter, email=email, password=password, role=role)
     if success:
-        return JSONResponse(content={"status": success}, media_type="application/json")
+        return JSONResponse(content={"detail": "Used added successfully"}, media_type="application/json")
     else:
         raise HTTPException(status_code=403, detail="Unexpected error has occurred")

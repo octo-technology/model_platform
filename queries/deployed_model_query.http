@@ -1,6 +1,6 @@
 
 ###
-POST http://model-platform.com/deploy/test-mlflow-explo-titanic-1-deployment/predict
+POST http://model-platform.com/deploy/test/test-test-model-2-deployment/predict
 Content-Type: application/json
 
 {
@@ -29,3 +29,4 @@ Content-Type: application/json
 
 ###
 GET http://0.0.0.0:8001/test/deployed_models/list
+Authorization: {{Authorization}}

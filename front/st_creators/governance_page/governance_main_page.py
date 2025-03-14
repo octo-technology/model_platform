@@ -11,7 +11,8 @@ from front.api_interactions.projects import get_projects_list
 def create_governance_main_page():
     st.markdown("# Model Governance")
     st.write(
-        "Select a project and find the complete list of the related models: its description, their versions and their deployment events."
+        "Select a project and find the complete list of the related models: its description,"
+        " their versions and their deployment events."
     )
 
     create_project_selection_list()
@@ -40,7 +41,10 @@ def create_project_governance_download(project_name: str):
 
 def create_project_selection_list():
     projects_list_df = get_projects_list()
-    projects_name_list = projects_list_df["Name"].tolist()
+    if projects_list_df is not None and not projects_list_df.empty:
+        projects_name_list = projects_list_df["Name"].tolist()
+    else:
+        return False
     with st.container(border=False):
         cols = st.columns([0.2, 0.8])
         with cols[0]:

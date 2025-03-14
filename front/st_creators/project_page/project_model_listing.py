@@ -1,11 +1,11 @@
 import streamlit as st
 
 from front.api_interactions import endpoints
-from front.api_interactions.deployed_models import get_build_status
-from front.api_interactions.models import deploy_model
+from front.api_interactions.deployed_models import get_build_status, undeploy_model
+from front.api_interactions.models import deploy_model, get_model_versions_list
 
 
-def build_model_version_listing(models_df, project_name: str, name="model_listing", elements_to_add=None):
+def build_model_version_listing(models_df, project_name: str, component_name="model_listing", elements_to_add=None):
     if models_df is not None and not models_df.empty:
         columns = list(models_df.columns) + elements_to_add
         col_sizes = [2] * (len(columns) + len(elements_to_add))
@@ -16,47 +16,54 @@ def build_model_version_listing(models_df, project_name: str, name="model_listin
             col_objects = st.columns(col_sizes)
             for col_obj, col_name in zip(col_objects, columns):
                 if col_name in models_df.columns:
-                    if col_name in ["Version"] and name == "available_models":
+                    if col_name in ["Version"] and component_name == "available_models":
                         with col_obj:
-                            build_model_versions_sel(project_name, name, row["Name"])
+                            build_model_versions_sel(project_name, component_name, row["Name"])
+                    elif col_name in ["Url"] and component_name == "deployed_models":
+                        with col_obj:
+                            st.link_button(":blue[Deployment endpoint]", url=row[col_name], type="tertiary")
                     else:
                         col_obj.write(row[col_name])
-                elif col_name in ["Action"] and name == "available_models":
+                elif col_name in ["Action"] and component_name == "available_models":
                     with col_obj:
-                        build_deploy_button(name, row)
-                elif col_name in ["Action"] and name == "deployed_models":
+                        build_deploy_button(project_name, component_name, row)
+                elif col_name in ["Action"] and component_name == "deployed_models":
                     with col_obj:
-                        build_undeploy_button(name, row)
+                        build_undeploy_button(project_name, component_name, row)
 
             with col_objects[-1]:
                 build_status(row)
 
 
-def build_model_versions_sel(project_name: str, name: str, model_name: str):
+def build_model_versions_sel(project_name: str, component_name: str, model_name: str):
     st.selectbox(
         label="",
-        options=[1, 2, 3],
-        key=f"{name}_version_{project_name}_{model_name}",
+        options=get_model_versions_list(project_name=project_name, model_name=model_name),
+        key=f"{component_name}_version_{project_name}_{model_name}",
         index=0,
         label_visibility="collapsed",
     )
 
 
-def build_deploy_button(component_name: str, row: dict):
+def build_deploy_button(project_name: str, component_name: str, row: dict):
     key = "_".join([str(value) for key, value in row.items()])
     state_task_id_key = "task_id_" + key
     button_key = component_name + key
     if state_task_id_key not in st.session_state or st.session_state[state_task_id_key] is None:
         if st.button("Deploy", key=button_key, type="primary"):
             action_uri = endpoints.DEPLOY_MODEL_ENDPOINT
+            model_name = row["Name"]
+            selected_version_key = f"{component_name}_version_{project_name}_{model_name}"
+            selected_version = st.session_state.get(selected_version_key, None)
             result = deploy_model(
-                project_name=st.session_state.get("selected_project", "unknown"),
+                project_name=project_name,
                 model_name=row["Name"],
-                version=row.get("version", "latest"),
+                version=selected_version,
                 action_uri=action_uri,
             )
             task_id = result["task_id"]
             st.session_state[state_task_id_key] = task_id
+            st.rerun()
 
 
 def build_status(row: dict):
@@ -68,28 +75,19 @@ def build_status(row: dict):
         if "PROGRESS" in status:
             st.status("Deploying")
         elif "COMPLETED" in status:
-            st.success("Deployed")
+            st.session_state["action_model_deployment_ok"] = True
             st.session_state[state_task_id_key] = None
         elif "FAILED" in status:
-            st.error("Failed to deploy")
+            st.session_state["action_model_deployment_ok"] = False
             st.session_state[state_task_id_key] = None
-
-
-def build_list_versions_button(component_name: str, row: dict):
-    if st.button("List Versions", key=component_name + row["Name"]):
-        st.session_state["tabs"] = ["Project's models", "Governance", row["Name"] + " versions"]
-        st.session_state["list_versions"] = row["Name"]
         st.rerun()
 
 
-def build_undeploy_button(component_name: str, row: dict):
+def build_undeploy_button(project_name: str, component_name: str, row: dict):
     key = component_name + "_".join([str(value) for key, value in row.items()])
     if st.button("Undeploy", key=key, type="primary"):
-        action_uri = endpoints.UNDEPLOY_MODEL_ENDPOINT
-        deploy_model(
-            project_name=st.session_state.get("selected_project", "unknown"),
-            model_name=row["Name"],
-            version=row.get("version", "latest"),
-            action_uri=action_uri,
-        )
-        st.success("Action performed")
+        model_name = row["Name"]
+        version = row.get("version", "latest")
+        status = undeploy_model(project_name=project_name, model_name=model_name, version=version)
+        st.session_state["action_model_undeploy_ok"] = status
+        st.rerun()

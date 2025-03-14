@@ -51,7 +51,7 @@ class K8SDeploymentClusterAdapter(DeploymentClusterHandler, K8SDeployment):
 
     def list_deployments_for_project(self, project_name: str) -> list[ModelDeployment]:
         project_name = sanitize_name(project_name)
-        label_selector = f"project_name={project_name}"
+        label_selector = f"project_name={project_name},type notin (model_registry)"
         deployments = self.apps_api_instance.list_namespaced_deployment(
             namespace=project_name, label_selector=label_selector
         )

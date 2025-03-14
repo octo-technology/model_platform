@@ -4,7 +4,6 @@ from typing import Optional
 from passlib.context import CryptContext
 
 from model_platform.domain.entities.exceptions.already_existing_user_exception import AlreadyExistingUserException
-from model_platform.domain.entities.exceptions.internal_server_error_exception import InternalServerErrorException
 from model_platform.domain.entities.exceptions.not_existing_user_exception import NotExistingUserException
 from model_platform.domain.entities.role import ProjectRole, Role
 from model_platform.domain.entities.user import User
@@ -160,8 +159,6 @@ class UserSqliteDbAdapter(UserHandler):
                 )
                 connection.commit()
                 success = True
-        except Exception:
-            raise InternalServerErrorException
         finally:
             connection.close()
         return success

@@ -4,7 +4,12 @@ from loguru import logger
 from front.st_creators.governance_page.governance_main_page import create_governance_main_page
 from front.st_creators.host_status import create_backend_status
 from front.st_creators.login_container import create_login_container, create_logout_container
-from front.st_creators.project_page.project_page_items import create_add_user_success, create_changed_user_role_success
+from front.st_creators.project_page.project_page_items import (
+    create_add_model_deployment_success,
+    create_add_model_undeploy_success,
+    create_add_user_success,
+    create_changed_user_role_success,
+)
 from front.st_creators.projects_page import create_projects_page
 from front.utils import set_token_in_session_state
 
@@ -60,7 +65,12 @@ elif st.session_state.get("current_page_to_display", None) == "Governance":
 if st.session_state.get("added_user_to_project_success", None):
     create_add_user_success()
 
+if st.session_state.get("action_model_deployment_ok", None):
+    create_add_model_deployment_success()
+
+if st.session_state.get("action_model_undeploy_ok", None):
+    create_add_model_undeploy_success()
+
 
 if st.session_state.get("change_user_role_for_project_success", None):
-    print(st.session_state.get("change_user_role_for_project_success", None))
     create_changed_user_role_success()
