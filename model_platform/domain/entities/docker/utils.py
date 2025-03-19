@@ -1,10 +1,11 @@
 import os
 import shutil
+import subprocess
+from datetime import datetime
 
-import docker
-from docker.errors import DockerException
 from loguru import logger
 
+from front.utils import sanitize_name
 from model_platform import PROJECT_DIR
 from model_platform.domain.entities.docker.dockerfile_template import DockerfileTemplate
 from model_platform.domain.use_cases.files_management import create_tmp_artefacts_folder, remove_directory
@@ -19,28 +20,70 @@ def _display_docker_build_logs(build_logs):
 
 
 def build_image_from_context(context_dir: str, image_name: str) -> int:
+    # Créer un nom de fichier de log basé sure le nom de l'image
+    # Remplacer les caractères non autorisés dans les noms de fichiers
+    safe_image_name = image_name.replace("/", "_").replace(":", "_")
+    log_file_path = os.path.join(context_dir, f"docker_build_{safe_image_name}.log")
+
     docker_host = os.environ.get("DOCKER_HOST")
     logger.info(f"Process will use DOCKER_HOST= {docker_host} to build image")
-    try:
-        client = docker.from_env()
-        logger.info("Connected to docker env")
-    except DockerException as e:
-        logger.error(f"Could not connect to Docker daemon: {e}. Have you set DOCKER_HOST environment variable?")
-        return 0
+    logger.info(f"Build logs will be written to {log_file_path}")
 
-    # In Docker < 19, `docker build` doesn't support the `--platform` option
-    is_platform_supported = int(client.version()["Version"].split(".")[0]) >= 19
-    # Enforcing the AMD64 architecture build for Apple M1 users
-    platform_option = "linux/amd64" if is_platform_supported else ""
-    logger.info("Starting image build")
+    # Préparer la commande docker
+    cmd = ["docker", "build", "-t", image_name]
+
+    # Ajouter l'option platform si nécessaire
     try:
-        _, build_logs = client.images.build(path=context_dir, tag=image_name, platform=platform_option)
-        logger.info(f"Image '{image_name}' built successfully.")
-        _display_docker_build_logs(build_logs)
-        return 1
-    except (docker.errors.BuildError, docker.errors.APIError) as e:
-        logger.error(f"Docker build failed: {e}")
-        return 0
+        version_output = subprocess.check_output(["docker", "version", "--format", "{{.Server.Version}}"], text=True)
+        major_version = int(version_output.split(".")[0])
+        if major_version >= 19:
+            cmd.extend(["--platform", "linux/amd64"])
+    except Exception as e:
+        logger.warning(f"Couldn't determine Docker version: {e}. Platform option might not be applied.")
+
+    # Ajouter le chemin du contexte
+    cmd.append(context_dir)
+
+    # Ouvrir le fichier de log
+    with open(log_file_path, "w") as log_file:
+        # Écrire l'en-tête du log
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        log_file.write(f"=== Docker Build for {image_name} started at {timestamp} ===\n")
+        log_file.write(f"Command: {' '.join(cmd)}\n\n")
+
+        # Exécuter la commande et streamer les logs en temps réel
+        try:
+            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+
+            # Lire et logger la sortie en temps réel
+            for line in process.stdout:
+                stripped_line = line.strip()
+                # Écrire dans le fichier de log
+                log_file.write(f"{stripped_line}\n")
+                log_file.flush()  # S'assurer que les logs sont écrits immédiatement
+                # Également logger dans le logger standard
+                logger.info(f"Build: {stripped_line}")
+
+            # Attendre la fin du processus et vérifier le code de retour
+            process.wait()
+
+            # Écrire le résultat final dans le fichier de log
+            timestamp_end = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            if process.returncode == 0:
+                result_message = f"Image '{image_name}' built successfully."
+                log_file.write(f"\n=== Build completed successfully at {timestamp_end} ===\n")
+            else:
+                result_message = f"Docker build failed with return code {process.returncode}"
+                log_file.write(f"\n=== Build failed at {timestamp_end} with return code {process.returncode} ===\n")
+
+            logger.info(result_message)
+            return 1 if process.returncode == 0 else 0
+
+        except Exception as e:
+            error_message = f"Error executing docker build: {e}"
+            logger.error(error_message)
+            log_file.write(f"\n=== ERROR: {error_message} ===\n")
+            return 0
 
 
 def copy_fast_api_template_to_tmp_docker_folder(dest_path: str) -> None:
@@ -124,8 +167,9 @@ def build_model_docker_image(
 
     """
     context_path: str = prepare_docker_context(registry, project_name, model_name, version)
-    image_name: str = f"{project_name}_{model_name}_{version}_ctr"
+    image_name: str = sanitize_name(f"{project_name}_{model_name}_{version}_ctr")
     build_status = build_docker_image_from_context_path(context_path, image_name)
     if build_status:
-        clean_build_context(context_path)
+        # clean_build_context(context_path)
+        pass
     return build_status

@@ -1,0 +1,12 @@
+### PVLIB
+POST http://model-platform.com/deploy/grosse-conf-25/grosse-conf-25-pv-forecast-model-2-deployment/predict
+Content-Type: application/json
+
+{
+  "inputs": {
+    "latitude": 35.0,
+    "longitude": -110.0,
+    "name": "Project A",
+    "altitude": 1500,
+    "timezone": "UTC"}
+}

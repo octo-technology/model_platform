@@ -1,0 +1,12 @@
+### IRIS
+POST http://model-platform.com/deploy/grosse-conf-25/grosse-conf-25-random-forest-iris-classifier-1-deployment/predict
+Content-Type: application/json
+
+{
+  "inputs": {
+    "0": 3,
+    "1": 5.1,
+    "2": 1.4,
+    "3": 0.2
+  }
+}

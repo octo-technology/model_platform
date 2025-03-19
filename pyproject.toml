@@ -17,12 +17,12 @@ fastapi = "^0.115.6"
 psycopg2-binary = "^2.9.10"
 boto3 = "^1.36.2"
 kubernetes = "^32.0.0"
-notebook = "^7.3.2"
 passlib = "^1.7.4"
 python-jose = "^3.4.0"
 bcrypt = "^4.2.1"
 streamlit-cookies-controller = "^0.0.4"
 streamlit-autorefresh = "^1.0.1"
+notebook = "^7.3.3"
 
 
 [tool.poetry.dev-dependencies]
@@ -39,6 +39,12 @@ optional = true
 [tool.poetry.group.notebooks.dependencies]
 pyomo = "^6.9.0"
 scikit-learn = "^1.6.1"
+notebook = "^7.3.2"
+ortools = "^9.12.4544"
+torchinfo = "^1.8.0"
+torchmetrics = "^1.6.3"
+pvlib = "^0.11.2"
+transformers = "^4.49.0"
 
 
 [tool.ruff]

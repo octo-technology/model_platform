@@ -6,6 +6,7 @@ DotEnv()
 ## API
 API_BASE_URL = "http://0.0.0.0:8001"
 HEALTH_ENDPOINT = f"{API_BASE_URL}/health"
+ARTIFACTS_ENDPOINT = f"http://{os.environ['LOCAL_IP']}:9000"
 
 ## PROJECT ROUTES
 PROJECT_LIST_ENDPOINT = f"{API_BASE_URL}/projects/list"

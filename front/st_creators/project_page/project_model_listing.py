@@ -27,12 +27,10 @@ def build_model_version_listing(models_df, project_name: str, component_name="mo
                 elif col_name in ["Action"] and component_name == "available_models":
                     with col_obj:
                         build_deploy_button(project_name, component_name, row)
+                        build_status(project_name, row)
                 elif col_name in ["Action"] and component_name == "deployed_models":
                     with col_obj:
                         build_undeploy_button(project_name, component_name, row)
-
-            with col_objects[-1]:
-                build_status(project_name, row)
 
 
 def build_model_versions_sel(project_name: str, component_name: str, model_name: str):
@@ -80,7 +78,6 @@ def build_status(project_name: str, row: dict):
         elif "FAILED" in status:
             st.session_state["action_model_deployment_ok"] = False
             st.session_state[state_task_id_key] = None
-        st.rerun()
 
 
 def build_undeploy_button(project_name: str, component_name: str, row: dict):

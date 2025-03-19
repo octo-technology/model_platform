@@ -123,7 +123,13 @@ def create_project_governance_frame(project_name: str):
                 if "mlflow.note.content" in latest_version["model_information"]["tags"]:
                     description = latest_version["model_information"]["tags"]["mlflow.note.content"]
                     st.markdown("##### Model card:")
-                    st.text_area("", description, height=300, label_visibility="collapsed")
+                    st.text_area(
+                        "",
+                        description,
+                        height=300,
+                        label_visibility="collapsed",
+                        key=str(model_name) + str(latest_version) + "text_area",
+                    )
 
             st.markdown("##### Model Versions")
             if versions_data:
