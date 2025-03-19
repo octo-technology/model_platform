@@ -1,0 +1,12 @@
+### OPTIM
+POST http://model-platform.com/deploy/grosse-conf-25/grosse-conf-25-optim-profit-model-1-deployment/predict
+Content-Type: application/json
+
+{
+  "inputs": {
+    "profit_P1": 40,
+    "profit_P2": 30,
+    "work_limit": 100,
+    "material_limit": 120
+  }
+}

@@ -2,6 +2,7 @@ import streamlit as st
 from loguru import logger
 from streamlit_autorefresh import st_autorefresh
 
+from front.api_interactions.endpoints import ARTIFACTS_ENDPOINT, HEALTH_ENDPOINT
 from front.st_creators.governance_page.governance_main_page import create_governance_main_page
 from front.st_creators.host_status import create_backend_status
 from front.st_creators.login_container import create_login_container, create_logout_container
@@ -17,7 +18,7 @@ from front.utils import set_token_in_session_state
 logger.info("Application Streamlit démarrée")
 st.set_page_config(layout="wide")
 
-st_autorefresh(interval=10 * 1000, key="refresh")
+st_autorefresh(interval=20 * 1000, key="refresh")
 
 
 with open("front/assets/style.css") as css:
@@ -59,7 +60,9 @@ with st.container(border=True):
                 create_logout_container(cookie_controller)
             with st.container(border=True):
                 st.markdown("### Model Platform backend status :")
-                create_backend_status()
+                create_backend_status(HEALTH_ENDPOINT)
+                st.markdown("### Artifact Storage Status :")
+                create_backend_status(ARTIFACTS_ENDPOINT)
 
 if st.session_state.get("current_page_to_display", None) == "Projects":
     create_projects_page()

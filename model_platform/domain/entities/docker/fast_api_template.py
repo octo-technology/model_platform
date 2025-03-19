@@ -1,13 +1,15 @@
-import pickle
 from typing import Any, Dict
 
+import mlflow
 import numpy as np
 import pandas as pd
 from fastapi import FastAPI, HTTPException
 from loguru import logger
 from pydantic import BaseModel
 
-model = pickle.load(open("/opt/mlflow/model.pkl", "rb"))
+# model = pickle.load(open("/opt/mlflow/model.pkl", "rb"))
+model = mlflow.pyfunc.load_model("/opt/mlflow/")
+
 logger.info("Model loaded successfully")
 app = FastAPI(reload=True)
 
@@ -25,8 +27,12 @@ async def predict(request: PredictionRequest):
     try:
         input_data = request.inputs
         logger.info("Received data for inference")
-        input_df = pd.DataFrame([input_data])
-        model_predict = model.predict(model_input=pd.DataFrame(input_df), context=None)
+        if isinstance(input_data, dict):
+            input_df = pd.DataFrame([input_data])
+        else:
+            input_df = np.array(input_data)
+        # predict
+        model_predict = model.predict(pd.DataFrame(input_df))
         logger.info("Model inference done.")
         if isinstance(model_predict, np.ndarray):
             model_predict = model_predict.tolist()

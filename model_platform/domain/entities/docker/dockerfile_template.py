@@ -32,7 +32,7 @@ class DockerfileTemplate:
         # Install additional dependencies in the environment
         RUN uv venv
         RUN uv pip install -r /opt/mlflow/requirements.txt
-        RUN uv pip install uvicorn fastapi cloudpickle loguru
+        RUN uv pip install uvicorn fastapi cloudpickle loguru mlflow
 
         # Clean up apt cache to reduce image size
         RUN rm -rf /var/lib/apt/lists/*

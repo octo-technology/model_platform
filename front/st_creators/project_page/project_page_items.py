@@ -84,7 +84,6 @@ def create_users_listing(project_name: str):
         with cols_1[2]:
             if st.button("Add User", type="primary", key="add_user_button"):
                 st.session_state["add_user"] = not st.session_state.get("add_user", False)
-                # Initialiser les valeurs par défaut lorsque le bouton est cliqué
                 if "user_selection" not in st.session_state:
                     all_users = get_all_users()
                     st.session_state["user_selection"] = all_users[0] if all_users else None
@@ -138,12 +137,12 @@ def create_user_edition_container(project_name: str, edit_users: bool):
                     if col_name in df_users_role.columns:
                         if col_name == "Role" and edit_users:
                             role_key = f"role_{row['Name']}"
-                            if role_key not in st.session_state:
-                                st.session_state[role_key] = row["Role"]
+                            # if role_key not in st.session_state:
+                            #    st.session_state[role_key] = row["Role"]
                             user_row_cols[i].selectbox(
                                 label="",
                                 options=ROLE_OPTIONS,
-                                index=ROLE_OPTIONS.index(st.session_state[role_key]),
+                                index=ROLE_OPTIONS.index(row["Role"]),
                                 key=role_key,
                                 label_visibility="collapsed",
                             )

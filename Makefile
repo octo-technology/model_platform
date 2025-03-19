@@ -35,6 +35,8 @@ build-mlflow:
 
 get-ip:
 	ipconfig getifaddr en0
+
+set-ip:
 	python model_platform/domain/use_cases/main_update_registries_minio_ip.py
 
 model-platform: back frontend

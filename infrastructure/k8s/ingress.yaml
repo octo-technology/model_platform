@@ -3,29 +3,31 @@ kind: Ingress
 metadata:
   name: registry-ingress
   namespace: default
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "500m"
 spec:
   rules:
-  - host: model-platform.com
-    http:
-      paths:
-      - path: "/registry/"
-        pathType: Prefix
-        backend:
-          service:
-            name: nginx-reverse-proxy
-            port:
-              number: 80
-      - path: "/deploy/"
-        pathType: Prefix
-        backend:
-          service:
-            name: nginx-reverse-proxy
-            port:
-              number: 80
-      - path: "/pgsql/"
-        pathType: Prefix
-        backend:
-          service:
-            name: modelplatform-pgsql
-            port:
-              number: 5432
+    - host: model-platform.com
+      http:
+        paths:
+          - path: "/registry/"
+            pathType: Prefix
+            backend:
+              service:
+                name: nginx-reverse-proxy
+                port:
+                  number: 80
+          - path: "/deploy/"
+            pathType: Prefix
+            backend:
+              service:
+                name: nginx-reverse-proxy
+                port:
+                  number: 80
+          - path: "/pgsql/"
+            pathType: Prefix
+            backend:
+              service:
+                name: modelplatform-pgsql
+                port:
+                  number: 5432

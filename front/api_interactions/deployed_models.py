@@ -11,6 +11,7 @@ from front.api_interactions.endpoints import (
 )
 from front.api_interactions.projects import build_healthcheck_status_url
 from front.utils import send_get_query
+from model_platform.utils import sanitize_name
 
 
 def get_deployed_models_list(project_name: str) -> pd.DataFrame | None:
@@ -33,7 +34,9 @@ def format_response(models: list, project_name: str):
         model_name = model["model_name"]
         deployment_time_stamp = model["deployment_date"]
         versions = model["version"]
-        uri = DEPLOYED_MODEL_URI.format(project_name=project_name, deployment_name=model["deployment_name"])
+        uri = DEPLOYED_MODEL_URI.format(
+            project_name=sanitize_name(project_name), deployment_name=model["deployment_name"]
+        )
         health = build_healthcheck_status_url(uri + "/health")
         data.append(
             {

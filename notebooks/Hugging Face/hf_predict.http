@@ -1,0 +1,8 @@
+### OPTIM
+POST http://model-platform.com/deploy/grosse-conf-25/grosse-conf-25-huggingface-model-3-deployment/predict
+Content-Type: application/json
+
+{
+  "inputs": {"text":"I love this movie!"}
+
+}

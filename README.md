@@ -28,25 +28,14 @@ poetry install
 cp .env.example .env
 ```
 
-**Ensure you have a mlflow server listening at mlflow_tracking_uri**
-For example to have a local mlflow run
-```bash
-make registry_server
-```
-
-### Optional: Populate SQLLite database with projects
-```bash
-python dev_utils/populate_db.py
-```
-
 ### Run backend
 ```bash
-python -m model_platform
+make back
 ```
 
 ### Run frontend
 ```bash
-python -m streamlit run front/app.py --server.runOnSave=true
+make frontend
 ```
 
 ### Running CI locally
@@ -60,7 +49,6 @@ or
 #Intel processors
 make run-ci-amd
 ```
-
 
 ### K8S - MINIKUBE
 
@@ -113,4 +101,12 @@ Launch minio local instance
 
 ```bash
 docker-compose -f infrastructure/minio/docker-compose.yml up
+```
+
+Update miniio cluster ip in deployed mlflow registries
+
+Set it in the .env file. and run
+
+```bash
+make set-ip
 ```

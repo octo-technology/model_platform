@@ -14,11 +14,11 @@ class K8SModelDeployment(ModelDeployment, K8SDeployment):
     def __init__(self, project_name: str, model_name: str, model_version: str):
         super().__init__()
         self.namespace = sanitize_name(project_name)
-        self.docker_image_name = f"{project_name}_{model_name}_{model_version}_ctr"
+        self.docker_image_name = sanitize_name(f"{project_name}_{model_name}_{model_version}_ctr")
         self.service_name = sanitize_name(f"{project_name}-{model_name}-{model_version}-deployment")
-        self.project_name = project_name
-        self.model_name = model_name
-        self.model_version = model_version
+        self.project_name = sanitize_name(project_name)
+        self.model_name = sanitize_name(model_name)
+        self.model_version = sanitize_name(model_version)
 
     def create_model_deployment(self):
         logger.info(f"Creating model deployment in {self.namespace} namespace")
