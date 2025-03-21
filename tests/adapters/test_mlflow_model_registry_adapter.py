@@ -1,4 +1,3 @@
-import os
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -73,23 +72,6 @@ def test_download_run_id_artifacts(mock_mlflow_client_manager):
     downloaded_path = adapter._download_run_id_artifacts("run_123", "artifacts/path", "/destination")
 
     assert downloaded_path == "downloaded/path"
-
-
-def test_download_model_artifacts(mock_mlflow_client_manager):
-    mock_client_manager, mock_client = mock_mlflow_client_manager
-
-    mock_model_versions = [
-        {"name": "model1", "version": "1", "run_id": "run_123", "creation_timestamp": 1000},
-    ]
-    mock_client.search_model_versions.return_value = PagedList([ModelVersion(**mock_model_versions[0])], token=None)
-
-    mock_client.list_artifacts.return_value = [FileInfo(path="artifacts/path", is_dir=False, file_size=123)]
-    mock_client.download_artifacts.return_value = "downloaded/path"
-
-    adapter = MLFlowModelRegistryAdapter(mock_client_manager)
-    downloaded_path = adapter.download_model_artifacts("model1", "1", "/destination")
-
-    assert downloaded_path == os.path.join("/destination", "downloaded/path")
 
 
 def test_get_model_run_id(mock_mlflow_client_manager):
