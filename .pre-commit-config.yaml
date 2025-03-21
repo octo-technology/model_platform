@@ -12,6 +12,7 @@ repos:
       - id: check-case-conflict
       - id: check-merge-conflict
       - id: check-yaml
+        args: [--allow-multiple-documents]
       - id: fix-byte-order-marker
       - id: mixed-line-ending
       - id: pretty-format-json
