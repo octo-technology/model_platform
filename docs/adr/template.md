@@ -18,14 +18,16 @@
     - ✅ **Advantage:**
     - 🚫 **Disadvantage:**
 
-
 # Advices
+
 <--Any advices worth mentioning-->
 
 # Decision 🏆
+
 <--Which decision have been taken and what was the decider-->
 
 # Consequences
+
 <-- Consequences of your decision -->
 
 ♻️ Update: <date>.

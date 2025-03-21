@@ -7,6 +7,7 @@ repos:
       - id: check-added-large-files
       - id: requirements-txt-fixer
       - id: check-json
+        exclude: "^.ipynb"
       - id: detect-private-key
       - id: check-case-conflict
       - id: check-merge-conflict
@@ -14,21 +15,17 @@ repos:
       - id: fix-byte-order-marker
       - id: mixed-line-ending
       - id: pretty-format-json
-        args: [--autofix]
+        exclude: "^.ipynb"
+        args: [ --autofix ]
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.0.278
     hooks:
       - id: ruff
-        args: [--fix, --exit-non-zero-on-fix]
+        args: [ --fix, --exit-non-zero-on-fix ]
 
   - repo: https://github.com/psf/black
     rev: 24.3.0
     hooks:
       - id: black
-        args: [--preview, --line-length=120]
-
-  - repo: https://github.com/crate-ci/typos
-    rev: v1.16.20
-    hooks:
-      - id: typos
+        args: [ --preview, --line-length=120 ]

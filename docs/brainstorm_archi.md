@@ -5,26 +5,26 @@
   - proxy bulk api
   - possiblité de mettre de côté
 - configuration de la sortie des logs
-- AUTH: intercation les runners seulement https -> api management / -> IAM. 
+- AUTH: intercation les runners seulement https -> api management / -> IAM.
 - Qui de l'orchestration ? Multi-modèl
 - Trace push dans stdout
 - Déploiement
   - roll out (gestion up and down)
   - Queue deveant les API
   - Gestion programatique
-- Runner dédiés 
+- Runner dédiés
   - runner edge
 - Ressource management:
-  - K8S 
+  - K8S
   - Solution local
   - Openshift
   - partage/quota
 - Metrics/drigt
 - Versionning de Dataset
   - Vision metadata / pointeurs
-- LLM: ressource limités 
+- LLM: ressource limités
   - optimisation du chargement /déchargement
   - partage des ressources
-- Repository pour les images docker. 
-- Génération de code pour que le backend puissent directement appeler le backend. 
-  - schéma de data class remplie et serialisée. 
+- Repository pour les images docker.
+- Génération de code pour que le backend puissent directement appeler le backend.
+  - schéma de data class remplie et serialisée.

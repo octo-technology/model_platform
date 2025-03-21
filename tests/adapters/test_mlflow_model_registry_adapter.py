@@ -1,10 +1,12 @@
 import os
-import pytest
 from unittest.mock import MagicMock, patch
-from model_platform.infrastructure.mlflow_model_registry_adapter import MLFlowModelRegistryAdapter
-from mlflow.entities.model_registry import RegisteredModel, ModelVersion
+
+import pytest
 from mlflow.entities import FileInfo
+from mlflow.entities.model_registry import RegisteredModel, ModelVersion
 from mlflow.store.entities import PagedList
+
+from model_platform.infrastructure.mlflow_model_registry_adapter import MLFlowModelRegistryAdapter
 
 
 @pytest.fixture

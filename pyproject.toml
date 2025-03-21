@@ -52,7 +52,7 @@ transformers = "^4.49.0"
 # Enable the pycodestyle (`E`) and Pyflakes (`F`) rules by default.
 # Unlike Flake8, Ruff doesn't enable pycodestyle warnings (`W`) or
 # McCabe complexity (`C901`) by default.
-select = ["E", "F","I","N",]
+select = ["E", "F", "I", "N", ]
 ignore = ["D205"]
 
 # Allow autofix for all enabled rules (when `--fix`) is provided.
@@ -60,8 +60,8 @@ fixable = ["ALL"]
 unfixable = ["E712"]
 
 include = ["*.py"]
-exclude = ["**/Applications/**", "**/tests/**","**/docs/**","**/__init__.py"]
-per-file-ignores = {}
+exclude = ["**/Applications/**", "**/tests/**", "**/docs/**", "**/__init__.py"]
+per-file-ignores = { }
 
 # Same as Black.
 line-length = 120

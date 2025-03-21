@@ -1,7 +1,9 @@
 import asyncio
 import time
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import MagicMock, patch
+
 from model_platform.infrastructure.mlflow_handler_adapter import MLFlowHandlerAdapter
 
 

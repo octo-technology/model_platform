@@ -8,5 +8,6 @@ Content-Type: application/json
     "longitude": -110.0,
     "name": "Project A",
     "altitude": 1500,
-    "timezone": "UTC"}
+    "timezone": "UTC"
+  }
 }

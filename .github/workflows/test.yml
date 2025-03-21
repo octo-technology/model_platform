@@ -50,17 +50,17 @@ jobs:
 
       - name: Run Query docker test
         run: |
-            http --ignore-stdin --json POST http://0.0.0.0:8000/predict \
-            Content-Type:application/json \
-            inputs:='{
-              "Pclass": 3,
-              "Sex": "male",
-              "Age": 22.0,
-              "SibSp": 1,
-              "Parch": 0,
-              "Fare": 7.25,
-              "Embarked": "S"
-            }'
+          http --ignore-stdin --json POST http://0.0.0.0:8000/predict \
+          Content-Type:application/json \
+          inputs:='{
+            "Pclass": 3,
+            "Sex": "male",
+            "Age": 22.0,
+            "SibSp": 1,
+            "Parch": 0,
+            "Fare": 7.25,
+            "Embarked": "S"
+          }'
 
       - name: Stop and Remove Docker Container
         run: |

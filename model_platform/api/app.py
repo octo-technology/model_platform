@@ -7,11 +7,19 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from model_platform.api import auth_routes, deployed_models_routes, health_check, models_routes, projects_routes, users_routes
+from model_platform.api import (
+    auth_routes,
+    deployed_models_routes,
+    health_check,
+    models_routes,
+    projects_routes,
+    users_routes,
+)
+from model_platform.domain.use_cases.config import Config
 from model_platform.infrastructure.mlflow_handler_adapter import MLFlowHandlerAdapter
 from model_platform.infrastructure.project_sqlite_db_handler import ProjectSQLiteDBHandler
 from model_platform.infrastructure.user_sqlite_db_adapter import UserSqliteDbAdapter
-from model_platform.domain.use_cases.config import Config
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

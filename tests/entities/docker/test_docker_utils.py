@@ -1,4 +1,5 @@
 import os.path
+
 from model_platform import PROJECT_DIR
 from model_platform.domain.entities.docker.utils import build_image_from_context
 
