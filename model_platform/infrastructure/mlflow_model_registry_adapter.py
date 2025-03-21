@@ -24,7 +24,10 @@ class MLFlowModelRegistryAdapter(ModelRegistry):
         """Initialize the MLFlowModelRegistryAdapter instance."""
         super().__init__()
         self.mlflow_client_manager: MLflowClientManager = mlflow_client_manager
-        self.mlflow_client: MlflowClient = mlflow_client_manager.client
+
+    @property
+    def mlflow_client(self) -> MlflowClient:
+        return self.mlflow_client_manager.client
 
         # TODO problème avec la tracking uri pour un list artifacts
 
@@ -36,6 +39,7 @@ class MLFlowModelRegistryAdapter(ModelRegistry):
             list[dict[str, str | int]]: A list of dictionaries containing model attributes.
         """
         registered_model_list = self.mlflow_client.search_registered_models()
+        logger.info(f"Got following models: {registered_model_list}")
         return self._process_mlflow_list(registered_model_list)
 
     def list_model_versions(self, model_name: str) -> list[dict]:
