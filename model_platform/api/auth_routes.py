@@ -8,7 +8,6 @@ router = APIRouter()
 
 @router.post("/token")
 async def login(response: Response, form_data: OAuth2PasswordRequestForm = Depends()):
-
     token_info_dict = await login_for_access_token(form_data)
     access_token = token_info_dict.get("access_token")
     response.set_cookie(

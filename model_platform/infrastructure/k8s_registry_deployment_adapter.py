@@ -76,7 +76,7 @@ class K8SRegistryDeployment(RegistryDeployment, K8SDeployment):
                                 command=[
                                     "sh",
                                     "-c",
-                                    f"psql -h {self.pgsql_cluster_host} -U {self.pgsql_user} -d postgres -tc \"SELECT 1 FROM pg_database WHERE datname = '{self.mlflow_db_name}';\" | grep -q 1 || psql -h {self.pgsql_cluster_host} -U {self.pgsql_user} -d postgres -c 'CREATE DATABASE {self.mlflow_db_name};'",
+                                    f"psql -h {self.pgsql_cluster_host} -U {self.pgsql_user} -d postgres -tc \"SELECT 1 FROM pg_database WHERE datname = '{self.mlflow_db_name}';\" | grep -q 1 || psql -h {self.pgsql_cluster_host} -U {self.pgsql_user} -d postgres -c 'CREATE DATABASE {self.mlflow_db_name};'",  # noqa
                                 ],
                                 env=[
                                     client.V1EnvVar(name="PGPASSWORD", value=self.pgsql_password),
@@ -119,7 +119,7 @@ class K8SRegistryDeployment(RegistryDeployment, K8SDeployment):
                                             command=[
                                                 "sh",
                                                 "-c",
-                                                f'psql -h {self.pgsql_cluster_host} -U {self.pgsql_user} -d postgres -tc "DROP DATABASE IF EXISTS {self.mlflow_db_name};" ',
+                                                f'psql -h {self.pgsql_cluster_host} -U {self.pgsql_user} -d postgres -tc "DROP DATABASE IF EXISTS {self.mlflow_db_name};" ',  # noqa
                                             ],
                                         )
                                     )
@@ -164,7 +164,7 @@ class K8SRegistryDeployment(RegistryDeployment, K8SDeployment):
             command=[
                 "/bin/sh",
                 "-c",
-                f"PGPASSWORD=$PGPASSWORD psql -h {self.pgsql_cluster_host} -U {self.pgsql_user} -c 'DROP DATABASE IF EXISTS {self.mlflow_db_name};'",
+                f"PGPASSWORD=$PGPASSWORD psql -h {self.pgsql_cluster_host} -U {self.pgsql_user} -c 'DROP DATABASE IF EXISTS {self.mlflow_db_name};'",  # noqa
             ],
             env=[client.V1EnvVar(name="PGPASSWORD", value=self.pgsql_password)],
         )

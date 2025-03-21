@@ -3,6 +3,7 @@ POST http://model-platform.com/deploy/grosse-conf-25/grosse-conf-25-huggingface-
 Content-Type: application/json
 
 {
-  "inputs": {"text":"I love this movie!"}
-
+  "inputs": {
+    "text": "I love this movie!"
+  }
 }

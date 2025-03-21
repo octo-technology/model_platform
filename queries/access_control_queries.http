@@ -6,18 +6,21 @@ POST http://0.0.0.0:8001/users/add?email=bob&password=pass!&role=simple_user
 ###
 GET http://0.0.0.0:8001/auth/me
 Authorization: {{Authorization}}
+
 ### admin
 POST http://0.0.0.0:8001/auth/token
 Content-Type: application/x-www-form-urlencoded
 
-username=alice@example.com&password=pass!
+username = alice@example.com &
+password = pass!
 
 
 ### maintainer
 POST http://0.0.0.0:8001/auth/token
 Content-Type: application/x-www-form-urlencoded
 
-username=bob&password=pass!
+username = bob &
+password = pass!
 
 ###
 POST http://0.0.0.0:8001/projects/test/add_user?email=bob&role=maintainer

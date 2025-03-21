@@ -20,7 +20,6 @@ st.set_page_config(layout="wide")
 
 st_autorefresh(interval=20 * 1000, key="refresh")
 
-
 with open("front/assets/style.css") as css:
     st.markdown(f"<style>{css.read()}</style>", unsafe_allow_html=True)
 
@@ -77,7 +76,6 @@ if st.session_state.get("action_model_deployment_ok", None):
 
 if st.session_state.get("action_model_undeploy_ok", None):
     create_add_model_undeploy_success()
-
 
 if st.session_state.get("change_user_role_for_project_success", None):
     create_changed_user_role_success()

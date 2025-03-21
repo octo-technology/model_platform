@@ -9,14 +9,14 @@ k8s-network-conf:
 	kubectl apply -f infrastructure/k8s/ingress.yaml
 
 k8s-pgsql:
-	kubectl create namespace pgsql
+	kubectl create namespace pgsql --dry-run=client -o yaml | kubectl apply -f -
 	kubectl apply -f infrastructure/k8s/persistent_volume.yaml
 	helm install $(PGSQL_HOST) bitnami/postgresql \
 	  --set persistence.existingClaim=task-pv-claim \
 	  --set global.postgresql.auth.postgresPassword=$(POSTGRES_PASSWORD) \
 	  --set global.postgresql.auth.username=$(POSTGRES_USER) \
 	  --set global.postgresql.auth.password=$(POSTGRES_PASSWORD) \
-	  --namespace=$(PGSQL_NAMESPACE
+	  --namespace=$(PGSQL_NAMESPACE)
 
 run-ci-arm:
 	act -W .github/workflows/test.yml --container-architecture linux/arm64

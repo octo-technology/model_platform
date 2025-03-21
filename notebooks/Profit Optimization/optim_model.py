@@ -22,8 +22,8 @@ class OptimModel(mlflow.pyfunc.PythonModel):
         x2 = solver.IntVar(0, solver.infinity(), "x2")
 
         # Get input parameters
-        profit_P1 = model_input["profit_P1"]
-        profit_P2 = model_input["profit_P2"]
+        profit_p1 = model_input["profit_P1"]
+        profit_p2 = model_input["profit_P2"]
         work_limit = model_input["work_limit"]
         material_limit = model_input["material_limit"]
 
@@ -35,7 +35,7 @@ class OptimModel(mlflow.pyfunc.PythonModel):
         solver.Add(3 * x1 + 2 * x2 <= material_limit)
 
         # Set objective function to maximize profit
-        solver.Maximize(profit_P1 * x1 + profit_P2 * x2)
+        solver.Maximize(profit_p1 * x1 + profit_p2 * x2)
 
         # Solve the problem
         status = solver.Solve()

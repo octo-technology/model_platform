@@ -47,7 +47,7 @@ mlflow.sklearn.log_model(
 
 What we like:
 - Mlflow will identify the requirements and store them directly
-  - Counter-argument: auto-identified dependencies can become tricky, and mlflow even offer an api to update dependencies. 
+  - Counter-argument: auto-identified dependencies can become tricky, and mlflow even offer an api to update dependencies.
   - NB: dependencies will need to be checked for security issues (using `safety` for example)
 - Method `infer_signature` allow to generate a json that describe expected input
 What we dislike:
@@ -61,7 +61,7 @@ To serve a model with mlflow:
 mlflow models serve -m models:/model/1 --env-manager=local
 ```
 
-This will retrieve the model and provide an api. 
+This will retrieve the model and provide an api.
 
 What we like:
 - An api generated with 1 command
@@ -85,7 +85,7 @@ Will generate:
 │      ...
 │   Dockerfile
 ```
-So it created a copy of the model registry in folder `model_dir` and a Dockerfile that is based on mlflow serve. It is a 1.19GB image. 
+So it created a copy of the model registry in folder `model_dir` and a Dockerfile that is based on mlflow serve. It is a 1.19GB image.
 
 Image build is require every time models change.
 
