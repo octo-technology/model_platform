@@ -39,4 +39,4 @@ get-ip:
 set-ip:
 	python model_platform/domain/use_cases/main_update_registries_minio_ip.py
 
-model-platform: back frontend
+model-platform: back front
