@@ -16,7 +16,7 @@ from front.st_creators.projects_page import create_projects_page
 from front.utils import set_token_in_session_state
 
 logger.info("Application Streamlit démarrée")
-st.set_page_config(layout="wide")
+st.set_page_config(layout="wide", page_title="Model platform")
 
 st_autorefresh(interval=20 * 1000, key="refresh")
 
