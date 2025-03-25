@@ -1,3 +1,3 @@
-from model_platform.dot_env import DotEnv
+from backend.dot_env import DotEnv
 
 DotEnv()

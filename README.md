@@ -74,7 +74,7 @@ helm repo update
 ### To run frontend
 
 ```bash
-make frontend
+make front
 ```
 
 ### To run Back-end
