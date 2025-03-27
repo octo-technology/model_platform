@@ -1,4 +1,5 @@
 import streamlit as st
+from loguru import logger
 
 from frontend.api_interactions.projects import get_projects_list
 from frontend.st_creators.project_page.project_listing import create_projects_listing
@@ -11,6 +12,7 @@ from frontend.st_creators.project_page.project_page_items import (
 
 
 def create_projects_page():
+    logger.info("Creating project page")
     projects_list_df = get_projects_list()
     find_project_button_clicked()
     clicked_project_name = st.session_state.get("project_users_to_display", None)

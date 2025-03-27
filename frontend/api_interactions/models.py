@@ -4,7 +4,7 @@ import pandas as pd
 import requests
 import streamlit
 
-from frontend.api_interactions.endpoints import MODEL_VERSION_ENDPOINT
+from frontend.api_interactions.endpoints import MODEL_VERSION_ENDPOINT, SEARCH_HUGGING_FACE
 from frontend.utils import send_get_query
 
 
@@ -20,13 +20,27 @@ def get_models_list(url, project_name: str) -> pd.DataFrame | None:
         return None
 
 
+def search_hugging_face_models(search_text: str) -> pd.DataFrame | None:
+    try:
+        response = send_get_query(SEARCH_HUGGING_FACE.format(SEARCH_ARGS=search_text))
+        if response["http_code"] == 200:
+            return format_models_response(response["data"])
+        elif response["http_code"] == 504:
+            raise TimeoutError("504 Hugging face models")
+        else:
+            return None
+    except requests.RequestException:
+        return None
+
+
 def get_model_versions_list(project_name: str, model_name: str) -> pd.DataFrame | None:
     url = MODEL_VERSION_ENDPOINT.format(project_name=project_name, model_name=model_name)
     response = send_get_query(url)
     if response["http_code"] == 200:
         return format_version_list_response(response["data"])
+    elif response["http_code"] == 504:
+        return "504 Hugging face models"
     else:
-        streamlit.info(response["data"]["detail"])
         return None
 
 

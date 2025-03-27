@@ -1,5 +1,5 @@
 ### OPTIM
-POST http://model-platform.com/deploy/grosse-conf-25/grosse-conf-25-huggingface-model-3-deployment/predict
+POST http://model-platform.com/deploy/data-days-lille/data-days-lille-huggingface-model-1-deployment/predict
 Content-Type: application/json
 
 {

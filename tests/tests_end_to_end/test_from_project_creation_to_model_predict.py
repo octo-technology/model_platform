@@ -12,7 +12,7 @@ from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
 
 from backend.domain.entities.docker.task_build_statuses import TaskBuildStatuses
-from backend.utils import sanitize_name
+from backend.utils import sanitize_project_name
 
 
 def is_ingress_present(ingress_name="registry-ingress", namespace="default"):
@@ -164,7 +164,7 @@ def test_project_train_model_should_push_model_to_mlflow():
 
 
 def test_deploy_model_should_deploy_healthy_model():
-    model_name = sanitize_name(MODEL_NAME)
+    model_name = sanitize_project_name(MODEL_NAME)
     status_query = requests.get(f"http://localhost:8001/{PROJECT_NAME}/models/deploy/{MODEL_NAME}/1")
     assert status_query.status_code == 200
     json_result = json.loads(status_query.text)
@@ -185,7 +185,7 @@ def test_deploy_model_should_deploy_healthy_model():
 
 
 def test_undeploy_model_should_undeploy_correctly():
-    model_name = sanitize_name(MODEL_NAME)
+    model_name = sanitize_project_name(MODEL_NAME)
     status_query = requests.get(f"http://localhost:8001/{PROJECT_NAME}/models/undeploy/{MODEL_NAME}/1")
     assert status_query.status_code == 200
     time.sleep(60)

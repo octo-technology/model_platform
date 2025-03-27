@@ -13,3 +13,5 @@ def create_backend_status(url: str):
             st.info("Unhealthy: " + status_icon)
     except requests.exceptions.ConnectionError:
         st.error("Unhealthy: " + "🔴")
+    except requests.exceptions.ReadTimeout:
+        st.warning("No response: " + "⌛")

@@ -15,7 +15,7 @@ from frontend.st_creators.project_page.project_page_items import (
 from frontend.st_creators.projects_page import create_projects_page
 from frontend.utils import set_token_in_session_state
 
-logger.info("Application Streamlit démarrée")
+logger.info("On main page")
 st.set_page_config(layout="wide", page_title="Model platform")
 
 st_autorefresh(interval=20 * 1000, key="refresh")
@@ -35,6 +35,7 @@ with st.container(border=True):
     if st.session_state["token"] is None:
         create_login_container(cookie_controller)
     else:
+        logger.info("Token ok")
         with st.sidebar:
             st.image("frontend/assets/octo_logo_png.png", use_container_width=True)
             st.markdown("# Model Platform")

@@ -19,6 +19,8 @@ with tabs[0]:
         models = get_models_list(MODELS_LIST_ENDPOINT, project_name)
         deployed_models = get_deployed_models_list(DEPLOYED_MODELS_LIST_ENDPOINT.format(project_name=project_name))
         st.write("#### Available models")
-        build_model_version_listing(models, elements_to_add=["List versions", "Deploy latest"])
+        build_model_version_listing(
+            models, elements_to_add=["List versions", "Deploy latest"], project_name=project_name
+        )
         st.write("#### Deployed models")
-        build_model_version_listing(deployed_models, elements_to_add=["Undeploy"])
+        build_model_version_listing(deployed_models, elements_to_add=["Undeploy"], project_name=project_name)

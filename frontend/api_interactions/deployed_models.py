@@ -3,11 +3,12 @@ from datetime import datetime
 import pandas as pd
 import streamlit as st
 
-from backend.utils import sanitize_name
+from backend.utils import sanitize_project_name
 from frontend.api_interactions.endpoints import (
     BUILD_DEPLOY_STATUS_ENDPOINT,
     DEPLOYED_MODEL_URI,
     DEPLOYED_MODELS_LIST_ENDPOINT,
+    GET_HF_MODEL_ENDPOINT,
     UNDEPLOY_MODEL_ENDPOINT,
 )
 from frontend.api_interactions.projects import build_healthcheck_status_url
@@ -35,7 +36,7 @@ def format_response(models: list, project_name: str):
         deployment_time_stamp = model["deployment_date"]
         versions = model["version"]
         uri = DEPLOYED_MODEL_URI.format(
-            project_name=sanitize_name(project_name), deployment_name=model["deployment_name"]
+            project_name=sanitize_project_name(project_name), deployment_name=model["deployment_name"]
         )
         health = build_healthcheck_status_url(uri + "/health")
         data.append(
@@ -59,6 +60,15 @@ def get_build_status(project_name, task_id):
 
 def undeploy_model(project_name, model_name: str, version: str):
     url = UNDEPLOY_MODEL_ENDPOINT.format(project_name=project_name, model_name=model_name, model_version=version)
+    response = send_get_query(url)
+    if response["http_code"] == 200:
+        return True
+    else:
+        return False
+
+
+def get_model(project_name, model_name: str):
+    url = GET_HF_MODEL_ENDPOINT.format(project_name=project_name, model_id=model_name)
     response = send_get_query(url)
     if response["http_code"] == 200:
         return True

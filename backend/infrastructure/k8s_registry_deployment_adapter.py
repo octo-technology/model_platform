@@ -7,7 +7,7 @@ from loguru import logger
 
 from backend.domain.ports.registry_deployment_handler import RegistryDeployment
 from backend.infrastructure.k8s_deployment import K8SDeployment
-from backend.utils import sanitize_name
+from backend.utils import sanitize_project_name
 
 
 class K8SRegistryDeployment(RegistryDeployment, K8SDeployment):
@@ -20,8 +20,8 @@ class K8SRegistryDeployment(RegistryDeployment, K8SDeployment):
         self.host_name = os.environ["MP_HOST_NAME"]
         self.sub_path = os.environ["MP_REGISTRY_PATH"]
         self.port = int(os.environ["MP_REGISTRY_PORT"])
-        self.namespace = sanitize_name(project_name)
-        self.project_name = sanitize_name(project_name)
+        self.namespace = sanitize_project_name(project_name)
+        self.project_name = sanitize_project_name(project_name)
         self.pgsql_password = os.environ["POSTGRES_PASSWORD"]
         self.pgsql_user = os.environ["POSTGRES_USER"]
         self.local_ip = os.environ["LOCAL_IP"]
@@ -36,7 +36,7 @@ class K8SRegistryDeployment(RegistryDeployment, K8SDeployment):
         self._create_or_update_mlflow_deployment(self.project_name)
 
     def _create_or_update_service(self, project_name: str):
-        project_name = sanitize_name(project_name)
+        project_name = sanitize_project_name(project_name)
         service = client.V1Service(
             metadata=client.V1ObjectMeta(name=project_name),
             spec=client.V1ServiceSpec(
@@ -58,7 +58,7 @@ class K8SRegistryDeployment(RegistryDeployment, K8SDeployment):
 
     def _create_or_update_mlflow_deployment(self, project_name: str):
         """Crée ou met à jour un déploiement Kubernetes pour MLflow."""
-        project_name = sanitize_name(project_name)
+        project_name = sanitize_project_name(project_name)
         deployment = client.V1Deployment(
             metadata=client.V1ObjectMeta(
                 name=project_name, labels={"project_name": self.project_name, "type": "model_registry"}

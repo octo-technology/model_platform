@@ -6,7 +6,7 @@ from loguru import logger
 from backend.domain.entities.model_deployment import ModelDeployment
 from backend.domain.ports.deployment_cluster_handler import DeploymentClusterHandler
 from backend.infrastructure.k8s_deployment import K8SDeployment
-from backend.utils import sanitize_name
+from backend.utils import sanitize_project_name
 
 
 class K8SDeploymentClusterAdapter(DeploymentClusterHandler, K8SDeployment):
@@ -50,7 +50,7 @@ class K8SDeploymentClusterAdapter(DeploymentClusterHandler, K8SDeployment):
             return False
 
     def list_deployments_for_project(self, project_name: str) -> list[ModelDeployment]:
-        project_name = sanitize_name(project_name)
+        project_name = sanitize_project_name(project_name)
         label_selector = f"project_name={project_name},type notin (model_registry)"
         deployments = self.apps_api_instance.list_namespaced_deployment(
             namespace=project_name, label_selector=label_selector
@@ -73,7 +73,7 @@ class K8SDeploymentClusterAdapter(DeploymentClusterHandler, K8SDeployment):
         return registry_deployment_list
 
     def check_if_model_deployment_exists(self, project_name: str, model_name: str, model_version: str) -> bool:
-        project_name = sanitize_name(project_name)
+        project_name = sanitize_project_name(project_name)
         label_selector = f"project_name={project_name},model_name={model_name},model_version={model_version}"
         deployments = self.apps_api_instance.list_namespaced_deployment(
             namespace=project_name, label_selector=label_selector

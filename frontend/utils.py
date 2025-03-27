@@ -13,11 +13,11 @@ def sanitize_name(project_name: str) -> str:
     return sanitized_name
 
 
-def send_get_query(url: str) -> dict:
+def send_get_query(url: str, timeout: int = 10) -> dict:
     """Envoie une requête GET à l'URL et retourne le contenu JSON."""
     token = st.session_state["token"]
     headers = {"Authorization": f"Bearer {token}"}
-    response = requests.get(url, headers=headers)
+    response = requests.get(url, headers=headers, timeout=timeout)
     try:
         data = response.json()
     except requests.exceptions.JSONDecodeError:

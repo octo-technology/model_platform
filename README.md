@@ -144,7 +144,7 @@ docker-compose -f infrastructure/minio/docker-compose.yml up
 
 If you already have mlflow registry running and you change wifi connection :
 
-Update miniio cluster ip in deployed mlflow registries
+Update minio cluster ip in deployed mlflow registries
 
 Set it in the .env file. and run
 

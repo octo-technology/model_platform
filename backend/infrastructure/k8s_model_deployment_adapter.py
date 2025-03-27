@@ -6,23 +6,23 @@ from loguru import logger
 
 from backend.domain.ports.model_deployment_handler import ModelDeployment
 from backend.infrastructure.k8s_deployment import K8SDeployment
-from backend.utils import sanitize_name
+from backend.utils import sanitize_project_name, sanitize_ressource_name
 
 
 class K8SModelDeployment(ModelDeployment, K8SDeployment):
 
     def __init__(self, project_name: str, model_name: str, model_version: str):
         super().__init__()
-        self.namespace = sanitize_name(project_name)
-        self.docker_image_name = sanitize_name(f"{project_name}_{model_name}_{model_version}_ctr")
-        self.service_name = sanitize_name(f"{project_name}-{model_name}-{model_version}-deployment")
-        self.project_name = sanitize_name(project_name)
-        self.model_name = sanitize_name(model_name)
-        self.model_version = sanitize_name(model_version)
+        self.namespace = sanitize_project_name(project_name)
+        self.docker_image_name = sanitize_project_name(f"{project_name}_{model_name}_{model_version}_ctr")
+        self.service_name = sanitize_ressource_name(f"{project_name}-{model_name}-{model_version}-deployment")
+        self.project_name = sanitize_project_name(project_name)
+        self.model_name = sanitize_project_name(model_name)
+        self.model_version = sanitize_project_name(model_version)
 
     def create_model_deployment(self):
         logger.info(f"Creating model deployment in {self.namespace} namespace")
-        self._create_or_update_namespace()
+        self._create_or_update_namespace()  # TOUL dit : on devrait pas faire ça.
         self._create_or_update_model_service()
         self._create_model_service_deployment()
         return self.service_name

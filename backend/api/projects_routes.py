@@ -1,6 +1,7 @@
 import inspect
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from loguru import logger
 from starlette.responses import FileResponse, JSONResponse
 
 from backend.api.models_routes import get_project_registry_tracking_uri, get_registry_pool
@@ -38,6 +39,7 @@ def route_list_projects(
     user_adapter: UserHandler = Depends(get_user_adapter),
     current_user: dict = Depends(get_current_user),
 ):
+    logger.info("Got list projects call")
     if current_user["role"] == Role.ADMIN:
         return list_projects(project_db_handler=project_sqlite_db_handler)
     else:
@@ -51,6 +53,7 @@ def route_project_info(
     user_adapter: UserHandler = Depends(get_user_adapter),
     current_user: dict = Depends(get_current_user),
 ):
+    logger.info(f"Got project info call for {project_name}")
     user_can_perform_action_for_project(
         current_user,
         project_name=project_name,

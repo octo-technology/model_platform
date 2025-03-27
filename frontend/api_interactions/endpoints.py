@@ -25,7 +25,9 @@ MODELS_LIST_ENDPOINT = "{API_BASE_URL}/{project_name}/models/list".format(
 MODEL_VERSION_ENDPOINT = "{API_BASE_URL}/{project_name}/models/{model_name}/versions".format(
     API_BASE_URL=API_BASE_URL, project_name="{project_name}", model_name="{model_name}"
 )
-
+SEARCH_HUGGING_FACE = "{API_BASE_URL}/hugging_face/search?search_args={SEARCH_ARGS}".format(
+    API_BASE_URL=API_BASE_URL, SEARCH_ARGS="{SEARCH_ARGS}"
+)
 ## DEPLOYMENT ROUTES
 # GET http://0.0.0.0:8001/test/models/deploy/test_model/1
 DEPLOY_MODEL_ENDPOINT = "{API_BASE_URL}/{project_name}/models/deploy/{model_name}/{model_version}".format(
@@ -40,6 +42,10 @@ BUILD_DEPLOY_STATUS_ENDPOINT = "{API_BASE_URL}/{project_name}/models/task-status
 # GET http://0.0.0.0:8001/test/models/undeploy/test_model/1
 UNDEPLOY_MODEL_ENDPOINT = "{API_BASE_URL}/{project_name}/models/undeploy/{model_name}/{model_version}".format(
     API_BASE_URL=API_BASE_URL, project_name="{project_name}", model_name="{model_name}", model_version="{model_version}"
+)
+
+GET_HF_MODEL_ENDPOINT = "{API_BASE_URL}/hugging_face/get_model/?project_name={project_name}&model_id={model_id}".format(
+    API_BASE_URL=API_BASE_URL, project_name="{project_name}", model_id="{model_id}"
 )
 
 ## DEPLOYED ROUTES

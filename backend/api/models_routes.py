@@ -10,6 +10,7 @@ import uuid
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Request
 from fastapi.responses import JSONResponse
+from loguru import logger
 
 from backend.domain.entities.docker.task_build_statuses import TaskBuildStatuses
 from backend.domain.ports.model_registry import ModelRegistry
@@ -18,7 +19,7 @@ from backend.domain.ports.user_handler import UserHandler
 from backend.domain.use_cases.auth_usecases import get_current_user, get_user_adapter
 from backend.domain.use_cases.deploy_model import deploy_model, remove_model_deployment
 from backend.domain.use_cases.user_usecases import user_can_perform_action_for_project
-from backend.utils import sanitize_name
+from backend.utils import sanitize_project_name
 
 router = APIRouter()
 
@@ -86,7 +87,7 @@ def get_project_registry_tracking_uri(project_name: str, request: Request) -> st
         + "/"
         + os.environ["MP_REGISTRY_PATH"]
         + "/"
-        + sanitize_name(project_name)
+        + sanitize_project_name(project_name)
     )
     logging.debug(f"Tracking URI: {tracking_uri} for {project_name}")
     return tracking_uri
@@ -109,6 +110,7 @@ def list_models(
     current_user: dict = Depends(get_current_user),
     user_adapter: UserHandler = Depends(get_user_adapter),
 ) -> JSONResponse:
+    logger.debug(f"Got list models requetes on {project_name}")
     registry: ModelRegistry = registry_pool.get_registry_adapter(
         project_name, get_project_registry_tracking_uri(project_name, request)
     )
@@ -130,6 +132,7 @@ def list_model_versions(
     current_user: dict = Depends(get_current_user),
     user_adapter: UserHandler = Depends(get_user_adapter),
 ) -> JSONResponse:
+    logger.debug(f"Got list model version on {project_name}, {model_name}")
     registry: ModelRegistry = registry_pool.get_registry_adapter(
         project_name, get_project_registry_tracking_uri(project_name, request)
     )
@@ -155,6 +158,7 @@ def route_deploy_model(
     current_user: dict = Depends(get_current_user),
     user_adapter: UserHandler = Depends(get_user_adapter),
 ) -> JSONResponse:
+    logger.debug(f"Got deploy model call on {project_name}, {model_name}:{version}")
     user_can_perform_action_for_project(
         current_user,
         project_name=project_name,
@@ -166,7 +170,7 @@ def route_deploy_model(
     )
     task_id = str(uuid.uuid4())
     tasks_status[task_id] = "queued"
-    logging.info(f"Deploying {model_name}:{version} with task_id: {task_id}")
+    logger.debug(f"Deploying {model_name}:{version} with task_id: {task_id}")
     decorated_task = track_task_status(task_id, tasks_status)(deploy_model)
     background_tasks.add_task(decorated_task, registry, project_name, model_name, version, current_user["email"])
 
@@ -181,6 +185,7 @@ def route_undeploy(
     current_user: dict = Depends(get_current_user),
     user_adapter: UserHandler = Depends(get_user_adapter),
 ) -> JSONResponse:
+    logger.debug("Got undeploy call on {project_name}, {model_name}:{version}")
     user_can_perform_action_for_project(
         current_user,
         project_name=project_name,

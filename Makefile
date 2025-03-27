@@ -28,7 +28,7 @@ front:
 	python -m streamlit run frontend/app.py --server.runOnSave=true
 
 back:
-	python -m backend
+	eval $(minikube docker-env); python -m backend
 
 build-mlflow:
 	docker build -t mlflow -f infrastructure/registry/Dockerfile .
@@ -37,6 +37,6 @@ get-ip:
 	ipconfig getifaddr en0
 
 set-ip:
-	python model_platform/domain/use_cases/main_update_registries_minio_ip.py
+	python backend/domain/use_cases/main_update_registries_minio_ip.py
 
 model-platform: back front

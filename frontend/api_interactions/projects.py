@@ -12,7 +12,7 @@ from frontend.utils import sanitize_name, send_get_query, send_post_query
 
 def get_projects_list() -> pd.DataFrame | None:
     try:
-        response = send_get_query(PROJECT_LIST_ENDPOINT)
+        response = send_get_query(PROJECT_LIST_ENDPOINT, timeout=100)
         if response["http_code"] == 200:
             return format_projects_response(response["data"])
         else:

@@ -3,7 +3,7 @@ import streamlit as st
 
 from frontend.api_interactions.deployed_models import get_deployed_models_list
 from frontend.api_interactions.endpoints import MODELS_LIST_ENDPOINT
-from frontend.api_interactions.models import get_models_list
+from frontend.api_interactions.models import get_models_list, search_hugging_face_models
 from frontend.api_interactions.users import (
     ROLE_OPTIONS,
     add_user_to_project_with_role,
@@ -17,8 +17,8 @@ from frontend.st_creators.project_page.project_model_listing import build_model_
 
 
 def create_project_settings(projects_list_df: pd.DataFrame, project_name: str):
-    project_settings, available_models, deployed_models = st.tabs(
-        ["Project settings", "Available Models", "Deployed Models"]
+    project_settings, available_models, public_models, deployed_models = st.tabs(
+        ["Project settings", "Available Models", "Public model registry", "Deployed Models"]
     )
     with project_settings:
         st.markdown("### Project information")
@@ -31,6 +31,17 @@ def create_project_settings(projects_list_df: pd.DataFrame, project_name: str):
     with available_models:
         models = get_models_list(MODELS_LIST_ENDPOINT, project_name)
         build_model_version_listing(models, project_name, elements_to_add=["Action"], component_name="available_models")
+
+    with public_models:
+        search_txt = st.text_input("Hugging face model registry", placeholder="Search Hugging face repo")
+        if search_txt:
+            try:
+                hf_models = search_hugging_face_models(search_txt)
+                build_model_version_listing(
+                    hf_models, elements_to_add=["Action"], project_name=project_name, component_name="public_models"
+                )
+            except TimeoutError:
+                st.text("Hugging face seems unavailable")
     with deployed_models:
         deployed_models_list = get_deployed_models_list(project_name)
         build_model_version_listing(

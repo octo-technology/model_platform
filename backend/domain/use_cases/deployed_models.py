@@ -8,7 +8,7 @@ from backend.infrastructure.k8s_registry_deployment_adapter import K8SRegistryDe
 def list_deployed_models_with_status_for_a_project(project_name: str) -> list[str]:
     k8s_deployment_cluster = K8SDeploymentClusterAdapter()
     deployed_models: list[ModelDeployment] = k8s_deployment_cluster.list_deployments_for_project(project_name)
-    logger.info(f"Deployed model list {deployed_models}")
+    logger.debug(f"Deployed model list {deployed_models}")
     deployed_models_json = [model_deployment.to_json() for model_deployment in deployed_models]
     return deployed_models_json
 

@@ -39,7 +39,7 @@ class MLFlowModelRegistryAdapter(ModelRegistry):
             list[dict[str, str | int]]: A list of dictionaries containing model attributes.
         """
         registered_model_list = self.mlflow_client.search_registered_models()
-        logger.info(f"Got following models: {registered_model_list}")
+        logger.debug(f"Got following models: {registered_model_list}")
         return self._process_mlflow_list(registered_model_list)
 
     def list_model_versions(self, model_name: str) -> list[dict]:
@@ -141,6 +141,12 @@ class MLFlowModelRegistryAdapter(ModelRegistry):
             "params": model_params,
             "metrics": model_metrics,
         }
+
+    def log_model(self, **kwargs) -> None:
+        client = self.mlflow_client
+        logger.info(client.tracking_uri)
+        mlflow.set_tracking_uri(client.tracking_uri)
+        mlflow.pyfunc.log_model(**kwargs)
 
 
 if __name__ == "__main__":

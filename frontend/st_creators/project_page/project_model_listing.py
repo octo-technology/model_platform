@@ -1,7 +1,7 @@
 import streamlit as st
 
 from frontend.api_interactions import endpoints
-from frontend.api_interactions.deployed_models import get_build_status, undeploy_model
+from frontend.api_interactions.deployed_models import get_build_status, get_model, undeploy_model
 from frontend.api_interactions.models import deploy_model, get_model_versions_list
 
 
@@ -31,6 +31,9 @@ def build_model_version_listing(models_df, project_name: str, component_name="mo
                 elif col_name in ["Action"] and component_name == "deployed_models":
                     with col_obj:
                         build_undeploy_button(project_name, component_name, row)
+                elif col_name in ["Action"] and component_name == "public_models":
+                    with col_obj:
+                        build_get_button(project_name, component_name, row)
 
 
 def build_model_versions_sel(project_name: str, component_name: str, model_name: str):
@@ -87,4 +90,13 @@ def build_undeploy_button(project_name: str, component_name: str, row: dict):
         version = row.get("version", "latest")
         status = undeploy_model(project_name=project_name, model_name=model_name, version=version)
         st.session_state["action_model_undeploy_ok"] = status
+        st.rerun()
+
+
+def build_get_button(project_name: str, component_name: str, row: dict):
+    key = component_name + "_".join([str(value) for key, value in row.items()])
+    if st.button("Get", key=key, type="primary"):
+        model_name = row["Name"]
+        status = get_model(project_name=project_name, model_name=model_name)
+        st.session_state["action_get_ok"] = status
         st.rerun()

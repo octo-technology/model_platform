@@ -18,3 +18,7 @@ class ModelRegistry(ABC):
     def list_model_versions(self, model_name: str) -> list[dict[str, str | int]]:
         """List all versions of a registered model in the model registry."""
         pass
+
+    @abstractmethod
+    def log_model(self, **kwargs) -> None:
+        pass

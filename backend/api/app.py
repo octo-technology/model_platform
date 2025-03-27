@@ -3,14 +3,19 @@
 This module initializes the FastAPI application and includes the necessary routers.
 """
 
+import sys
 from contextlib import asynccontextmanager
 
+# Ugly stuff to remove ugly warning, sorry TOUL
+import bcrypt
 from fastapi import FastAPI
+from loguru import logger
 
 from backend.api import (
     auth_routes,
     deployed_models_routes,
     health_check,
+    hugging_face_routes,
     models_routes,
     projects_routes,
     users_routes,
@@ -19,6 +24,12 @@ from backend.domain.use_cases.config import Config
 from backend.infrastructure.mlflow_handler_adapter import MLFlowHandlerAdapter
 from backend.infrastructure.project_sqlite_db_handler import ProjectSQLiteDBHandler
 from backend.infrastructure.user_sqlite_db_adapter import UserSqliteDbAdapter
+
+bcrypt.__about__ = bcrypt
+# End of ugly stuff
+
+logger.remove()  # remove the old handler. Else, the old one will work along with the new one you've added below'
+logger.add(sys.stderr, level="INFO")
 
 
 @asynccontextmanager
@@ -58,7 +69,7 @@ def create_app() -> FastAPI:
     )
     app.include_router(projects_routes.router, prefix="/projects", tags=["Projects"])
     app.include_router(users_routes.router, prefix="/users", tags=["Users"])
-
+    app.include_router(hugging_face_routes.router, prefix="/hugging_face", tags=["Registre"])
     return app
 
 
