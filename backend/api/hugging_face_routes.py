@@ -1,5 +1,6 @@
 import inspect
 import uuid
+from os.path import join
 
 import mlflow.pyfunc
 import pandas as pd
@@ -20,6 +21,7 @@ from backend.domain.ports.registry_handler import RegistryHandler
 from backend.domain.ports.user_handler import UserHandler
 from backend.domain.use_cases.auth_usecases import get_current_user, get_user_adapter
 from backend.domain.use_cases.user_usecases import user_can_perform_action_for_project
+from demos.notebooks.Hugging_Face import HF_PATH
 
 router = APIRouter()
 
@@ -97,7 +99,10 @@ def log_model_task(registry, model_id):
     try:
         model_name = model_id.split("/")[-1]
         registry.log_model(
-            python_model=HFModelWrapper(), artifact_path="custom_model", registered_model_name=f"hf_{model_name}"
+            python_model=HFModelWrapper(),
+            artifact_path="custom_model",
+            registered_model_name=f"hf_{model_name}",
+            conda_env=join(HF_PATH, "conda.yaml"),
         )
     except Exception as e:
         logger.error(e)
