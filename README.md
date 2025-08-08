@@ -95,7 +95,7 @@ You'll need to have minikube installed
 
 ```bash
 #recommended configuration to avoid freezing/timeouts
-minikube start --cpus 2 --memory 7800
+minikube start --cpus 2 --memory 7800 --disk-size 50g
 ```
 
 Then activate the ingress addon

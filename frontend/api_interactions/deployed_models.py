@@ -1,9 +1,9 @@
+import re
 from datetime import datetime
 
 import pandas as pd
 import streamlit as st
 
-from backend.utils import sanitize_project_name
 from frontend.api_interactions.endpoints import (
     BUILD_DEPLOY_STATUS_ENDPOINT,
     DEPLOYED_MODEL_URI,
@@ -27,6 +27,14 @@ def get_deployed_models_list(project_name: str) -> pd.DataFrame | None:
 
 def format_timestamp(timestamp):
     return datetime.fromtimestamp(timestamp / 1000).strftime("%Y-%m-%d %H:%M:%S")
+
+
+def sanitize_project_name(project_name: str) -> str:
+    """Nettoie et format le nom pour être valid dans Kubernetes."""
+    sanitized_name = re.sub(r"[^a-z0-9-]", "-", project_name.lower())
+    sanitized_name = re.sub(r"^-+", "", sanitized_name)  # Supprimer tirets au début
+    sanitized_name = re.sub(r"-+$", "", sanitized_name)  # Supprimer tirets à la fin
+    return sanitized_name
 
 
 def format_response(models: list, project_name: str):

@@ -34,7 +34,9 @@ class DotEnv(BaseSettings):
         """
         super().__init__(**data)
         self.combine_uri_and_port()
+        print("Initializing DotEnv with the following settings:")
         for key, value in self.model_dump().items():
+            print(f"Setting environment variable: {key} = {value}")
             os.environ[key.upper()] = str(value)
 
     def combine_uri_and_port(self):

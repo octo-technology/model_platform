@@ -8,6 +8,7 @@ from backend.api.models_routes import get_project_registry_tracking_uri, get_reg
 from backend.domain.entities.project import Project
 from backend.domain.entities.role import Role
 from backend.domain.ports.model_registry import ModelRegistry
+from backend.domain.ports.project_db_handler import ProjectDbHandler
 from backend.domain.ports.registry_handler import RegistryHandler
 from backend.domain.ports.user_handler import UserHandler
 from backend.domain.use_cases import user_usecases
@@ -24,18 +25,17 @@ from backend.domain.use_cases.projects_usecases import (
     remove_project,
 )
 from backend.domain.use_cases.user_usecases import user_can_perform_action_for_project
-from backend.infrastructure.project_sqlite_db_handler import ProjectSQLiteDBHandler
 
 router = APIRouter()
 
 
-def get_project_sqlite_db_handler(request: Request):
-    return request.app.state.project_sqlite_db_handler
+def get_project_db_handler(request: Request) -> ProjectDbHandler:
+    return request.app.state.project_db_handler
 
 
 @router.get("/list")
 def route_list_projects(
-    project_sqlite_db_handler: ProjectSQLiteDBHandler = Depends(get_project_sqlite_db_handler),
+    project_sqlite_db_handler: ProjectDbHandler = Depends(get_project_db_handler),
     user_adapter: UserHandler = Depends(get_user_adapter),
     current_user: dict = Depends(get_current_user),
 ):
@@ -49,7 +49,7 @@ def route_list_projects(
 @router.get("/{project_name}/info")
 def route_project_info(
     project_name: str,
-    project_sqlite_db_handler: ProjectSQLiteDBHandler = Depends(get_project_sqlite_db_handler),
+    project_sqlite_db_handler: ProjectDbHandler = Depends(get_project_db_handler),
     user_adapter: UserHandler = Depends(get_user_adapter),
     current_user: dict = Depends(get_current_user),
 ):
@@ -66,7 +66,7 @@ def route_project_info(
 @router.post("/add")
 def route_add_project(
     project: Project,
-    project_sqlite_db_handler: ProjectSQLiteDBHandler = Depends(get_project_sqlite_db_handler),
+    project_sqlite_db_handler: ProjectDbHandler = Depends(get_project_db_handler),
     user_adapter: UserHandler = Depends(get_user_adapter),
     current_user: dict = Depends(get_current_user),
 ) -> JSONResponse:
@@ -80,7 +80,7 @@ def route_add_project(
 @router.get("/{project_name}/remove")
 def route_remove_project(
     project_name: str,
-    project_sqlite_db_handler: ProjectSQLiteDBHandler = Depends(get_project_sqlite_db_handler),
+    project_sqlite_db_handler: ProjectDbHandler = Depends(get_project_db_handler),
     user_adapter: UserHandler = Depends(get_user_adapter),
     current_user: dict = Depends(get_current_user),
 ):

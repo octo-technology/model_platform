@@ -1,5 +1,5 @@
 ### IRIS
-POST http://model-platform.com/deploy/data-days/data-days--random-forest-iris-classifier-1-deployment-267668/predict
+POST http://model-platform.com/deploy/manoirgressy/manoirgressy-random-forest-iris-classifier-1-deployment-c99982/predict
 Content-Type: application/json
 
 {

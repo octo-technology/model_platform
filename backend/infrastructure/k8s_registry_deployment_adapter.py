@@ -1,6 +1,6 @@
 import os
 
-from kubernetes import client, config
+from kubernetes import client
 from kubernetes.client import AppsV1Api, CoreV1Api
 from kubernetes.client.rest import ApiException
 from loguru import logger
@@ -14,7 +14,6 @@ class K8SRegistryDeployment(RegistryDeployment, K8SDeployment):
 
     def __init__(self, project_name: str):
         super().__init__()
-        config.load_kube_config()
         self.service_api_instance: CoreV1Api = client.CoreV1Api()
         self.apps_api_instance: AppsV1Api = client.AppsV1Api()
         self.host_name = os.environ["MP_HOST_NAME"]
@@ -25,9 +24,7 @@ class K8SRegistryDeployment(RegistryDeployment, K8SDeployment):
         self.pgsql_password = os.environ["POSTGRES_PASSWORD"]
         self.pgsql_user = os.environ["POSTGRES_USER"]
         self.local_ip = os.environ["LOCAL_IP"]
-        self.pgsql_cluster_host = (
-            f"{os.environ['PGSQL_HOST']}-postgresql.{os.environ['PGSQL_NAMESPACE']}.svc.cluster.local"
-        )
+        self.pgsql_cluster_host = os.environ["POSTGRES_HOST"]
         self.mlflow_db_name = self.project_name.replace("-", "_")
 
     def create_registry_deployment(self):
