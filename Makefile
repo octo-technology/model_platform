@@ -18,6 +18,8 @@ k8s-modelplatform:
 	@eval $$(minikube docker-env) && docker build ./ -f ./backend/Dockerfile --no-cache -t backend && docker build ./ -f ./frontend/Dockerfile -t frontend && kubectl apply -f infrastructure/k8s/backend-deployment.yaml && kubectl apply -f infrastructure/k8s/frontend-deployment.yaml
 		kubectl get deployments -n model-platform -o name | xargs -I {} kubectl rollout restart {} -n model-platform
 
+restart-modelplatform:
+	kubectl get deployments -n model-platform -o name | xargs -I {} kubectl rollout restart {} -n model-platform
 
 k8s-pgsql:
 	# Nettoyage

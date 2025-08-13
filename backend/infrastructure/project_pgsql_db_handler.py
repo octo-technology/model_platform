@@ -14,15 +14,13 @@ from backend.infrastructure.project_sqlite_db_handler import (
 class ProjectPostgresDBHandler(ProjectDbHandler):
     def __init__(self, db_config: dict):
         self.db_config = db_config
-        self.db_config["dbname"] = "projects_db"
+        self.db_config["dbname"] = "model_platform_db"
         self._init_table_project_if_not_exists()
 
     def _connect(self):
         return psycopg2.connect(**self.db_config)
 
     def list_projects(self) -> list[Project] | None:
-        print("DB CONFIG", self.db_config)
-        # TODO ca utilise "users" en dbname et non "projects_db"
         connection = self._connect()
         try:
             cursor = connection.cursor()

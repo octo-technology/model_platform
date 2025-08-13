@@ -6,14 +6,9 @@ metadata:
 data:
   00-init.sql: |
     -- Créer les bases de données
-    CREATE DATABASE projects_db;
-    CREATE DATABASE users_db;
+    CREATE DATABASE model_platform_db;
 
     -- Créer les utilisateurs applicatifs
-    -- Remplacez 'project_password' et 'user_password' par une récupération en secrets
-    CREATE ROLE app_projects LOGIN PASSWORD 'project_password';
-    CREATE ROLE app_users LOGIN PASSWORD 'user_password';
-
+    CREATE ROLE model_platform_app LOGIN PASSWORD 'project_password';
     -- Attribuer les droits sur les bases de données
-    GRANT ALL PRIVILEGES ON DATABASE projects_db TO app_projects;
-    GRANT ALL PRIVILEGES ON DATABASE users_db TO app_users;
+    GRANT ALL PRIVILEGES ON DATABASE model_platform_app TO model_platform_app;

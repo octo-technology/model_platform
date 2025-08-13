@@ -13,11 +13,14 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 class UserPgsqlDbAdapter(UserHandler):
-    def __init__(self, db_config: dict):
+    def __init__(self, db_config: dict, admin_config: dict = None):
         self.db_config = db_config
-        self.db_config["dbname"] = "users_db"
+        self.admin_config = admin_config
+        self.db_config["dbname"] = "model_platform_db"
         self._init_table_users_if_not_exists()
         self._init_table_project_users_if_not_exists()
+        if admin_config is not None:
+            self.create_admin_user_if_not_exists()
 
     def _get_connection(self):
         return psycopg2.connect(**self.db_config)
@@ -28,11 +31,25 @@ class UserPgsqlDbAdapter(UserHandler):
             cursor = connection.cursor()
             cursor.execute(
                 """
-                CREATE TABLE IF NOT EXISTS users (
-                    id SERIAL PRIMARY KEY,
-                    email TEXT NOT NULL UNIQUE,
-                    hashed_password TEXT NOT NULL,
-                    role TEXT NOT NULL
+                CREATE TABLE IF NOT EXISTS users
+                (
+                    id
+                    SERIAL
+                    PRIMARY
+                    KEY,
+                    email
+                    TEXT
+                    NOT
+                    NULL
+                    UNIQUE,
+                    hashed_password
+                    TEXT
+                    NOT
+                    NULL,
+                    role
+                    TEXT
+                    NOT
+                    NULL
                 )
                 """
             )
@@ -46,13 +63,30 @@ class UserPgsqlDbAdapter(UserHandler):
             cursor = connection.cursor()
             cursor.execute(
                 """
-                CREATE TABLE IF NOT EXISTS project_users (
-                    id SERIAL PRIMARY KEY,
-                    email TEXT NOT NULL,
-                    project_name TEXT NOT NULL,
-                    role TEXT NOT NULL,
-                    UNIQUE(email, project_name)
+                CREATE TABLE IF NOT EXISTS project_users
+                (
+                    id
+                    SERIAL
+                    PRIMARY
+                    KEY,
+                    email
+                    TEXT
+                    NOT
+                    NULL,
+                    project_name
+                    TEXT
+                    NOT
+                    NULL,
+                    role
+                    TEXT
+                    NOT
+                    NULL,
+                    UNIQUE
+                (
+                    email,
+                    project_name
                 )
+                    )
                 """
             )
             connection.commit()
@@ -65,7 +99,9 @@ class UserPgsqlDbAdapter(UserHandler):
             cursor = connection.cursor()
             cursor.execute(
                 """
-                SELECT * FROM users WHERE email = %s
+                SELECT *
+                FROM users
+                WHERE email = %s
                 """,
                 (email,),
             )
@@ -75,8 +111,10 @@ class UserPgsqlDbAdapter(UserHandler):
 
             cursor.execute(
                 """
-                SELECT * FROM project_users WHERE email = %s
-                and project_name = %s
+                SELECT *
+                FROM project_users
+                WHERE email = %s
+                  and project_name = %s
                 """,
                 (email, project_name),
             )
@@ -103,7 +141,10 @@ class UserPgsqlDbAdapter(UserHandler):
             cursor = connection.cursor()
             cursor.execute(
                 """
-                DELETE FROM project_users WHERE email = %s AND project_name = %s
+                DELETE
+                FROM project_users
+                WHERE email = %s
+                  AND project_name = %s
                 """,
                 (email, project_name),
             )
@@ -139,7 +180,9 @@ class UserPgsqlDbAdapter(UserHandler):
             cursor = connection.cursor()
             cursor.execute(
                 """
-                SELECT * FROM users WHERE email = %s
+                SELECT *
+                FROM users
+                WHERE email = %s
                 """,
                 (email,),
             )
@@ -170,7 +213,10 @@ class UserPgsqlDbAdapter(UserHandler):
             cursor = connection.cursor()
             cursor.execute(
                 """
-                SELECT role FROM project_users WHERE email = %s and project_name = %s
+                SELECT role
+                FROM project_users
+                WHERE email = %s
+                  and project_name = %s
                 """,
                 (email, project_name),
             )
@@ -200,7 +246,9 @@ class UserPgsqlDbAdapter(UserHandler):
             cursor = connection.cursor()
             cursor.execute(
                 """
-                SELECT email, role FROM project_users WHERE project_name = %s
+                SELECT email, role
+                FROM project_users
+                WHERE project_name = %s
                 """,
                 (project_name,),
             )
@@ -216,7 +264,10 @@ class UserPgsqlDbAdapter(UserHandler):
             cursor = connection.cursor()
             cursor.execute(
                 """
-                UPDATE project_users SET role = %s WHERE email = %s AND project_name = %s
+                UPDATE project_users
+                SET role = %s
+                WHERE email = %s
+                  AND project_name = %s
                 """,
                 (role.value, email, project_name),
             )
@@ -225,3 +276,22 @@ class UserPgsqlDbAdapter(UserHandler):
         finally:
             connection.close()
         return success
+
+    def create_admin_user_if_not_exists(self):
+        connection = self._get_connection()
+        try:
+            cursor = connection.cursor()
+            email = self.admin_config["email"]
+            password = self.admin_config["password"]
+            hashed_password = pwd_context.hash(password)
+            cursor.execute(
+                """
+                INSERT INTO users (email, hashed_password, role)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (email) DO NOTHING
+                """,
+                (email, hashed_password, Role.ADMIN.value),
+            )
+            connection.commit()
+        finally:
+            connection.close()

@@ -4,6 +4,7 @@ import os
 import pandas as pd
 import requests
 import streamlit as st
+from loguru import logger
 
 from frontend.api_interactions.endpoints import ADD_PROJECT_URI, DELETE_PROJECT, PROJECT_INFO_URL, PROJECT_LIST_ENDPOINT
 from frontend.api_interactions.health import check_url_health
@@ -14,7 +15,9 @@ def get_projects_list() -> pd.DataFrame | None:
     try:
         response = send_get_query(PROJECT_LIST_ENDPOINT, timeout=100)
         if response["http_code"] == 200:
-            return format_projects_response(response["data"])
+            data = response["data"]
+            logger.info(f"Projects list retrieved successfully from backend {data}")
+            return format_projects_response(data)
         else:
             st.info(response["data"]["detail"])
             return None

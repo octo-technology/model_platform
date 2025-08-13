@@ -22,3 +22,6 @@ class Config(metaclass=Singleton):
             "user": config_adapter.get_var_env("POSTGRES_USER"),
             "password": config_adapter.get_var_env("POSTGRES_PASSWORD"),
         }
+        self.mp_admin_config = {"email": config_adapter.get_var_env("ADMIN_EMAIL"),
+                                "password": config_adapter.get_var_env("ADMIN_PASSWORD")}
+

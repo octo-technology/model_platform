@@ -47,7 +47,7 @@ async def lifespan(app: FastAPI):
     config = Config()
     app.state.registry_pool = MLFlowHandlerAdapter()
     app.state.project_db_handler = ProjectPostgresDBHandler(db_config=config.pgsql_db_config)
-    app.state.user_adapter = UserPgsqlDbAdapter(db_config=config.pgsql_db_config)
+    app.state.user_adapter = UserPgsqlDbAdapter(db_config=config.pgsql_db_config, admin_config=config.mp_admin_config)
     app.state.task_status = {}
     app.state.registry_pool.start_cleaning_task(interval=60)
     yield
