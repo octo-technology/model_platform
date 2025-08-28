@@ -19,102 +19,43 @@ A tribe project to build a Model Platform
 
 ## How to run
 
-### Install dependencies
+### - Setup your K8S env 
 
-#### Back and front
+A working minikube is needed for dev purposes
 
-Install dependencies for back and front
-
-```bash
-poetry install
-```
-
-#### Set up env vars
-
-Get local ip for minio:
-
-```bash
-ipconfig getifaddr en0
-or
-make get-ip
-```
-
-On ubuntu
-
-```text
-hostname -I | awk '{print $1}'
-```
-
-Configure env variables
-
-```bash
-cp .env.example .env
-```
-
-Put Ip in `LOCAL_IP` variable
-
-#### Install for platform
-
-Install minikube.
+    brew install minikube kubectl
 
 Install helm
 
-```bash
-# Ubuntu
-sudo snap install helm --classic
-```
+    brew install helm
 
-Configure helm
+### - Start and setup Cluster
 
-```bash
-helm repo add bitnami https://charts.bitnami.com/bitnami
-helm repo update
-```
-
-### To run frontend
-
-```bash
-make front
-```
-
-### To run Back-end
-
-Launch backend
-
-```bash
-eval $(minikube docker-env)
-cd infrastructure/registry/
-docker build . -t mlflow
-cd ../..
-make back
-```
-
-### Start cluster
-
-You'll need to have minikube installed
+Start minikube cluster with recommended specs
 
 ```bash
 #recommended configuration to avoid freezing/timeouts
 minikube start --cpus 2 --memory 7800 --disk-size 50g
 ```
+(You may need to start colima with custom config)
 
-Then activate the ingress addon
+```bash
+colima start --cpu 4 --memory 8
+```
+
+Activate Ingress controller add-on
 
 ```bash
 minikube addons enable ingress
 ```
 
-Deploy nginx reverse proxy
+Activate ssh tunnel to you minikube cluster
 
 ```bash
-make k8s-network-conf
+minikube tunnel
 ```
 
-Deploy db
-
-```bash
-make k8s-pgsql
-```
+### - "DNS" setup
 
 Add the following line to your /etc/hosts
 
@@ -126,10 +67,46 @@ minikube ip
 IP.RESULT model-platform.com
 ```
 
-Then run the following command and keep it running!!!
+### -  Fill .env file 
+
+**Some values are used (pgsql password etc...) in the init scripts !!**
+
+```bash 
+Use the .env.example 
+```
+### - Setup Namespaces, NGINX, Ingress
 
 ```bash
-minikube tunnel
+make k8s-network-conf
+```
+
+### - Deploy a PGSQL instance with helm
+
+Add bitnami pgsql repo to helm
+
+```
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm repo update
+```
+
+```bash
+make k8s-pgsql
+```
+It will output a lot of logs, don't worry. 
+
+### - Prepare a custom MLFLow Docker image 
+With integrated psycopg2 package 
+
+```bash
+    make build-mlflow
+```
+
+**You should now have a working k8s environment** 
+
+## Deploy the model platform en k8s 
+
+```bash
+  make k8s-modelplatform
 ```
 
 #### Setup storage
