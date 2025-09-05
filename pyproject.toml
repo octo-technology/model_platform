@@ -4,7 +4,8 @@ version = "0.1.0"
 description = ""
 authors = ["Octo Technology MLOps tribe"]
 packages = [{ include = "backend" },
-    { include = "frontend" }]
+    { include = "frontend" },
+    { include = "cli" }]
 
 [tool.poetry.dependencies]
 python = "^3.11"
@@ -31,6 +32,10 @@ transformers = "^4.51.3"
 streamlit = "^1.41.1"
 streamlit-cookies-controller = "^0.0.4"
 streamlit-autorefresh = "^1.0.1"
+
+[tool.poetry.group.cli.dependencies]
+typer = "^0.17.3"
+httpx = "^0.28.1"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.1.4"
@@ -95,3 +100,6 @@ convention = "google"
 
 [tool.pytest.ini_options]
 pythonpath = "src"
+
+[tool.poetry.scripts]
+mp = "cli.main:app"
