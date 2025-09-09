@@ -83,11 +83,10 @@ def track_task_status(task_id: str, tasks_status: dict):
 def get_project_registry_tracking_uri(project_name: str, request: Request) -> str:
     tracking_uri: str = (
         "http://"
-        + os.environ["MP_HOST_NAME"]
-        + "/"
-        + os.environ["MP_REGISTRY_PATH"]
-        + "/"
         + sanitize_project_name(project_name)
+        + "."
+        + sanitize_project_name(project_name)
+        + ".svc.cluster.local:5000"
     )
     logging.debug(f"Tracking URI: {tracking_uri} for {project_name}")
     return tracking_uri

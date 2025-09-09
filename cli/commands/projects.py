@@ -1,43 +1,43 @@
-from cli.utils.output import pretty_print
+import typer
+
+from cli.utils.api_calls import get_and_print, post_and_print
 from cli.utils.token import get_client
 
 
 def list_projects():
-    """Get current user info"""
-    client = get_client()
-    r = client.get("/projects/list")
-    if r.status_code == 200:
-        projects = r.json()
-        if not projects:
-            print("[yellow]Aucun projet trouvé.[/yellow]")
-            return
-        pretty_print(projects)
-    else:
-        print("[red]❌ Error fetching projects[/red]")
+    """List existing projects"""
+    get_and_print("/projects/list")
 
 
-def add_project(name: str, owner: str = "", scope: str = "", data_perimeter: str = ""):
+def project_info(name: str):
+    """Get detailed info about a project by name"""
+    get_and_print(f"/projects/{name}/info", error_message="❌ Error fetching project info",
+                  success_message="✅ Project info retrieved successfully")
+
+
+def add_project(name: str = typer.Option(), owner: str = typer.Option(""), scope: str = typer.Option(""),
+                data_perimeter: str = typer.Option("")):
     """Create a new project"""
-    client = get_client()
-    r = client.post("/projects/add", json={
+    post_and_print("/projects/add", {
         "name": name,
         "owner": owner,
         "scope": scope,
         "data_perimeter": data_perimeter
-    })
-    if r.status_code == 200:
-        print("[green]✅ Project created successfully[/green]")
-        print(r.json())
-    else:
-        print(r.content)
-        print("[red]❌ Error creating project[/red]")
+    }, error_message="❌ Error creating project", success_message="✅ Project created successfully")
+
 
 def delete_project(name: str):
-    """Delete a project by ID"""
+    """Delete a project by name"""
+    get_and_print(f"/projects/{name}/remove", error_message="❌ Error deleting project",
+                  success_message="✅ Project deleted successfully")
+
+
+def add_user_to_project(project_name: str, email: str = typer.Option(), role: str = typer.Option()):
+    """Add a user to a project with a specific role"""
     client = get_client()
-    r = client.get(f"/projects/{name}/remove")
+    r = client.post(f"/projects/{project_name}/add_user?email={email}&role={role}")
     if r.status_code == 200:
-        print("[green]✅ Project deleted successfully[/green]")
+        print("✅ User added to project successfully")
     else:
         print(r.content)
-        print("[red]❌ Error deleting project[/red]")
+        print("❌ Error adding user to project")
