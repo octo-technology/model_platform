@@ -29,6 +29,7 @@ def format_projects_response(projects: dict) -> pd.DataFrame:
     data = []
     for project in projects:
         registry_homepage = build_project_registry_url(project.get("name", "Unknown"))
+        logger.info(f"Registry homepage: {registry_homepage}")
         registry_status = build_healthcheck_status_url(registry_homepage)
         data.append(
             {
@@ -46,12 +47,10 @@ def format_projects_response(projects: dict) -> pd.DataFrame:
 def build_project_registry_url(project_name: str) -> str:
     project_registry_url = (
         "http://"
-        + os.environ["MP_HOST_NAME"]
-        + "/"
-        + os.environ["MP_REGISTRY_PATH"]
-        + "/"
+        +sanitize_name(project_name)
+        + "."
         + sanitize_name(project_name)
-        + "/"
+        + ".svc.cluster.local:5000"
     )
     return project_registry_url
 
