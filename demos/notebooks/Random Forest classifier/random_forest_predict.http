@@ -10,3 +10,17 @@ Content-Type: application/json
     "3": 0.2
   }
 }
+
+###
+
+POST http://model-platform.com/deploy/projet2/projet2-random-forest-iris-classifier-1-deployment-bde4a7/health
+Content-Type: application/json
+
+{
+  "inputs": {
+    "0": 3,
+    "1": 5.1,
+    "2": 1.4,
+    "3": 0.2
+  }
+}

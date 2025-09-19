@@ -140,6 +140,7 @@ class K8SRegistryDeployment(RegistryDeployment, K8SDeployment):
                 logger.info(f"⚠️ Error while creating/updating the deployment: {e}")
 
     def create_db_dropper_job(self):
+        #TODO ne fonctionne pas actuellement
         logger.info(f"Creating job to drop database {self.mlflow_db_name}...")
         batch_api_instance = client.BatchV1Api()
         job_name = "drop-db-job"

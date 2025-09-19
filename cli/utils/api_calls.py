@@ -19,13 +19,14 @@ def get_and_print(endpoint: str, error_message: str = "❌ Error fetching query"
                   success_message: str = "Empty") -> None:
     client = get_client()
     r = client.get(endpoint)
-    print(r.content)
     if r.status_code == 200:
         projects = r.json()
         if not projects:
-            print(success_message)
             return
-        pretty_print(projects)
+        if isinstance(projects, dict) or isinstance(projects, list):
+            pretty_print(projects)
+        else:
+            print(success_message)
     else:
         print(error_message)
 

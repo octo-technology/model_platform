@@ -20,13 +20,23 @@ spec:
       labels:
         app: backend
     spec:
-      serviceAccountName: backend-sa  # <-- utilisation du service account dédié
+      serviceAccountName: backend-sa
       containers:
         - name: backend
           image: backend:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
+          env:
+            - name: DOCKER_HOST
+              value: unix:///var/run/docker.sock
+          volumeMounts:
+            - name: docker-sock
+              mountPath: /var/run/docker.sock
+      volumes:
+        - name: docker-sock
+          hostPath:
+            path: /var/run/docker.sock
 ---
 apiVersion: v1
 kind: Service
@@ -45,15 +55,18 @@ kind: ClusterRole
 metadata:
   name: backend
 rules:
+- apiGroups: [ "batch" ]
+  resources: [ "jobs" ]
+  verbs: [ "get", "delete", "list", "create" ]
 - apiGroups: ["apps"]
   resources: ["deployments"]
-  verbs: ["get", "list", "create", "update", "patch", "delete"]
+  verbs: [ "get", "list", "create", "update", "patch", "delete" ]
 - apiGroups: [""]
   resources: ["namespaces"]
-  verbs: ["get", "list", "create", "delete"]
+  verbs: [ "get", "list", "create", "delete" ]
 - apiGroups: [""]
   resources: ["services"]
-  verbs: ["get", "list", "create", "update", "patch", "delete"]
+  verbs: [ "get", "list", "create", "update", "patch", "delete" ]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

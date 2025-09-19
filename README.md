@@ -129,6 +129,21 @@ Set it in the .env file. and run
 make set-ip
 ```
 
+
+## TROUBLESHOOTING
+
+### Backend cannot find docker executable
+
+    Error executing docker build: [Errno 2] No such file or directory: 'docker'
+
+Run 
+
+    minikube docker-env
+    #Check if same in .env
+    if not update and run 
+    k8s-modelplatform
+
+
 ## Dev expérience
 
 ### Running CI locally
@@ -153,3 +168,4 @@ Run
 ```bash
 kubectl port-forward svc/modelplatform-pgsql-postgresql 5432:5432 -n pgsql
 ```
+

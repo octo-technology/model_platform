@@ -11,6 +11,7 @@ packages = [{ include = "backend" },
 python = "^3.11"
 pydantic-settings = "^2.7.0"
 loguru = "^0.7.3"
+notebook = "^7.4.5"
 
 
 [tool.poetry.group.backend.dependencies]
