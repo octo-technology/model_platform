@@ -13,7 +13,10 @@ class K8SDeployment:
     def __init__(
         self,
     ):
-        config.load_incluster_config()
+        if os.environ.get("KUBERNETES_SERVICE_HOST"):
+            config.load_incluster_config()
+        else:
+            config.load_kube_config()
         self.service_api_instance: CoreV1Api = client.CoreV1Api()
         self.apps_api_instance: AppsV1Api = client.AppsV1Api()
         self.ingress_api_instance: client.NetworkingV1Api = client.NetworkingV1Api()

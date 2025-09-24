@@ -129,6 +129,19 @@ Set it in the .env file. and run
 make set-ip
 ```
 
+### Connect to model platform
+
+Via fronted 
+    
+    http://model-platform.com
+
+or
+
+    mp login --username XXXXX --password XXXX
+
+ Root account is the one you set in the .env file
+
+
 
 ## TROUBLESHOOTING
 

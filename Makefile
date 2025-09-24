@@ -75,8 +75,10 @@ back:
 build-mlflow:
 	@eval $$(minikube docker-env) && docker build -t mlflow -f infrastructure/registry/Dockerfile .
 
+MINIKUBE_GATEWAY := $(shell minikube ssh "ip route" | grep '^default' | awk '{print $$3}')
+
 get-ip:
-	ipconfig getifaddr en0
+	@echo "Gateway Minikube: $(MINIKUBE_GATEWAY)"
 
 set-ip:
 	python backend/domain/use_cases/main_update_registries_minio_ip.py

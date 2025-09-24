@@ -1,3 +1,4 @@
+import datetime
 import os
 
 from kubernetes import client
@@ -97,7 +98,20 @@ class K8SDeploymentClusterAdapter(DeploymentClusterHandler, K8SDeployment):
 
             if updated:
                 patch_body = {
-                    "spec": {"template": {"spec": {"containers": [{"name": container.name, "env": container.env}]}}}
+                    "spec": {
+                        "template": {
+                            "spec": {
+                                "containers": [
+                                    {"name": container.name, "env": container.env}
+                                ]
+                            },
+                            "metadata": {
+                                "annotations": {
+                                    "kubectl.kubernetes.io/restartedAt": datetime.datetime.utcnow().isoformat()
+                                }
+                            }
+                        }
+                    }
                 }
 
                 self.apps_api_instance.patch_namespaced_deployment(

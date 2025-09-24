@@ -13,7 +13,7 @@ Content-Type: application/json
 
 ###
 
-POST http://model-platform.com/deploy/projet2/projet2-random-forest-iris-classifier-1-deployment-bde4a7/health
+POST http://model-platform.com/deploy/test/test-random-forest-iris-classifier-1-deployment-bde4a7/predict
 Content-Type: application/json
 
 {
