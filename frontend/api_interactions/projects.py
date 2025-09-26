@@ -4,6 +4,7 @@ import os
 import pandas as pd
 import requests
 import streamlit as st
+from loguru import logger
 
 from frontend.api_interactions.endpoints import ADD_PROJECT_URI, DELETE_PROJECT, PROJECT_INFO_URL, PROJECT_LIST_ENDPOINT
 from frontend.api_interactions.health import check_url_health
@@ -14,7 +15,9 @@ def get_projects_list() -> pd.DataFrame | None:
     try:
         response = send_get_query(PROJECT_LIST_ENDPOINT, timeout=100)
         if response["http_code"] == 200:
-            return format_projects_response(response["data"])
+            data = response["data"]
+            logger.info(f"Projects list retrieved successfully from backend {data}")
+            return format_projects_response(data)
         else:
             st.info(response["data"]["detail"])
             return None
@@ -25,8 +28,9 @@ def get_projects_list() -> pd.DataFrame | None:
 def format_projects_response(projects: dict) -> pd.DataFrame:
     data = []
     for project in projects:
-        registry_homepage = build_project_registry_url(project.get("name", "Unknown"))
-        registry_status = build_healthcheck_status_url(registry_homepage)
+        registry_homepage, cluster_url = build_project_registry_url(project.get("name", "Unknown"))
+        logger.info(f"Registry homepage: {cluster_url}")
+        registry_status = build_healthcheck_status_url(cluster_url)
         data.append(
             {
                 "Name": project.get("name", "Unknown"),
@@ -40,17 +44,24 @@ def format_projects_response(projects: dict) -> pd.DataFrame:
     return pd.DataFrame(data)
 
 
-def build_project_registry_url(project_name: str) -> str:
-    project_registry_url = (
-        "http://"
-        + os.environ["MP_HOST_NAME"]
-        + "/"
-        + os.environ["MP_REGISTRY_PATH"]
-        + "/"
-        + sanitize_name(project_name)
-        + "/"
+def build_project_registry_url(project_name: str) -> tuple[str, str]:
+    cluster_registry_url = (
+            "http://"
+            + sanitize_name(project_name)
+            + "."
+            + sanitize_name(project_name)
+            + ".svc.cluster.local:5000"
     )
-    return project_registry_url
+    project_registry_url = (
+            "http://"
+            + os.environ["MP_HOST_NAME"]
+            + "/"
+            + os.environ["MP_REGISTRY_PATH"]
+            + "/"
+            + sanitize_name(project_name)
+            + "/"
+    )
+    return project_registry_url, cluster_registry_url
 
 
 def build_healthcheck_status_url(registry_homepage: str) -> str:

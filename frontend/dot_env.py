@@ -2,7 +2,7 @@ import os
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from backend import PROJECT_DIR
+from frontend import PROJECT_DIR
 
 
 class DotEnv(BaseSettings):

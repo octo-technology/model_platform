@@ -1,3 +1,5 @@
+from loguru import logger
+
 from backend.domain.entities.project import Project
 from backend.domain.ports.project_db_handler import ProjectDbHandler
 from backend.domain.use_cases.deploy_registry import deploy_registry
@@ -10,6 +12,7 @@ EVENT_LOGGER = LogEventsHandlerFileAdapter()
 def list_projects(project_db_handler: ProjectDbHandler) -> list[dict]:
     projects = project_db_handler.list_projects()
     l_projects = [project.to_json() for project in projects]
+    logger.info(f"Projects listed: {l_projects}")
     return l_projects
 
 

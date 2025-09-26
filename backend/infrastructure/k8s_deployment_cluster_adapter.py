@@ -1,3 +1,4 @@
+import datetime
 import os
 
 from kubernetes import client
@@ -83,8 +84,8 @@ class K8SDeploymentClusterAdapter(DeploymentClusterHandler, K8SDeployment):
         return False
 
     def update_mlflow_s3_ip(self):
-        local_ip = os.environ["LOCAL_IP"]
-        new_env_value = f"http://{local_ip}:9000"
+        mlflow_s3_endpoint_url = os.environ["MLFLOW_S3_ENDPOINT_URL"]
+        new_env_value = mlflow_s3_endpoint_url
 
         for registry in self.list_all_registries():
             updated = False
@@ -97,7 +98,20 @@ class K8SDeploymentClusterAdapter(DeploymentClusterHandler, K8SDeployment):
 
             if updated:
                 patch_body = {
-                    "spec": {"template": {"spec": {"containers": [{"name": container.name, "env": container.env}]}}}
+                    "spec": {
+                        "template": {
+                            "spec": {
+                                "containers": [
+                                    {"name": container.name, "env": container.env}
+                                ]
+                            },
+                            "metadata": {
+                                "annotations": {
+                                    "kubectl.kubernetes.io/restartedAt": datetime.datetime.utcnow().isoformat()
+                                }
+                            }
+                        }
+                    }
                 }
 
                 self.apps_api_instance.patch_namespaced_deployment(

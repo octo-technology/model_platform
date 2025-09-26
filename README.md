@@ -19,102 +19,43 @@ A tribe project to build a Model Platform
 
 ## How to run
 
-### Install dependencies
+### - Setup your K8S env 
 
-#### Back and front
+A working minikube is needed for dev purposes
 
-Install dependencies for back and front
-
-```bash
-poetry install
-```
-
-#### Set up env vars
-
-Get local ip for minio:
-
-```bash
-ipconfig getifaddr en0
-or
-make get-ip
-```
-
-On ubuntu
-
-```text
-hostname -I | awk '{print $1}'
-```
-
-Configure env variables
-
-```bash
-cp .env.example .env
-```
-
-Put Ip in `LOCAL_IP` variable
-
-#### Install for platform
-
-Install minikube.
+    brew install minikube kubectl
 
 Install helm
 
-```bash
-# Ubuntu
-sudo snap install helm --classic
-```
+    brew install helm
 
-Configure helm
+### - Start and setup Cluster
 
-```bash
-helm repo add bitnami https://charts.bitnami.com/bitnami
-helm repo update
-```
-
-### To run frontend
-
-```bash
-make front
-```
-
-### To run Back-end
-
-Launch backend
-
-```bash
-eval $(minikube docker-env)
-cd infrastructure/registry/
-docker build . -t mlflow
-cd ../..
-make back
-```
-
-### Start cluster
-
-You'll need to have minikube installed
+Start minikube cluster with recommended specs
 
 ```bash
 #recommended configuration to avoid freezing/timeouts
-minikube start --cpus 2 --memory 7800
+minikube start --cpus 2 --memory 7800 --disk-size 50g
+```
+(You may need to start colima with custom config)
+
+```bash
+colima start --cpu 4 --memory 8
 ```
 
-Then activate the ingress addon
+Activate Ingress controller add-on
 
 ```bash
 minikube addons enable ingress
 ```
 
-Deploy nginx reverse proxy
+Activate ssh tunnel to you minikube cluster
 
 ```bash
-make k8s-network-conf
+minikube tunnel
 ```
 
-Deploy db
-
-```bash
-make k8s-pgsql
-```
+### - "DNS" setup
 
 Add the following line to your /etc/hosts
 
@@ -126,31 +67,75 @@ minikube ip
 IP.RESULT model-platform.com
 ```
 
-Then run the following command and keep it running!!!
+### -  Fill .env file 
+
+**Some values are used (pgsql password etc...) in the init scripts !!**
+
+```bash 
+Use the .env.example 
+```
+### - Setup Namespaces, NGINX, Ingress
 
 ```bash
-minikube tunnel
+make k8s-network-conf
 ```
 
-#### Setup storage
+### - Deploy a PGSQL instance with helm
 
-Launch minio local instance
+Add bitnami pgsql repo to helm
+
+```
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm repo update
+```
 
 ```bash
-docker-compose -f infrastructure/minio/docker-compose.yml up
+make k8s-pgsql
 ```
+It will output a lot of logs, don't worry. 
 
-#### In case of changed local ip (happens when you change wifi)
-
-If you already have mlflow registry running and you change wifi connection :
-
-Update minio cluster ip in deployed mlflow registries
-
-Set it in the .env file. and run
+### - Prepare a custom MLFLow Docker image 
+With integrated psycopg2 package 
 
 ```bash
-make set-ip
+    make build-mlflow
 ```
+
+**You should now have a working k8s environment** 
+
+## Deploy the model platform en k8s 
+
+```bash
+  make k8s-modelplatform
+```
+
+### Connect to model platform
+
+Via fronted 
+    
+    http://model-platform.com
+
+or
+
+    mp login --username XXXXX --password XXXX
+
+ Root account is the one you set in the .env file
+
+
+
+## TROUBLESHOOTING
+
+### Backend cannot find docker executable
+
+    Error executing docker build: [Errno 2] No such file or directory: 'docker'
+
+Run 
+
+    minikube docker-env
+    #Check if same in .env
+    if not update and run 
+    k8s-modelplatform
+
 
 ## Dev expérience
 
@@ -169,3 +154,20 @@ or
 #Intel processors
 make run-ci-amd
 ```
+
+Access the pgsql via local db client
+
+Run
+```bash
+kubectl port-forward svc/modelplatform-pgsql-postgresql 5432:5432 -n pgsql
+```
+
+Add to you db client
+
+    host: localhost
+    port: 5432
+    user: postgres
+    password: your_postgres_password
+    db: model_platform_db
+
+you can now access the model_platform_db database

@@ -1,9 +1,9 @@
+import re
 from datetime import datetime
 
 import pandas as pd
 import streamlit as st
 
-from backend.utils import sanitize_project_name
 from frontend.api_interactions.endpoints import (
     BUILD_DEPLOY_STATUS_ENDPOINT,
     DEPLOYED_MODEL_URI,
@@ -29,23 +29,36 @@ def format_timestamp(timestamp):
     return datetime.fromtimestamp(timestamp / 1000).strftime("%Y-%m-%d %H:%M:%S")
 
 
+def sanitize_project_name(project_name: str) -> str:
+    """Nettoie et format le nom pour être valid dans Kubernetes."""
+    sanitized_name = re.sub(r"[^a-z0-9-]", "-", project_name.lower())
+    sanitized_name = re.sub(r"^-+", "", sanitized_name)  # Supprimer tirets au début
+    sanitized_name = re.sub(r"-+$", "", sanitized_name)  # Supprimer tirets à la fin
+    return sanitized_name
+
+def internal_cluster_url(project_name: str, deployment_name: str, port: int = 8000, path: str = "/health") -> str:
+    ns = sanitize_project_name(project_name)
+    return f"http://{deployment_name}.{ns}.svc.cluster.local:{port}{path}"
+
+
 def format_response(models: list, project_name: str):
     data = []
     for model in models:
         model_name = model["model_name"]
         deployment_time_stamp = model["deployment_date"]
         versions = model["version"]
-        uri = DEPLOYED_MODEL_URI.format(
+        uri_int = internal_cluster_url(project_name, model["deployment_name"], port=8000, path="/health")
+        uri_ext = DEPLOYED_MODEL_URI.format(
             project_name=sanitize_project_name(project_name), deployment_name=model["deployment_name"]
         )
-        health = build_healthcheck_status_url(uri + "/health")
+        health = build_healthcheck_status_url(uri_int)
         data.append(
             {
                 "Name": model_name,
                 "Deployment Date": deployment_time_stamp,
                 "version": versions,
                 "Health check": health,
-                "Url": uri + "/health",
+                "Url": uri_ext,
             }
         )
 

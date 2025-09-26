@@ -1,6 +1,6 @@
 import os
 
-from kubernetes import client, config
+from kubernetes import client
 from kubernetes.client import AppsV1Api, CoreV1Api
 from kubernetes.client.rest import ApiException
 from loguru import logger
@@ -14,7 +14,6 @@ class K8SRegistryDeployment(RegistryDeployment, K8SDeployment):
 
     def __init__(self, project_name: str):
         super().__init__()
-        config.load_kube_config()
         self.service_api_instance: CoreV1Api = client.CoreV1Api()
         self.apps_api_instance: AppsV1Api = client.AppsV1Api()
         self.host_name = os.environ["MP_HOST_NAME"]
@@ -24,10 +23,8 @@ class K8SRegistryDeployment(RegistryDeployment, K8SDeployment):
         self.project_name = sanitize_project_name(project_name)
         self.pgsql_password = os.environ["POSTGRES_PASSWORD"]
         self.pgsql_user = os.environ["POSTGRES_USER"]
-        self.local_ip = os.environ["LOCAL_IP"]
-        self.pgsql_cluster_host = (
-            f"{os.environ['PGSQL_HOST']}-postgresql.{os.environ['PGSQL_NAMESPACE']}.svc.cluster.local"
-        )
+        self.mlflow_s3_endpoint_url = os.environ["MLFLOW_S3_ENDPOINT_URL"]
+        self.pgsql_cluster_host = os.environ["POSTGRES_HOST"]
         self.mlflow_db_name = self.project_name.replace("-", "_")
 
     def create_registry_deployment(self):
@@ -96,7 +93,7 @@ class K8SRegistryDeployment(RegistryDeployment, K8SDeployment):
                                     client.V1EnvVar(name="AWS_ACCESS_KEY_ID", value="minio_user"),
                                     client.V1EnvVar(name="AWS_SECRET_ACCESS_KEY", value="minio_password"),
                                     client.V1EnvVar(
-                                        name="MLFLOW_S3_ENDPOINT_URL", value=f"http://{self.local_ip}:9000"
+                                        name="MLFLOW_S3_ENDPOINT_URL", value=self.mlflow_s3_endpoint_url
                                     ),
                                 ],
                                 command=[
@@ -143,6 +140,7 @@ class K8SRegistryDeployment(RegistryDeployment, K8SDeployment):
                 logger.info(f"⚠️ Error while creating/updating the deployment: {e}")
 
     def create_db_dropper_job(self):
+        #TODO ne fonctionne pas actuellement
         logger.info(f"Creating job to drop database {self.mlflow_db_name}...")
         batch_api_instance = client.BatchV1Api()
         job_name = "drop-db-job"
@@ -160,11 +158,13 @@ class K8SRegistryDeployment(RegistryDeployment, K8SDeployment):
 
         container = client.V1Container(
             name="drop-db-container",
-            image="postgres:latest",
+            image="postgres:13",
             command=[
                 "/bin/sh",
                 "-c",
-                f"PGPASSWORD=$PGPASSWORD psql -h {self.pgsql_cluster_host} -U {self.pgsql_user} -c 'DROP DATABASE IF EXISTS {self.mlflow_db_name};'",  # noqa
+                f"PGPASSWORD=$PGPASSWORD psql -h {self.pgsql_cluster_host} -U {self.pgsql_user} -d postgres -v ON_ERROR_STOP=1 -c \"REVOKE CONNECT ON DATABASE {self.mlflow_db_name} FROM PUBLIC;\" "
+                f"&& PGPASSWORD=$PGPASSWORD psql -h {self.pgsql_cluster_host} -U {self.pgsql_user} -d postgres -v ON_ERROR_STOP=1 -c \"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '{self.mlflow_db_name}' AND pid <> pg_backend_pid();\" "
+                f"&& PGPASSWORD=$PGPASSWORD psql -h {self.pgsql_cluster_host} -U {self.pgsql_user} -d postgres -v ON_ERROR_STOP=1 -c \"DROP DATABASE IF EXISTS {self.mlflow_db_name};\""
             ],
             env=[client.V1EnvVar(name="PGPASSWORD", value=self.pgsql_password)],
         )

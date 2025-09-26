@@ -1,4 +1,5 @@
 import os
+import re
 import shutil
 import subprocess
 from datetime import datetime
@@ -9,7 +10,6 @@ from backend import PROJECT_DIR
 from backend.domain.entities.docker.dockerfile_template import DockerfileTemplate
 from backend.domain.use_cases.files_management import create_tmp_artefacts_folder, remove_directory
 from backend.infrastructure.mlflow_model_registry_adapter import MLFlowModelRegistryAdapter
-from frontend.utils import sanitize_name
 
 
 def _display_docker_build_logs(build_logs):
@@ -148,6 +148,14 @@ def clean_build_context(context_path: str) -> None:
         context_path (str): The path to the build context directory.
     """
     remove_directory(context_path)
+
+
+def sanitize_name(project_name: str) -> str:
+    """Nettoie et format le nom pour être valid dans Kubernetes."""
+    sanitized_name = re.sub(r"[^a-z0-9-]", "-", project_name.lower())
+    sanitized_name = re.sub(r"^-+", "", sanitized_name)  # Supprimer tirets au début
+    sanitized_name = re.sub(r"-+$", "", sanitized_name)  # Supprimer tirets à la fin
+    return sanitized_name
 
 
 def build_model_docker_image(

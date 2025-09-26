@@ -9,7 +9,7 @@ from passlib.context import CryptContext
 from backend.domain.entities.role import Role
 from backend.domain.use_cases import user_usecases
 from backend.domain.use_cases.config import Config
-from backend.infrastructure.user_sqlite_db_adapter import UserSqliteDbAdapter
+from backend.infrastructure.user_psql_db_adapter import UserPgsqlDbAdapter
 
 # Clé secrète et algorithme JWT
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
@@ -23,7 +23,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
 # Vérification de l'utilisateur
 def authenticate_user(username: str, password: str):
-    user_adapter = UserSqliteDbAdapter(db_path=Config().db_path)
+    user_adapter = UserPgsqlDbAdapter(db_config=Config().pgsql_db_config)
     user = user_usecases.get_user(user_adapter=user_adapter, email=username, password=password)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User doesn't exist")

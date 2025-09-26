@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pg-init-schemas
+  namespace: pgsql
+data:
+  00-init.sql: |
+    -- Créer les bases de données
+    CREATE DATABASE model_platform_db;
+
+    -- Créer les utilisateurs applicatifs
+    CREATE ROLE model_platform_app LOGIN PASSWORD 'project_password';
+    -- Attribuer les droits sur les bases de données
+    GRANT ALL PRIVILEGES ON DATABASE model_platform_app TO model_platform_app;

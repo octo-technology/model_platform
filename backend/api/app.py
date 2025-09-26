@@ -22,8 +22,8 @@ from backend.api import (
 )
 from backend.domain.use_cases.config import Config
 from backend.infrastructure.mlflow_handler_adapter import MLFlowHandlerAdapter
-from backend.infrastructure.project_sqlite_db_handler import ProjectSQLiteDBHandler
-from backend.infrastructure.user_sqlite_db_adapter import UserSqliteDbAdapter
+from backend.infrastructure.project_pgsql_db_handler import ProjectPostgresDBHandler
+from backend.infrastructure.user_psql_db_adapter import UserPgsqlDbAdapter
 
 bcrypt.__about__ = bcrypt
 # End of ugly stuff
@@ -44,9 +44,10 @@ async def lifespan(app: FastAPI):
     app : FastAPI
         The FastAPI application instance.
     """
+    config = Config()
     app.state.registry_pool = MLFlowHandlerAdapter()
-    app.state.project_sqlite_db_handler = ProjectSQLiteDBHandler(db_path=Config().db_path)
-    app.state.user_adapter = UserSqliteDbAdapter(db_path=Config().db_path)
+    app.state.project_db_handler = ProjectPostgresDBHandler(db_config=config.pgsql_db_config)
+    app.state.user_adapter = UserPgsqlDbAdapter(db_config=config.pgsql_db_config, admin_config=config.mp_admin_config)
     app.state.task_status = {}
     app.state.registry_pool.start_cleaning_task(interval=60)
     yield
