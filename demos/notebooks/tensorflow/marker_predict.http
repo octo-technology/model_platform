@@ -1,0 +1,9 @@
+POST http://model-platform.com/deploy/test/test-marker-quality-control-1-deployment-3b4041/predict
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="file"; filename="10.jpg"
+
+< images/10.jpg
+--WebAppBoundary--
+
