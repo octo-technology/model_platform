@@ -15,9 +15,16 @@ k8s-network-conf:
 	kubectl rollout restart deployment/nginx-reverse-proxy
 	kubectl apply -f infrastructure/k8s/ingress.yaml
 
-k8s-modelplatform:
-	@eval $$(minikube docker-env) && docker build ./ -f ./backend/Dockerfile --no-cache -t backend && docker build ./ -f ./frontend/Dockerfile -t frontend && kubectl apply -f infrastructure/k8s/backend-deployment.yaml && kubectl apply -f infrastructure/k8s/frontend-deployment.yaml
-		kubectl get deployments -n model-platform -o name | xargs -I {} kubectl rollout restart {} -n model-platform
+
+k8s-backend:
+	@eval $$(minikube docker-env) && docker build ./ -f ./backend/Dockerfile --no-cache -t backend && kubectl apply -f infrastructure/k8s/backend-deployment.yaml
+	kubectl rollout restart deployment/backend -n model-platform
+
+k8s-frontend:
+	@eval $$(minikube docker-env) && docker build ./ -f ./frontend/Dockerfile -t frontend && kubectl apply -f infrastructure/k8s/frontend-deployment.yaml
+	kubectl rollout restart deployment/frontend -n model-platform
+
+k8s-modelplatform: k8s-backend k8s-frontend
 
 restart-modelplatform:
 	kubectl get deployments -n model-platform -o name | xargs -I {} kubectl rollout restart {} -n model-platform

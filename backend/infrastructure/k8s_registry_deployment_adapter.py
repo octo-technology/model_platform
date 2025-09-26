@@ -158,11 +158,13 @@ class K8SRegistryDeployment(RegistryDeployment, K8SDeployment):
 
         container = client.V1Container(
             name="drop-db-container",
-            image="postgres:latest",
+            image="postgres:13",
             command=[
                 "/bin/sh",
                 "-c",
-                f"PGPASSWORD=$PGPASSWORD psql -h {self.pgsql_cluster_host} -U {self.pgsql_user} -c 'DROP DATABASE IF EXISTS {self.mlflow_db_name};'",  # noqa
+                f"PGPASSWORD=$PGPASSWORD psql -h {self.pgsql_cluster_host} -U {self.pgsql_user} -d postgres -v ON_ERROR_STOP=1 -c \"REVOKE CONNECT ON DATABASE {self.mlflow_db_name} FROM PUBLIC;\" "
+                f"&& PGPASSWORD=$PGPASSWORD psql -h {self.pgsql_cluster_host} -U {self.pgsql_user} -d postgres -v ON_ERROR_STOP=1 -c \"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '{self.mlflow_db_name}' AND pid <> pg_backend_pid();\" "
+                f"&& PGPASSWORD=$PGPASSWORD psql -h {self.pgsql_cluster_host} -U {self.pgsql_user} -d postgres -v ON_ERROR_STOP=1 -c \"DROP DATABASE IF EXISTS {self.mlflow_db_name};\""
             ],
             env=[client.V1EnvVar(name="PGPASSWORD", value=self.pgsql_password)],
         )

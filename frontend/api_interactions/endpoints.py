@@ -6,7 +6,7 @@ DotEnv()
 ## API
 API_BASE_URL = "http://backend.model-platform.svc.cluster.local:8000"
 HEALTH_ENDPOINT = f"{API_BASE_URL}/health"
-ARTIFACTS_ENDPOINT = f"http://{os.environ['LOCAL_IP']}:9000"
+ARTIFACTS_ENDPOINT = os.environ['MLFLOW_S3_ENDPOINT_URL']
 
 ## PROJECT ROUTES
 PROJECT_LIST_ENDPOINT = f"{API_BASE_URL}/projects/list"

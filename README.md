@@ -109,26 +109,6 @@ With integrated psycopg2 package
   make k8s-modelplatform
 ```
 
-#### Setup storage
-
-Launch minio local instance
-
-```bash
-docker-compose -f infrastructure/minio/docker-compose.yml up
-```
-
-#### In case of changed local ip (happens when you change wifi)
-
-If you already have mlflow registry running and you change wifi connection :
-
-Update minio cluster ip in deployed mlflow registries
-
-Set it in the .env file. and run
-
-```bash
-make set-ip
-```
-
 ### Connect to model platform
 
 Via fronted 
@@ -182,3 +162,12 @@ Run
 kubectl port-forward svc/modelplatform-pgsql-postgresql 5432:5432 -n pgsql
 ```
 
+Add to you db client
+
+    host: localhost
+    port: 5432
+    user: postgres
+    password: your_postgres_password
+    db: model_platform_db
+
+you can now access the model_platform_db database

@@ -36,6 +36,10 @@ def sanitize_project_name(project_name: str) -> str:
     sanitized_name = re.sub(r"-+$", "", sanitized_name)  # Supprimer tirets à la fin
     return sanitized_name
 
+def internal_cluster_url(project_name: str, deployment_name: str, port: int = 8000, path: str = "/health") -> str:
+    ns = sanitize_project_name(project_name)
+    return f"http://{deployment_name}.{ns}.svc.cluster.local:{port}{path}"
+
 
 def format_response(models: list, project_name: str):
     data = []
@@ -43,17 +47,18 @@ def format_response(models: list, project_name: str):
         model_name = model["model_name"]
         deployment_time_stamp = model["deployment_date"]
         versions = model["version"]
-        uri = DEPLOYED_MODEL_URI.format(
+        uri_int = internal_cluster_url(project_name, model["deployment_name"], port=8000, path="/health")
+        uri_ext = DEPLOYED_MODEL_URI.format(
             project_name=sanitize_project_name(project_name), deployment_name=model["deployment_name"]
         )
-        health = build_healthcheck_status_url(uri + "/health")
+        health = build_healthcheck_status_url(uri_int)
         data.append(
             {
                 "Name": model_name,
                 "Deployment Date": deployment_time_stamp,
                 "version": versions,
                 "Health check": health,
-                "Url": uri + "/health",
+                "Url": uri_ext,
             }
         )
 
