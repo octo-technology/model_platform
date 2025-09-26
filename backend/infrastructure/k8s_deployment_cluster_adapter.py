@@ -84,8 +84,8 @@ class K8SDeploymentClusterAdapter(DeploymentClusterHandler, K8SDeployment):
         return False
 
     def update_mlflow_s3_ip(self):
-        local_ip = os.environ["LOCAL_IP"]
-        new_env_value = f"http://{local_ip}:9000"
+        mlflow_s3_endpoint_url = os.environ["MLFLOW_S3_ENDPOINT_URL"]
+        new_env_value = mlflow_s3_endpoint_url
 
         for registry in self.list_all_registries():
             updated = False
