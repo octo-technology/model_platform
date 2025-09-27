@@ -32,14 +32,14 @@ class DockerfileTemplate:
         # Install additional dependencies in the environment
         RUN uv venv
         RUN uv pip install -r /opt/mlflow/requirements.txt
-        RUN uv pip install uvicorn fastapi cloudpickle loguru mlflow
+        RUN uv pip install uvicorn fastapi cloudpickle loguru mlflow python-multipart
 
         # Clean up apt cache to reduce image size
         RUN rm -rf /var/lib/apt/lists/*
         EXPOSE 8000
 
         # Activate conda environment and start the application
-        CMD ["bash", "-c", "uv run uvicorn fast_api_template:app --host 0.0.0.0 --port 8000"]
+        CMD ["bash", "-c", "uv run uvicorn fast_api_template:app --host 0.0.0.0 --port 8000 --log-level debug"]
         """
 
     def generate_dockerfile(self, output_dir: str) -> None:
