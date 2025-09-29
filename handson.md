@@ -8,7 +8,6 @@
   - qu'il puisse recevoir une image en input
   - retourne les prédictions au format attendu par VIO
 
-  
 
 ## Prérequis
 - Avoir un compte GitHub avec votre adresse Octo
@@ -38,6 +37,14 @@ Suivre les instructions du README du repo model_platform : [README.md](README.md
 
 Suivre les instructions du README du repo VIO 
 
+
+## Configurer l'environnement de développement python / notebook
+- Créer un environnement virtuel python
+    
+        pip install poetry
+        poetry env use 3.11.X (la version de votre python)
+        poetry install --with notebooks
+
 ## Tester l'enregistrement d'un modèle et le déploiement sur la model platform
 
 - Créer un projet dans la model platform
@@ -56,8 +63,23 @@ Suivre les instructions du README du repo VIO
 - Dans le dossier , [tensorflow](demos/notebooks/tensorflow) :
   - [images](demos/notebooks/tensorflow/images) images de test
   - [marker_quality_control](demos/notebooks/tensorflow/marker_quality_control) modèle pré entrainé
-  - Utilisez le concept de model as code https://mlflow.org/docs/3.0.1/model/models-from-code/ pour encapsuler le modèle tensorflow
-    - Encapsuler le modèle dans une classe héritant de mlflow.pyfunc.PythonModel 
-      - Doit implémenter les méthodes `load_context` et `predict`
-    - Logguer le modèle sur la modèle platform en utilisant la cellule 6 du notebook.
-
+    - Utilisez le concept de model as code https://mlflow.org/docs/3.0.1/model/models-from-code/ pour encapsuler le modèle tensorflow
+      - Encapsuler le modèle dans une classe héritant de mlflow.pyfunc.PythonModel 
+        - Doit implémenter les méthodes `load_context` et `predict`
+      - Logguer le modèle sur la modèle platform en utilisant la cellule 6 du notebook.
+      - Déployer le modèle
+      - Faire un curl sur l'endpoint déployé avec une image
+        ```
+        curl -X POST http://model-platform.com/deploy/test/test-marker-quality-control-1-deployment-3b4041/predict \-F "file=@images/10.jpg"
+        ```
+        
+### Adapter VIO pour qu'il puisse utiliser le modèle déployé sur la model paltform
+ - Comprendre le fonctionne de VIO (comment changer le endpoint du model serving)
+ - Il va falloir adapter la construction de l'url dans l'orchestrator VIO
+ - Attention, docker doit pouvoir accéder au réseau de l'host pour pouvoir accéder à la model platform
+ - La model platform tourne sur K8S, derrière un ingress et un proxy nginx...
+ - Voici un début de solution
+````
+curl -H "Host: model-platform.com" http://host.docker.internal/deploy/test/test-marker-quality-control-1-deployment-3b4041/health
+````
+ 
