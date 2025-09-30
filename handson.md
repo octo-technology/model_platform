@@ -68,6 +68,7 @@ Suivre les instructions du README du repo VIO
         - Doit implémenter les méthodes `load_context` et `predict`
       - Logguer le modèle sur la modèle platform en utilisant la cellule 6 du notebook.
       - Déployer le modèle
+      - Comprendre comment un modèle est déployer (trouver le code)
       - Faire un curl sur l'endpoint déployé avec une image
         ```
         curl -X POST http://model-platform.com/deploy/test/test-marker-quality-control-1-deployment-3b4041/predict \-F "file=@images/10.jpg"
