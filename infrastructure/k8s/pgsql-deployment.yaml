@@ -1,0 +1,90 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: pgsql
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: postgresdb-persistent-volume
+  namespace: pgsql
+  labels:
+    type: local
+    app: postgresdb
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteMany
+  hostPath:
+    path: /data/postgresql
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: db-persistent-volume-claim
+  namespace: pgsql
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: db-secret-credentials
+  namespace: pgsql
+  labels:
+    app: postgresdb
+data:
+  POSTGRES_DB: ps_db
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: your_postgres_password
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgresdb
+  namespace: pgsql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgresdb
+  template:
+    metadata:
+      labels:
+        app: postgresdb
+    spec:
+      containers:
+      - name: postgresdb
+        image: 'postgres:14'
+        imagePullPolicy: IfNotPresent
+        ports:
+          - containerPort: 5432
+        envFrom:
+          - configMapRef:
+              name: db-secret-credentials
+        volumeMounts:
+          - mountPath: /var/lib/postgresql/data
+            name: db-data
+      volumes:
+        - name: db-data
+          persistentVolumeClaim:
+            claimName: db-persistent-volume-claim
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: modelplatform-pgsql
+  namespace: pgsql
+  labels:
+    app: postgresdb
+spec:
+  type: NodePort
+  ports:
+  - port: 5432
+  selector:
+    app: postgresdb

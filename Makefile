@@ -30,31 +30,14 @@ restart-modelplatform:
 	kubectl get deployments -n model-platform -o name | xargs -I {} kubectl rollout restart {} -n model-platform
 
 k8s-pgsql:
-	# Nettoyage
-	kubectl delete namespace $(PGSQL_NAMESPACE) --ignore-not-found
-	until ! kubectl get namespace $(PGSQL_NAMESPACE) &>/dev/null; do sleep 2; done
-	helm uninstall $(PGSQL_HOST) --namespace=$(PGSQL_NAMESPACE) 2>/dev/null || echo "Helm release '$(PGSQL_HOST)' not found, skipping uninstall"
+	kubectl delete pv postgresdb-persistent-volume --ignore-not-found
+	kubectl delete namespace pgsql --ignore-not-found
+	kubectl delete pvc db-persistent-volume-claim -n pgsql --ignore-not-found
+	kubectl apply -f infrastructure/k8s/pgsql-deployment.yaml
 
-	# Création du namespace
-	kubectl create namespace $(PGSQL_NAMESPACE) --dry-run=client -o yaml | kubectl apply -f -
-
-	# Application de la ConfigMap d'initialisation
-	kubectl apply -f infrastructure/k8s/pg-init-schemas.yaml
-	echo "ConfigMap applied successfully"
-
-	# Installation de PostgreSQL avec Helm
-	helm install $(PGSQL_HOST) bitnami/postgresql \
-		--set global.postgresql.auth.postgresPassword=$(POSTGRES_PASSWORD) \
-		--set global.postgresql.auth.username=$(POSTGRES_USER) \
-		--set global.postgresql.auth.password=$(POSTGRES_PASSWORD) \
-		--set primary.initdb.scriptsConfigMap=pg-init-schemas \
-		--set primary.persistence.enabled=true \
-		--set primary.persistence.size=8Gi \
-		--namespace=$(PGSQL_NAMESPACE) \
-		--timeout=10m \
-		--wait
 
 k8s-pgsql-status:
+
 	kubectl get pods -n $(PGSQL_NAMESPACE)
 	kubectl get configmap -n $(PGSQL_NAMESPACE)
 	kubectl logs -n $(PGSQL_NAMESPACE) -l app.kubernetes.io/name=postgresql

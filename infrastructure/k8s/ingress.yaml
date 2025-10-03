@@ -28,7 +28,7 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: modelplatform-pgsql
+                name: cnpg-webhook-service
                 port:
                   number: 5432
           - path: /
