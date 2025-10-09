@@ -33,11 +33,15 @@ k8s-pgsql:
 	kubectl delete pv postgresdb-persistent-volume --ignore-not-found
 	kubectl delete namespace pgsql --ignore-not-found
 	kubectl delete pvc db-persistent-volume-claim -n pgsql --ignore-not-found
-	kubectl apply -f infrastructure/k8s/pgsql-deployment.yaml
+	until ! kubectl get namespace pgsql &>/dev/null; do sleep 2; done
 
+	kubectl create namespace pgsql --dry-run=client -o yaml | kubectl apply -f -
+
+	kubectl apply -f infrastructure/k8s/pg-init-schemas.yaml
+	kubectl apply -f infrastructure/k8s/pgsql-deployment.yaml
+	kubectl apply -f infrastructure/k8s/pgsql-init-job.yaml
 
 k8s-pgsql-status:
-
 	kubectl get pods -n $(PGSQL_NAMESPACE)
 	kubectl get configmap -n $(PGSQL_NAMESPACE)
 	kubectl logs -n $(PGSQL_NAMESPACE) -l app.kubernetes.io/name=postgresql

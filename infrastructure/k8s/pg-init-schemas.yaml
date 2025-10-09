@@ -11,4 +11,4 @@ data:
     -- Créer les utilisateurs applicatifs
     CREATE ROLE model_platform_app LOGIN PASSWORD 'project_password';
     -- Attribuer les droits sur les bases de données
-    GRANT ALL PRIVILEGES ON DATABASE model_platform_app TO model_platform_app;
+    GRANT ALL PRIVILEGES ON DATABASE model_platform_db TO model_platform_app;
