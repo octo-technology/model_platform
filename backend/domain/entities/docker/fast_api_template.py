@@ -1,10 +1,17 @@
+import os
 from typing import Any, Dict, Optional
 
 import mlflow
 import numpy as np
 import pandas as pd
-from fastapi import FastAPI, HTTPException, File, UploadFile, Request
+from fastapi import FastAPI, File, HTTPException, Request, Response, UploadFile
 from loguru import logger
+from opentelemetry import metrics, trace
+from opentelemetry.exporter.prometheus import PrometheusMetricReader
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from opentelemetry.sdk.metrics import MeterProvider
+from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+from prometheus_client import generate_latest, start_http_server
 from pydantic import BaseModel
 
 try:
@@ -13,6 +20,11 @@ try:
     logger.info("Model loaded successfully")
 except Exception as e:
     logger.error(f"Error loading model: {e}")
+
+image_name = os.environ["IMAGE_NAME"]
+
+tracer = trace.get_tracer(f"model_platform_{image_name}")
+
 app = FastAPI(reload=True)
 
 
@@ -25,10 +37,8 @@ class PredictionResponse(BaseModel):
 
 
 @app.post("/predict", response_model=PredictionResponse)
-async def predict(
-        request: Request,
-        file: Optional[UploadFile] = File(None)
-):
+async def predict(request: Request, file: Optional[UploadFile] = File(None)):
+    tracer = trace.get_tracer(__name__)
     try:
         content_type = request.headers.get("content-type", "")
 
@@ -37,7 +47,8 @@ async def predict(
                 raise HTTPException(status_code=400, detail="No file uploaded")
             contents = await file.read()
             logger.info("Received file for inference")
-            model_predict = model.predict(contents)
+            with tracer.start_as_current_span("model_inference"):
+                model_predict = model.predict(contents)
 
         elif "application/json" in content_type:
             body = await request.json()
@@ -50,7 +61,8 @@ async def predict(
             else:
                 input_df = pd.DataFrame(input_data)
 
-            model_predict = model.predict(input_df)
+            with tracer.start_as_current_span("model_inference"):
+                model_predict = model.predict(input_df)
 
         else:
             raise HTTPException(status_code=400, detail="Unsupported content type")
@@ -68,3 +80,31 @@ async def predict(
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
+
+
+@app.get("/metrics")
+def metrics_endpoint():
+    return Response(content=generate_latest(), media_type="text/plain")
+
+
+FastAPIInstrumentor.instrument_app(app)
+# Check si on devrait mettre le service name lié à k8s
+resource = Resource.create(attributes={SERVICE_NAME: f"model-platform-{image_name}"})
+
+# Prometheus client
+reader = PrometheusMetricReader()
+metric_provider = MeterProvider(resource=resource, metric_readers=[reader])
+metrics.set_meter_provider(metric_provider)
+
+# Tracer exporter
+zipkin_endpoint = os.getenv("ZIPKIN_ENDPOINT")
+if zipkin_endpoint:
+    from opentelemetry.exporter.zipkin.json import ZipkinExporter
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
+    zipkin_exporter = ZipkinExporter(endpoint=zipkin_endpoint)
+    trace_provider = TracerProvider(resource=resource)
+    processor = BatchSpanProcessor(zipkin_exporter)
+    trace_provider.add_span_processor(processor)
+    trace.set_tracer_provider(trace_provider)

@@ -37,7 +37,7 @@ def build_image_from_context(context_dir: str, image_name: str) -> int:
         version_output = subprocess.check_output(["docker", "version", "--format", "{{.Server.Version}}"], text=True)
         major_version = int(version_output.split(".")[0])
         if major_version >= 19:
-            #cmd.extend(["--platform", "linux/amd64"])
+            # cmd.extend(["--platform", "linux/amd64"])
             cmd.extend(["--platform", "linux/arm64"])
     except Exception as e:
         logger.warning(f"Couldn't determine Docker version: {e}. Platform option might not be applied.")
@@ -131,7 +131,7 @@ def build_docker_image_from_context_path(context_path: str, image_name: str) -> 
     dockerfile = DockerfileTemplate(
         python_version="3.9",
     )
-    dockerfile.generate_dockerfile(context_path)
+    dockerfile.generate_dockerfile(context_path, image_name)
     logger.info(f"Starting docker build in {context_path}")
     status = build_image_from_context(context_path, image_name)
     if status == 0:
