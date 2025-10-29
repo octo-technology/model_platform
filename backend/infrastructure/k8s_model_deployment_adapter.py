@@ -10,7 +10,6 @@ from backend.utils import sanitize_project_name, sanitize_ressource_name
 
 
 class K8SModelDeployment(ModelDeployment, K8SDeployment):
-
     def __init__(self, project_name: str, model_name: str, model_version: str):
         super().__init__()
         self.namespace = sanitize_project_name(project_name)
@@ -34,7 +33,10 @@ class K8SModelDeployment(ModelDeployment, K8SDeployment):
 
     def _create_or_update_model_service(self):
         service = client.V1Service(
-            metadata=client.V1ObjectMeta(name=self.service_name),
+            metadata=client.V1ObjectMeta(
+                name=self.service_name,
+                labels={"app": self.service_name},
+            ),
             spec=client.V1ServiceSpec(
                 selector={"app": self.service_name},
                 ports=[client.V1ServicePort(port=self.port, target_port=self.port, protocol="TCP", name="http")],
@@ -83,6 +85,45 @@ class K8SModelDeployment(ModelDeployment, K8SDeployment):
                 ),
             ),
         )
+
+        api = client.CustomObjectsApi()
+        service_monitor = {
+            "apiVersion": "monitoring.coreos.com/v1",
+            "kind": "ServiceMonitor",
+            "metadata": {
+                "name": f"{self.service_name}-monitor",
+                "labels": {
+                    "app": self.service_name,
+                    "release": "kube-prometheus-stack",
+                },
+            },
+            "spec": {
+                "selector": {
+                    "matchLabels": {
+                        "app": self.service_name,
+                    }
+                },
+                "endpoints": [
+                    {
+                        "port": "http",
+                        "path": "/metrics",
+                        "interval": "30s",
+                    }
+                ],
+                "namespaceSelector": {"matchNames": [self.namespace]},
+            },
+        }
+        try:
+            api.create_namespaced_custom_object(
+                group="monitoring.coreos.com",
+                version="v1",
+                namespace="monitoring",
+                plural="servicemonitors",
+                body=service_monitor,
+            )
+            logger.info(f"✅ ServiceMonitor for {self.service_name} successfully created!")
+        except ApiException as e:
+            logger.error(f"❌ Error while creating ServiceMonitor: {e}")
 
         try:
             self.apps_api_instance.read_namespaced_deployment(self.service_name, self.namespace)

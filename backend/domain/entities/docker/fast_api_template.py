@@ -11,7 +11,7 @@ from opentelemetry.exporter.prometheus import PrometheusMetricReader
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
-from prometheus_client import generate_latest, start_http_server
+from prometheus_client import generate_latest
 from pydantic import BaseModel
 
 try:

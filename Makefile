@@ -53,6 +53,18 @@ k8s-pgsql:
 	kubectl apply -f infrastructure/k8s/pgsql-deployment.yaml
 	kubectl apply -f infrastructure/k8s/pgsql-init-job.yaml
 
+k8s-monitoring:
+	kubectl delete namespace monitoring --ignore-not-found
+	until ! kubectl get namespace monitoring &>/dev/null; do sleep 2; done
+
+	kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+	helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+	helm repo update
+	helm install kube-prometheus-stack --namespace monitoring prometheus-community/kube-prometheus-stack
+	helm upgrade kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+		-n monitoring \
+		-f infrastructure/k8s/monitoring/prometheus-values.yaml
+
 k8s-pgsql-status:
 	kubectl get pods -n $(PGSQL_NAMESPACE)
 	kubectl get configmap -n $(PGSQL_NAMESPACE)
