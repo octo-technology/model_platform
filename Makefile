@@ -64,6 +64,10 @@ k8s-monitoring:
 	helm upgrade kube-prometheus-stack prometheus-community/kube-prometheus-stack \
 		-n monitoring \
 		-f infrastructure/k8s/monitoring/prometheus-values.yaml
+	helm upgrade kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+		-n monitoring \
+		-f infrastructure/k8s/monitoring/grafana-values.yaml
+	kubectl rollout restart deployment/nginx-reverse-proxy
 
 k8s-pgsql-status:
 	kubectl get pods -n $(PGSQL_NAMESPACE)

@@ -1,3 +1,4 @@
 prometheus:
   prometheusSpec:
     externalUrl: "https://model-platform.com/prometheus"
+    routePrefix: "/"

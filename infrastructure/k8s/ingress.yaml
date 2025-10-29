@@ -38,6 +38,13 @@ spec:
                 name: nginx-reverse-proxy
                 port:
                   number: 80
+          - path: "/grafana/"
+            pathType: Prefix
+            backend:
+              service:
+                name: nginx-reverse-proxy
+                port:
+                  number: 80
           - path: /
             pathType: Prefix
             backend:

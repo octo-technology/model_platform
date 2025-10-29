@@ -184,6 +184,25 @@ data:
               return 301 /prometheus/;
             }
 
+            location /grafana/ {
+              resolver kube-dns.kube-system.svc.cluster.local valid=10s;
+              proxy_pass http://kube-prometheus-stack-grafana.monitoring.svc.cluster.local:80;
+
+              proxy_set_header Host $host;
+              proxy_set_header X-Real-IP $remote_addr;
+              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+              proxy_set_header X-Forwarded-Proto $scheme;
+              proxy_http_version 1.1;
+              proxy_set_header Upgrade $http_upgrade;
+              proxy_set_header Connection "upgrade";
+              proxy_buffering off;
+              proxy_cache off;
+            }
+
+            location = /grafana {
+                return 301 /grafana/;
+            }
+
             location / {
               resolver kube-dns.kube-system.svc.cluster.local valid=10s;
               proxy_pass http://frontend.model-platform.svc.cluster.local:8501;
