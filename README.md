@@ -108,6 +108,12 @@ make build-mlflow
 make k8s-modelplatform
 ```
 
+### Deploy monitoring stack (Prometheus + Grafana)
+
+```bash
+make k8s-monitoring
+```
+
 ### Connect to model platform
 
 Via fronted 
