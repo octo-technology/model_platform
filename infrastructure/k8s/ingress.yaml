@@ -31,6 +31,20 @@ spec:
                 name: cnpg-webhook-service
                 port:
                   number: 5432
+          - path: "/prometheus/"
+            pathType: Prefix
+            backend:
+              service:
+                name: nginx-reverse-proxy
+                port:
+                  number: 80
+          - path: "/grafana/"
+            pathType: Prefix
+            backend:
+              service:
+                name: nginx-reverse-proxy
+                port:
+                  number: 80
           - path: /
             pathType: Prefix
             backend:

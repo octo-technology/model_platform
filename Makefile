@@ -17,11 +17,23 @@ k8s-network-conf:
 
 
 k8s-backend:
-	@eval $$(minikube docker-env) && docker build ./ -f ./backend/Dockerfile --no-cache -t backend && kubectl apply -f infrastructure/k8s/backend-deployment.yaml
+	@if [ "$$SHELL" = "/bin/zsh" ] || [ "$$SHELL" = "/usr/bin/zsh" ]; then \
+		@eval $$(minikube docker-env) && docker build ./ -f ./backend/Dockerfile --no-cache -t backend && kubectl apply -f infrastructure/k8s/backend-deployment.yaml ; \
+	elif [ "$SHELL" = "/usr/bin/fish" ] || [ "$SHELL" = "/bin/fish" ] || [ -n "$FISH_VERSION" ]; then \
+		eval $(minikube -p minikube docker-env) && docker build ./ -f ./backend/Dockerfile --no-cache -t backend && kubectl apply -f infrastructure/k8s/backend-deployment.yaml ; \
+	else \
+		eval $$(minikube docker-env) && docker build ./ -f ./backend/Dockerfile --no-cache -t backend && kubectl apply -f infrastructure/k8s/backend-deployment.yaml ; \
+	fi
 	kubectl rollout restart deployment/backend -n model-platform
 
 k8s-frontend:
-	@eval $$(minikube docker-env) && docker build ./ -f ./frontend/Dockerfile -t frontend && kubectl apply -f infrastructure/k8s/frontend-deployment.yaml
+	@if [ "$$SHELL" = "/bin/zsh" ] || [ "$$SHELL" = "/usr/bin/zsh" ]; then \
+		@eval $$(minikube docker-env) && docker build ./ -f ./frontend/Dockerfile -t frontend && kubectl apply -f infrastructure/k8s/frontend-deployment.yaml ; \
+	elif [ "$SHELL" = "/usr/bin/fish" ] || [ "$SHELL" = "/bin/fish" ] || [ -n "$FISH_VERSION" ]; then \
+		eval $(minikube -p minikube docker-env) && docker build ./ -f ./frontend/Dockerfile -t frontend && kubectl apply -f infrastructure/k8s/frontend-deployment.yaml ; \
+	else \
+		eval $$(minikube docker-env) && docker build ./ -f ./frontend/Dockerfile -t frontend && kubectl apply -f infrastructure/k8s/frontend-deployment.yaml ; \
+	fi
 	kubectl rollout restart deployment/frontend -n model-platform
 
 k8s-modelplatform: k8s-backend k8s-frontend
@@ -40,6 +52,22 @@ k8s-pgsql:
 	kubectl apply -f infrastructure/k8s/pg-init-schemas.yaml
 	kubectl apply -f infrastructure/k8s/pgsql-deployment.yaml
 	kubectl apply -f infrastructure/k8s/pgsql-init-job.yaml
+
+k8s-monitoring:
+	kubectl delete namespace monitoring --ignore-not-found
+	until ! kubectl get namespace monitoring &>/dev/null; do sleep 2; done
+
+	kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+	helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+	helm repo update
+	helm install kube-prometheus-stack --namespace monitoring prometheus-community/kube-prometheus-stack
+	helm upgrade kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+		-n monitoring \
+		-f infrastructure/k8s/monitoring/prometheus-values.yaml
+	helm upgrade kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+		-n monitoring \
+		-f infrastructure/k8s/monitoring/grafana-values.yaml
+	kubectl rollout restart deployment/nginx-reverse-proxy
 
 k8s-pgsql-status:
 	kubectl get pods -n $(PGSQL_NAMESPACE)
@@ -68,7 +96,13 @@ back:
 	eval $(minikube docker-env); python -m backend
 
 build-mlflow:
-	@eval $$(minikube docker-env) && docker build -t mlflow -f infrastructure/registry/Dockerfile .
+	@if [ "$$SHELL" = "/bin/zsh" ] || [ "$$SHELL" = "/usr/bin/zsh" ]; then \
+		eval $$(minikube docker-env) && docker build -t mlflow -f infrastructure/registry/Dockerfile .; \
+	elif [ "$SHELL" = "/usr/bin/fish" ] || [ "$SHELL" = "/bin/fish" ] || [ -n "$FISH_VERSION" ]; then \
+		eval $(minikube -p minikube docker-env) && docker build -t mlflow -f infrastructure/registry/Dockerfile . ; \
+	else \
+		eval $$(minikube docker-env) && docker build -t mlflow -f infrastructure/registry/Dockerfile .; \
+	fi
 
 MINIKUBE_GATEWAY := $(shell minikube ssh "ip route" | grep '^default' | awk '{print $$3}')
 
