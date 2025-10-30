@@ -17,11 +17,23 @@ k8s-network-conf:
 
 
 k8s-backend:
-	@eval $$(minikube docker-env) && docker build ./ -f ./backend/Dockerfile --no-cache -t backend && kubectl apply -f infrastructure/k8s/backend-deployment.yaml
+	@if [ "$$SHELL" = "/bin/zsh" ] || [ "$$SHELL" = "/usr/bin/zsh" ]; then \
+		@eval $$(minikube docker-env) && docker build ./ -f ./backend/Dockerfile --no-cache -t backend && kubectl apply -f infrastructure/k8s/backend-deployment.yaml ; \
+	elif [ "$SHELL" = "/usr/bin/fish" ] || [ "$SHELL" = "/bin/fish" ] || [ -n "$FISH_VERSION" ]; then \
+		eval $(minikube -p minikube docker-env) && docker build ./ -f ./backend/Dockerfile --no-cache -t backend && kubectl apply -f infrastructure/k8s/backend-deployment.yaml ; \
+	else \
+		eval $$(minikube docker-env) && docker build ./ -f ./backend/Dockerfile --no-cache -t backend && kubectl apply -f infrastructure/k8s/backend-deployment.yaml ; \
+	fi
 	kubectl rollout restart deployment/backend -n model-platform
 
 k8s-frontend:
-	@eval $$(minikube docker-env) && docker build ./ -f ./frontend/Dockerfile -t frontend && kubectl apply -f infrastructure/k8s/frontend-deployment.yaml
+	@if [ "$$SHELL" = "/bin/zsh" ] || [ "$$SHELL" = "/usr/bin/zsh" ]; then \
+		@eval $$(minikube docker-env) && docker build ./ -f ./frontend/Dockerfile -t frontend && kubectl apply -f infrastructure/k8s/frontend-deployment.yaml ; \
+	elif [ "$SHELL" = "/usr/bin/fish" ] || [ "$SHELL" = "/bin/fish" ] || [ -n "$FISH_VERSION" ]; then \
+		eval $(minikube -p minikube docker-env) && docker build ./ -f ./frontend/Dockerfile -t frontend && kubectl apply -f infrastructure/k8s/frontend-deployment.yaml ; \
+	else \
+		eval $$(minikube docker-env) && docker build ./ -f ./frontend/Dockerfile -t frontend && kubectl apply -f infrastructure/k8s/frontend-deployment.yaml ; \
+	fi
 	kubectl rollout restart deployment/frontend -n model-platform
 
 k8s-modelplatform: k8s-backend k8s-frontend
@@ -30,29 +42,32 @@ restart-modelplatform:
 	kubectl get deployments -n model-platform -o name | xargs -I {} kubectl rollout restart {} -n model-platform
 
 k8s-pgsql:
-	# Nettoyage
-	kubectl delete namespace $(PGSQL_NAMESPACE) --ignore-not-found
-	until ! kubectl get namespace $(PGSQL_NAMESPACE) &>/dev/null; do sleep 2; done
-	helm uninstall $(PGSQL_HOST) --namespace=$(PGSQL_NAMESPACE) 2>/dev/null || echo "Helm release '$(PGSQL_HOST)' not found, skipping uninstall"
+	kubectl delete pv postgresdb-persistent-volume --ignore-not-found
+	kubectl delete namespace pgsql --ignore-not-found
+	kubectl delete pvc db-persistent-volume-claim -n pgsql --ignore-not-found
+	until ! kubectl get namespace pgsql &>/dev/null; do sleep 2; done
 
-	# Création du namespace
-	kubectl create namespace $(PGSQL_NAMESPACE) --dry-run=client -o yaml | kubectl apply -f -
+	kubectl create namespace pgsql --dry-run=client -o yaml | kubectl apply -f -
 
-	# Application de la ConfigMap d'initialisation
 	kubectl apply -f infrastructure/k8s/pg-init-schemas.yaml
-	echo "ConfigMap applied successfully"
+	kubectl apply -f infrastructure/k8s/pgsql-deployment.yaml
+	kubectl apply -f infrastructure/k8s/pgsql-init-job.yaml
 
-	# Installation de PostgreSQL avec Helm
-	helm install $(PGSQL_HOST) bitnami/postgresql \
-		--set global.postgresql.auth.postgresPassword=$(POSTGRES_PASSWORD) \
-		--set global.postgresql.auth.username=$(POSTGRES_USER) \
-		--set global.postgresql.auth.password=$(POSTGRES_PASSWORD) \
-		--set primary.initdb.scriptsConfigMap=pg-init-schemas \
-		--set primary.persistence.enabled=true \
-		--set primary.persistence.size=8Gi \
-		--namespace=$(PGSQL_NAMESPACE) \
-		--timeout=10m \
-		--wait
+k8s-monitoring:
+	kubectl delete namespace monitoring --ignore-not-found
+	until ! kubectl get namespace monitoring &>/dev/null; do sleep 2; done
+
+	kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+	helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+	helm repo update
+	helm install kube-prometheus-stack --namespace monitoring prometheus-community/kube-prometheus-stack
+	helm upgrade kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+		-n monitoring \
+		-f infrastructure/k8s/monitoring/prometheus-values.yaml
+	helm upgrade kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+		-n monitoring \
+		-f infrastructure/k8s/monitoring/grafana-values.yaml
+	kubectl rollout restart deployment/nginx-reverse-proxy
 
 k8s-pgsql-status:
 	kubectl get pods -n $(PGSQL_NAMESPACE)
@@ -81,7 +96,13 @@ back:
 	eval $(minikube docker-env); python -m backend
 
 build-mlflow:
-	@eval $$(minikube docker-env) && docker build -t mlflow -f infrastructure/registry/Dockerfile .
+	@if [ "$$SHELL" = "/bin/zsh" ] || [ "$$SHELL" = "/usr/bin/zsh" ]; then \
+		eval $$(minikube docker-env) && docker build -t mlflow -f infrastructure/registry/Dockerfile .; \
+	elif [ "$SHELL" = "/usr/bin/fish" ] || [ "$SHELL" = "/bin/fish" ] || [ -n "$FISH_VERSION" ]; then \
+		eval $(minikube -p minikube docker-env) && docker build -t mlflow -f infrastructure/registry/Dockerfile . ; \
+	else \
+		eval $$(minikube docker-env) && docker build -t mlflow -f infrastructure/registry/Dockerfile .; \
+	fi
 
 MINIKUBE_GATEWAY := $(shell minikube ssh "ip route" | grep '^default' | awk '{print $$3}')
 

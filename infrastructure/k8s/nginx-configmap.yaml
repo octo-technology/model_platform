@@ -146,10 +146,67 @@ data:
                   proxy_read_timeout 86400;
               }
 
+            location  ~ ^/deploy/([^/]+)/([^/]+)/metrics$ {
+                  set $project_name $1;
+                  set $deployment_name $2;
+
+                  resolver kube-dns.kube-system.svc.cluster.local valid=10s;
+
+                  proxy_pass http://$deployment_name.$project_name.svc.cluster.local:8000/metrics;
+
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+                  proxy_http_version 1.1;
+                  proxy_set_header Upgrade $http_upgrade;
+                  proxy_set_header Connection "upgrade";
+                  proxy_read_timeout 86400;
+              }
+
+            location /prometheus/ {
+              resolver kube-dns.kube-system.svc.cluster.local valid=10s;
+              proxy_pass http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090/;
+
+              proxy_set_header Host $host;
+              proxy_set_header X-Real-IP $remote_addr;
+              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+              proxy_set_header X-Forwarded-Proto $scheme;
+              proxy_redirect / /prometheus/;
+              proxy_http_version 1.1;
+              proxy_set_header Upgrade $http_upgrade;
+              proxy_set_header Connection "upgrade";
+              proxy_buffering off;
+              proxy_cache off;
+            }
+
+            location = /prometheus {
+              return 301 /prometheus/;
+            }
+
+            location /grafana/ {
+              resolver kube-dns.kube-system.svc.cluster.local valid=10s;
+              proxy_pass http://kube-prometheus-stack-grafana.monitoring.svc.cluster.local:80;
+
+              proxy_set_header Host $host;
+              proxy_set_header X-Real-IP $remote_addr;
+              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+              proxy_set_header X-Forwarded-Proto $scheme;
+              proxy_http_version 1.1;
+              proxy_set_header Upgrade $http_upgrade;
+              proxy_set_header Connection "upgrade";
+              proxy_buffering off;
+              proxy_cache off;
+            }
+
+            location = /grafana {
+                return 301 /grafana/;
+            }
+
             location / {
               resolver kube-dns.kube-system.svc.cluster.local valid=10s;
               proxy_pass http://frontend.model-platform.svc.cluster.local:8501;
-    
+
               proxy_set_header Host $host;
               proxy_set_header X-Real-IP $remote_addr;
               proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

@@ -85,20 +85,19 @@ make k8s-network-conf
 Add bitnami pgsql repo to helm
 
 ```
-helm repo add bitnami https://charts.bitnami.com/bitnami
+helm repo add bitnami https://charts.bitnami.com/bitnami 
 helm repo update
 ```
 
 ```bash
 make k8s-pgsql
 ```
-It will output a lot of logs, don't worry. 
 
 ### - Prepare a custom MLFLow Docker image 
 With integrated psycopg2 package 
 
 ```bash
-    make build-mlflow
+make build-mlflow
 ```
 
 **You should now have a working k8s environment** 
@@ -106,7 +105,13 @@ With integrated psycopg2 package
 ## Deploy the model platform en k8s 
 
 ```bash
-  make k8s-modelplatform
+make k8s-modelplatform
+```
+
+### Deploy monitoring stack (Prometheus + Grafana)
+
+```bash
+make k8s-monitoring
 ```
 
 ### Connect to model platform
