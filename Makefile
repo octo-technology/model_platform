@@ -19,8 +19,8 @@ k8s-network-conf:
 k8s-backend:
 	@if [ "$$SHELL" = "/bin/zsh" ] || [ "$$SHELL" = "/usr/bin/zsh" ]; then \
 		eval $$(minikube docker-env) && docker build ./ -f ./backend/Dockerfile --no-cache -t backend && kubectl apply -f infrastructure/k8s/backend-deployment.yaml ; \
-	elif [ "$$SHELL" = "/usr/bin/fish" ] || [ "$$SHELL" = "/bin/fish" ] || [ -n "$$FISH_VERSION" ]; then \
-		eval $$(minikube -p minikube docker-env) && docker build ./ -f ./backend/Dockerfile --no-cache -t backend && kubectl apply -f infrastructure/k8s/backend-deployment.yaml ; \
+	elif [ "$SHELL" = "/usr/bin/fish" ] || [ "$SHELL" = "/bin/fish" ] || [ -n "$$FISH_VERSION" ]; then \
+		eval $(minikube -p minikube docker-env) && docker build ./ -f ./backend/Dockerfile --no-cache -t backend && kubectl apply -f infrastructure/k8s/backend-deployment.yaml ; \
 	else \
 		eval $$(minikube docker-env) && docker build ./ -f ./backend/Dockerfile --no-cache -t backend && kubectl apply -f infrastructure/k8s/backend-deployment.yaml ; \
 	fi
@@ -30,7 +30,7 @@ k8s-frontend:
 	@if [ "$$SHELL" = "/bin/zsh" ] || [ "$$SHELL" = "/usr/bin/zsh" ]; then \
 		eval $$(minikube docker-env) && docker build ./ -f ./frontend/Dockerfile -t frontend && kubectl apply -f infrastructure/k8s/frontend-deployment.yaml ; \
 	elif [ "$$SHELL" = "/usr/bin/fish" ] || [ "$$SHELL" = "/bin/fish" ] || [ -n "$$FISH_VERSION" ]; then \
-		eval $$(minikube -p minikube docker-env) && docker build ./ -f ./frontend/Dockerfile -t frontend && kubectl apply -f infrastructure/k8s/frontend-deployment.yaml ; \
+		eval $(minikube -p minikube docker-env) && docker build ./ -f ./frontend/Dockerfile -t frontend && kubectl apply -f infrastructure/k8s/frontend-deployment.yaml ; \
 	else \
 		eval $$(minikube docker-env) && docker build ./ -f ./frontend/Dockerfile -t frontend && kubectl apply -f infrastructure/k8s/frontend-deployment.yaml ; \
 	fi
