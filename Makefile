@@ -18,8 +18,8 @@ k8s-network-conf:
 
 k8s-backend:
 	@if [ "$$SHELL" = "/bin/zsh" ] || [ "$$SHELL" = "/usr/bin/zsh" ]; then \
-		@eval $$(minikube docker-env) && docker build ./ -f ./backend/Dockerfile --no-cache -t backend && kubectl apply -f infrastructure/k8s/backend-deployment.yaml ; \
-	elif [ "$SHELL" = "/usr/bin/fish" ] || [ "$SHELL" = "/bin/fish" ] || [ -n "$FISH_VERSION" ]; then \
+		eval $$(minikube docker-env) && docker build ./ -f ./backend/Dockerfile --no-cache -t backend && kubectl apply -f infrastructure/k8s/backend-deployment.yaml ; \
+	elif [ "$SHELL" = "/usr/bin/fish" ] || [ "$SHELL" = "/bin/fish" ] || [ -n "$$FISH_VERSION" ]; then \
 		eval $(minikube -p minikube docker-env) && docker build ./ -f ./backend/Dockerfile --no-cache -t backend && kubectl apply -f infrastructure/k8s/backend-deployment.yaml ; \
 	else \
 		eval $$(minikube docker-env) && docker build ./ -f ./backend/Dockerfile --no-cache -t backend && kubectl apply -f infrastructure/k8s/backend-deployment.yaml ; \
@@ -28,15 +28,15 @@ k8s-backend:
 
 k8s-frontend:
 	@if [ "$$SHELL" = "/bin/zsh" ] || [ "$$SHELL" = "/usr/bin/zsh" ]; then \
-		@eval $$(minikube docker-env) && docker build ./ -f ./frontend/Dockerfile -t frontend && kubectl apply -f infrastructure/k8s/frontend-deployment.yaml ; \
-	elif [ "$SHELL" = "/usr/bin/fish" ] || [ "$SHELL" = "/bin/fish" ] || [ -n "$FISH_VERSION" ]; then \
+		eval $$(minikube docker-env) && docker build ./ -f ./frontend/Dockerfile -t frontend && kubectl apply -f infrastructure/k8s/frontend-deployment.yaml ; \
+	elif [ "$$SHELL" = "/usr/bin/fish" ] || [ "$$SHELL" = "/bin/fish" ] || [ -n "$$FISH_VERSION" ]; then \
 		eval $(minikube -p minikube docker-env) && docker build ./ -f ./frontend/Dockerfile -t frontend && kubectl apply -f infrastructure/k8s/frontend-deployment.yaml ; \
 	else \
 		eval $$(minikube docker-env) && docker build ./ -f ./frontend/Dockerfile -t frontend && kubectl apply -f infrastructure/k8s/frontend-deployment.yaml ; \
 	fi
 	kubectl rollout restart deployment/frontend -n model-platform
 
-k8s-modelplatform: k8s-backend k8s-frontend
+k8s-modelplatform: k8s-modelplatform k8s-backend k8s-frontend
 
 restart-modelplatform:
 	kubectl get deployments -n model-platform -o name | xargs -I {} kubectl rollout restart {} -n model-platform
@@ -68,20 +68,6 @@ k8s-monitoring:
 		-n monitoring \
 		-f infrastructure/k8s/monitoring/grafana-values.yaml
 	kubectl rollout restart deployment/nginx-reverse-proxy
-
-k8s-pgsql-status:
-	kubectl get pods -n $(PGSQL_NAMESPACE)
-	kubectl get configmap -n $(PGSQL_NAMESPACE)
-	kubectl logs -n $(PGSQL_NAMESPACE) -l app.kubernetes.io/name=postgresql
-
-k8s-pgsql-connect:
-	kubectl run postgresql-client --rm --restart='Never' --namespace $(PGSQL_NAMESPACE) --image docker.io/bitnami/postgresql:16 --env="PGPASSWORD=$(POSTGRES_PASSWORD)" --command -- psql --host $(PGSQL_HOST)-postgresql --port 5432 -U $(POSTGRES_USER) -d postgres
-
-k8s-pgsql-test:
-	kubectl run postgresql-test --rm -i --restart='Never' --namespace $(PGSQL_NAMESPACE) --image docker.io/bitnami/postgresql:13 --env="PGPASSWORD=$(POSTGRES_PASSWORD)" -- psql --host $(PGSQL_HOST)-postgresql --port 5432 -U $(POSTGRES_USER) -d postgres -c "\l"
-
-k8s-pgsql-test-roles:
-	kubectl run postgresql-test-roles --rm -i --restart='Never' --namespace $(PGSQL_NAMESPACE) --image docker.io/bitnami/postgresql:16 --env="PGPASSWORD=$(POSTGRES_PASSWORD)" -- psql --host $(PGSQL_HOST)-postgresql --port 5432 -U $(POSTGRES_USER) -d postgres -c "SELECT rolname FROM pg_roles WHERE rolname LIKE 'app_%';"
 
 run-ci-arm:
 	act -W .github/workflows/test.yml --container-architecture linux/arm64

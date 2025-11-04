@@ -82,13 +82,6 @@ make k8s-network-conf
 
 ### - Deploy a PGSQL instance with helm
 
-Add bitnami pgsql repo to helm
-
-```
-helm repo add bitnami https://charts.bitnami.com/bitnami 
-helm repo update
-```
-
 ```bash
 make k8s-pgsql
 ```
