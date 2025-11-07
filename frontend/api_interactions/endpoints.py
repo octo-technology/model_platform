@@ -1,8 +1,5 @@
 import os
 
-from frontend.dot_env import DotEnv
-
-DotEnv()
 ## API
 API_BASE_URL = "http://backend.model-platform.svc.cluster.local:8000"
 HEALTH_ENDPOINT = f"{API_BASE_URL}/health"

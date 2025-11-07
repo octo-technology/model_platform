@@ -17,7 +17,6 @@ RUN pip install poetry \
 
 FROM runtime AS final
 WORKDIR /app
-COPY ./.env ./
 
 ENV PYTHONPATH=/app
 
