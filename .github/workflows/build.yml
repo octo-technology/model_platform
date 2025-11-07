@@ -23,7 +23,7 @@ jobs:
 
     env:
       REGISTRY: ghcr.io
-      IMAGE_NAMESPACE: octo-modelplatform
+      IMAGE_NAMESPACE: ${{ github.repository_owner }}
 
     steps:
       - name: Checkout repository
