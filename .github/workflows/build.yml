@@ -12,13 +12,13 @@ jobs:
       matrix:
         image:
           - name: frontend
-            context: ./frontend
+            context: .
             dockerfile: ./frontend/Dockerfile
           - name: backend
-            context: ./backend
+            context: .
             dockerfile: ./backend/Dockerfile
           - name: mlflow
-            context: ./infrastructure
+            context: .
             dockerfile: ./infrastructure/registry/Dockerfile
 
     env:
