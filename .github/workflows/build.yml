@@ -1,0 +1,47 @@
+name: Docker CI/CD
+
+on:
+  push:
+    branches:
+      - feature/build-push-frond-back-mlflow-to-ghcr
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        image:
+          - name: frontend
+            context: ./frontend
+            dockerfile: ./frontend/Dockerfile
+          - name: backend
+            context: ./backend
+            dockerfile: ./backend/Dockerfile
+          - name: mlflow
+            context: ./infrastructure
+            dockerfile: ./infrastructure/registry/Dockerfile
+
+    env:
+      REGISTRY: ghcr.io
+      IMAGE_NAMESPACE: octo-modelplatform
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push ${{ matrix.image.name }}
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.image.context }}
+          file: ${{ matrix.image.dockerfile }}
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ matrix.image.name }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ matrix.image.name }}:${{ github.sha }}
