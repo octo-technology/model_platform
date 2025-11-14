@@ -88,8 +88,11 @@ def metrics_endpoint():
 
 
 FastAPIInstrumentor.instrument_app(app)
-# Check si on devrait mettre le service name lié à k8s
-resource = Resource.create(attributes={SERVICE_NAME: f"model-platform-{image_name}"})
+
+# OpenTelemetry setup
+base_resource = Resource.create()
+service_resource = Resource.create({SERVICE_NAME: f"model-platform-{image_name}"})
+resource = base_resource.merge(service_resource)
 
 # Prometheus client
 reader = PrometheusMetricReader()

@@ -15,6 +15,7 @@ class DockerfileTemplate:
         # Set environment variables
         ENV IMAGE_NAME={image_name}
         ENV OTEL_METRICS_EXPORTER_LABELS="project_name={project_name},model_name={model_name},model_version={model_version}"
+        ENV OTEL_RESOURCE_ATTRIBUTES="project_name={project_name},model_name={model_name},model_version={model_version}"
 
         # Setup uv
         RUN wget -qO- https://astral.sh/uv/install.sh | sh && which uv || echo "UV installation failed"

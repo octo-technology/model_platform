@@ -144,15 +144,16 @@ class K8SModelDeployment(ModelDeployment, K8SDeployment):
     def _delete_model_service(self):
         try:
             api = client.CustomObjectsApi()
-            api.delete_namespaced_custom_object(
+            # Dereference the ServiceMonitor to avoid deletion of monitoring data
+            api.patch_namespaced_custom_object(
                 group="monitoring.coreos.com",
                 version="v1",
                 namespace="monitoring",
                 plural="servicemonitors",
                 name=f"{self.service_name}-monitor",
-                body=client.V1DeleteOptions(),
+                body={"spec": {"selector": {"matchLabels": {"app": "none"}}}},
             )
-            logger.info(f"✅ ServiceMonitor for {self.service_name} successfully deleted!")
+            logger.info(f"🧩 ServiceMonitor for {self.service_name} dereferenced (data preserved).")
         except ApiException as e:
             if e.status == 404:
                 logger.warning(f"⚠️ ServiceMonitor for {self.service_name} not found, nothing to delete.")
