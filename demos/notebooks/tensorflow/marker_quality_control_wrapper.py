@@ -13,6 +13,7 @@ class MarkerQualityControlWrapper(mlflow.pyfunc.PythonModel):
 
     def predict(self, context, model_input):
         image = Image.open(io.BytesIO(model_input))
+        image = image.resize((224, 224))
         img_array = np.array(image)
         img = tf.convert_to_tensor(img_array, dtype=tf.float32)
         img = tf.expand_dims(img, axis=0)
