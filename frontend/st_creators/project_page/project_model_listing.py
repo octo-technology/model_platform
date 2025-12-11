@@ -5,9 +5,13 @@ from frontend.api_interactions.deployed_models import get_build_status, get_mode
 from frontend.api_interactions.models import deploy_model, get_model_versions_list
 
 
+# Columns to hide from display but keep accessible in row data
+HIDDEN_COLUMNS = ["dashboard_url"]
+
+
 def build_model_version_listing(models_df, project_name: str, component_name="model_listing", elements_to_add=None):
     if models_df is not None and not models_df.empty:
-        columns = list(models_df.columns) + elements_to_add
+        columns = [col for col in models_df.columns if col not in HIDDEN_COLUMNS] + elements_to_add
         col_sizes = [2] * (len(columns) + len(elements_to_add))
         col_objects = st.columns(col_sizes)
         for col_obj, col_name in zip(col_objects, columns):
@@ -28,6 +32,9 @@ def build_model_version_listing(models_df, project_name: str, component_name="mo
                     with col_obj:
                         build_deploy_button(project_name, component_name, row)
                         build_status(project_name, row)
+                elif col_name in ["Dashboard"] and component_name == "deployed_models":
+                    with col_obj:
+                        build_dashboard_button(row)
                 elif col_name in ["Action"] and component_name == "deployed_models":
                     with col_obj:
                         build_undeploy_button(project_name, component_name, row)
@@ -100,3 +107,8 @@ def build_get_button(project_name: str, component_name: str, row: dict):
         status = get_model(project_name=project_name, model_name=model_name)
         st.session_state["action_get_ok"] = status
         st.rerun()
+
+
+def build_dashboard_button(row: dict):
+    url = row.get("dashboard_url", "#")
+    st.link_button("📊", url=url, help="Open Grafana Dashboard")

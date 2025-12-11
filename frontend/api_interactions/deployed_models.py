@@ -52,6 +52,7 @@ def format_response(models: list, project_name: str):
             project_name=sanitize_project_name(project_name), deployment_name=model["deployment_name"]
         )
         health = build_healthcheck_status_url(uri_int)
+        dashboard_url = model["dashboard_url"]
         data.append(
             {
                 "Name": model_name,
@@ -59,6 +60,7 @@ def format_response(models: list, project_name: str):
                 "version": versions,
                 "Health check": health,
                 "Url": uri_ext,
+                "dashboard_url": dashboard_url,
             }
         )
 

@@ -45,7 +45,7 @@ def create_project_settings(projects_list_df: pd.DataFrame, project_name: str):
     with deployed_models:
         deployed_models_list = get_deployed_models_list(project_name)
         build_model_version_listing(
-            deployed_models_list, project_name, elements_to_add=["Action"], component_name="deployed_models"
+            deployed_models_list, project_name, elements_to_add=["Dashboard", "Action"], component_name="deployed_models",
         )
 
 

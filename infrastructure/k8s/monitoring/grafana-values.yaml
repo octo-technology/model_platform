@@ -5,3 +5,27 @@ grafana:
     server:
       root_url: "https://model-platform.com/grafana/"
       serve_from_sub_path: true
+    auth.anonymous:
+      enabled: true
+      org_name: Main Org.
+      org_role: Viewer
+    auth:
+      disable_login_form: false
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+  # Static datasource provisioning to avoid race condition with sidecar
+  # This ensures Prometheus datasource is available immediately when Grafana starts
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+        - name: Prometheus
+          type: prometheus
+          uid: prometheus
+          url: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
+          access: proxy
+          isDefault: true
+          editable: false
