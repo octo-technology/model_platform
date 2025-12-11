@@ -18,28 +18,30 @@ st.set_page_config(page_title="Model Platform Demo - Prédictions de ventes", pa
 # Title and description
 st.title("📊 Model Platform - Prédictions de ventes")
 st.markdown("---")
-st.markdown("""
+st.markdown(
+    """
 Cette interface permet de tester les 3 modèles de forecasting déployés sur la **Model Platform**.
 Chaque modèle prédit les quantités de ventes pour les **21 jours suivants** (3 semaines).
-""")
+"""
+)
 
 # Endpoint configuration (collapsible)
 with st.expander("🔧 Configuration des endpoints", expanded=False):
     st.markdown("Modifiez les URLs complètes des endpoints si nécessaire :")
 
-    endpoint_model_A = st.text_input(
+    endpoint_model_a = st.text_input(
         "🤖 URL endpoint model_A",
         value="http://model-platform.com/deploy/my-project/my-project-model-a-1-deployment-XXXXX",
         help="URL de base de l'endpoint pour model_A (sans /predict)",
     )
 
-    endpoint_model_B = st.text_input(
+    endpoint_model_b = st.text_input(
         "🤖 URL endpoint model_B",
         value="http://model-platform.com/deploy/my-project/my-project-model-b-1-deployment-XXXXX",
         help="URL de base de l'endpoint pour model_B (sans /predict)",
     )
 
-    endpoint_model_C = st.text_input(
+    endpoint_model_c = st.text_input(
         "🤖 URL endpoint model_C",
         value="http://model-platform.com/deploy/my-project/my-project-model-c-1-deployment-XXXXX",
         help="URL de base de l'endpoint pour model_C (sans /predict)",
@@ -92,7 +94,7 @@ with st.sidebar:
 # Main content area
 if predict_button:
     # Get endpoint URL from inputs
-    endpoint_mapping = {"model_A": endpoint_model_A, "model_B": endpoint_model_B, "model_C": endpoint_model_C}
+    endpoint_mapping = {"model_A": endpoint_model_a, "model_B": endpoint_model_b, "model_C": endpoint_model_c}
 
     base_url = endpoint_mapping[model_choice]
     url = f"{base_url}/predict" if not base_url.endswith("/predict") else base_url
@@ -166,35 +168,42 @@ if predict_button:
                 st.line_chart(chart_data, use_container_width=True, height=400)
 
                 # Additional info
-                st.info(f"""
+                st.info(
+                    f"""
                 **Période de prédiction:** {predictions_df["date"].min().strftime("%d/%m/%Y")}
                 → {predictions_df["date"].max().strftime("%d/%m/%Y")}
 
                 **Modèle utilisé:** {model_choice}
 
                 **Temps de réponse:** {elapsed_time:.2f}s
-                """)
+                """
+                )
 
     except requests.exceptions.ConnectionError:
-        st.error("""
+        st.error(
+            """
         ❌ **Erreur de connexion**
 
         Impossible de se connecter au modèle. Vérifiez que:
         - Le modèle est bien déployé
         - `minikube tunnel` est actif
         - L'URL est correcte
-        """)
+        """
+        )
 
     except requests.exceptions.Timeout:
-        st.error("""
+        st.error(
+            """
         ⏱️ **Timeout**
 
         La requête a pris trop de temps. Le modèle est peut-être en cours de démarrage.
         Réessayez dans quelques instants.
-        """)
+        """
+        )
 
     except requests.exceptions.HTTPError as e:
-        st.error(f"""
+        st.error(
+            f"""
         ❌ **Erreur HTTP {response.status_code}**
 
         Le serveur a renvoyé une erreur: {str(e)}
@@ -203,19 +212,23 @@ if predict_button:
         ```
         {response.text}
         ```
-        """)
+        """
+        )
 
     except Exception as e:
-        st.error(f"""
+        st.error(
+            f"""
         ❌ **Erreur inattendue**
 
         {str(e)}
-        """)
+        """
+        )
         st.exception(e)
 
 else:
     # Initial state - show instructions
-    st.info("""
+    st.info(
+        """
     ### 👈 Pour commencer
 
     1. Sélectionnez une **date de départ** dans la barre latérale
@@ -227,7 +240,8 @@ else:
     - Un tableau détaillé des prédictions pour 21 jours
     - Un graphique visualisant l'évolution des ventes
     - Des statistiques clés (moyenne, total, min, max)
-    """)
+    """
+    )
 
     # Show model comparison
     st.markdown("### 🤖 Comparaison des modèles")
@@ -235,28 +249,34 @@ else:
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        st.markdown("""
+        st.markdown(
+            """
         **model_A**
         - Range: 100-500 unités
         - Idéal pour articles à volume moyen
         - MAE: ~35 unités
-        """)
+        """
+        )
 
     with col2:
-        st.markdown("""
+        st.markdown(
+            """
         **model_B**
         - Range: 200-800 unités
         - Idéal pour articles à fort volume
         - MAE: ~45 unités
-        """)
+        """
+        )
 
     with col3:
-        st.markdown("""
+        st.markdown(
+            """
         **model_C**
         - Range: 50-300 unités
         - Idéal pour articles à faible volume
         - MAE: ~27 unités
-        """)
+        """
+        )
 
 # Footer
 st.markdown("---")
