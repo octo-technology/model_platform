@@ -14,9 +14,10 @@ grafana:
       enabled: true
       label: grafana_dashboard
       labelValue: "1"
-  # Disable the default Prometheus datasource from the chart to avoid conflicts
-  defaultDatasourceEnabled: false
-  # Static datasource provisioning
+    # Disable datasource sidecar to avoid race condition at startup
+    datasources:
+      enabled: false
+  # Direct datasource provisioning (mounted before Grafana starts)
   datasources:
     datasources.yaml:
       apiVersion: 1
