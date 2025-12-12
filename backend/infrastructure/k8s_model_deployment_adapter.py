@@ -10,7 +10,7 @@ from backend.utils import sanitize_project_name, sanitize_ressource_name
 
 
 class K8SModelDeployment(ModelDeployment, K8SDeployment):
-    def __init__(self, project_name: str, model_name: str, model_version: str):
+    def __init__(self, project_name: str, model_name: str, model_version: str, dashboard_uid: str):
         super().__init__()
         self.namespace = sanitize_project_name(project_name)
         self.docker_image_name = sanitize_project_name(f"{project_name}_{model_name}_{model_version}_ctr")
@@ -18,6 +18,7 @@ class K8SModelDeployment(ModelDeployment, K8SDeployment):
         self.project_name = sanitize_project_name(project_name)
         self.model_name = sanitize_project_name(model_name)
         self.model_version = sanitize_project_name(model_version)
+        self.dashboard_uid = dashboard_uid
 
     def create_model_deployment(self):
         logger.info(f"Creating model deployment in {self.namespace} namespace")
@@ -64,6 +65,7 @@ class K8SModelDeployment(ModelDeployment, K8SDeployment):
                     "model_version": self.model_version,
                     "project_name": self.project_name,
                     "deployment_date": str(int(time.time())),
+                    "dashboard_uid": self.dashboard_uid,
                 },
             ),
             spec=client.V1DeploymentSpec(

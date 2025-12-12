@@ -3,7 +3,6 @@ FROM python:3.11-slim AS runtime
 WORKDIR /app
 
 COPY ./pyproject.toml ./
-COPY ./frontend ./frontend
 RUN mkdir -p ~/.streamlit
 COPY ./frontend/config.toml ~/.streamlit/config.toml
 
@@ -12,6 +11,7 @@ RUN pip install poetry \
  && poetry config virtualenvs.create false \
  && poetry install --no-root
 
+COPY ./frontend ./frontend
 FROM runtime AS final
 WORKDIR /app
 COPY ./.env ./

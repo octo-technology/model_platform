@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse
 from loguru import logger
 
 from backend.domain.entities.docker.task_build_statuses import TaskBuildStatuses
+from backend.domain.ports.dashboard_handler import DashboardHandler
 from backend.domain.ports.model_registry import ModelRegistry
 from backend.domain.ports.registry_handler import RegistryHandler
 from backend.domain.ports.user_handler import UserHandler
@@ -101,6 +102,10 @@ def get_tasks_status(request: Request) -> dict:
     return request.app.state.task_status
 
 
+def get_dashboard_handler(request: Request) -> DashboardHandler:
+    return request.app.state.dashboard_handler
+
+
 @router.get("/list")
 def list_models(
     project_name: str,
@@ -156,6 +161,7 @@ def route_deploy_model(
     tasks_status: dict = Depends(get_tasks_status),
     current_user: dict = Depends(get_current_user),
     user_adapter: UserHandler = Depends(get_user_adapter),
+    dashboard_handler: DashboardHandler = Depends(get_dashboard_handler),
 ) -> JSONResponse:
     logger.debug(f"Got deploy model call on {project_name}, {model_name}:{version}")
     user_can_perform_action_for_project(
@@ -171,7 +177,7 @@ def route_deploy_model(
     tasks_status[task_id] = "queued"
     logger.debug(f"Deploying {model_name}:{version} with task_id: {task_id}")
     decorated_task = track_task_status(task_id, tasks_status)(deploy_model)
-    background_tasks.add_task(decorated_task, registry, project_name, model_name, version, current_user["email"])
+    background_tasks.add_task(decorated_task, registry, project_name, model_name, version, dashboard_handler, current_user["email"])
 
     return JSONResponse({"task_id": task_id, "status": "Deployment initiated"}, media_type="application/json")
 
@@ -183,6 +189,7 @@ def route_undeploy(
     version: str,
     current_user: dict = Depends(get_current_user),
     user_adapter: UserHandler = Depends(get_user_adapter),
+    dashboard_handler: DashboardHandler = Depends(get_dashboard_handler),
 ) -> JSONResponse:
     logger.debug("Got undeploy call on {project_name}, {model_name}:{version}")
     user_can_perform_action_for_project(
@@ -191,7 +198,7 @@ def route_undeploy(
         action_name=inspect.currentframe().f_code.co_name,
         user_adapter=user_adapter,
     )
-    return_code = remove_model_deployment(project_name, model_name, version, current_user["email"])
+    return_code = remove_model_deployment(project_name, model_name, version, dashboard_handler, current_user["email"])
     return JSONResponse({"return_code": return_code}, media_type="application/json")
 
 
