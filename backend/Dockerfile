@@ -7,14 +7,14 @@ RUN apt-get update && \
 WORKDIR /app
 
 COPY ./pyproject.toml ./
-COPY ./backend ./backend
+
 
 
 RUN ls -R ./
 RUN pip install poetry \
  && poetry config virtualenvs.create false \
  && poetry install --no-root
-
+COPY ./backend ./backend
 FROM runtime AS final
 WORKDIR /app
 COPY ./.env ./

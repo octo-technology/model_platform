@@ -9,15 +9,14 @@ grafana:
       enabled: true
       org_name: Main Org.
       org_role: Viewer
-    auth:
-      disable_login_form: false
   sidecar:
     dashboards:
       enabled: true
       label: grafana_dashboard
       labelValue: "1"
-  # Static datasource provisioning to avoid race condition with sidecar
-  # This ensures Prometheus datasource is available immediately when Grafana starts
+  # Disable the default Prometheus datasource from the chart to avoid conflicts
+  defaultDatasourceEnabled: false
+  # Static datasource provisioning
   datasources:
     datasources.yaml:
       apiVersion: 1
