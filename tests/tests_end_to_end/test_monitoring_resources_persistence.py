@@ -12,6 +12,16 @@ import time
 import pytest
 
 
+def is_minikube_running():
+    try:
+        result = subprocess.run(["minikube", "status"], capture_output=True, text=True, check=True)
+        return "Running" in result.stdout
+    except subprocess.CalledProcessError:
+        return False
+    except FileNotFoundError:
+        return False
+
+
 TEST_SERVICE_MONITOR_NAME = "test-persistence-servicemonitor"
 TEST_CONFIGMAP_NAME = "grafana-dashboard-test-persistence"
 
@@ -88,6 +98,10 @@ def test_k8s_monitoring_preserves_custom_resources():
 
     Run with: pytest -m "slow and destructive" path/to/this/file.py
     """
+    assert is_minikube_running(), (
+        "Minikube is not running. Please start it with `minikube start` before running this test."
+    )
+
     create_test_service_monitor(TEST_SERVICE_MONITOR_NAME)
     create_test_dashboard_configmap(TEST_CONFIGMAP_NAME)
 
