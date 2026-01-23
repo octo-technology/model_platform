@@ -4,7 +4,6 @@ from frontend.api_interactions import endpoints
 from frontend.api_interactions.deployed_models import get_build_status, get_model, undeploy_model
 from frontend.api_interactions.models import deploy_model, get_model_versions_list
 
-
 # Columns to hide from display but keep accessible in row data
 HIDDEN_COLUMNS = ["dashboard_url"]
 

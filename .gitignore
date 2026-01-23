@@ -9,4 +9,3 @@ tmp/
 
 # Kubernetes secrets (ne jamais commiter!)
 infrastructure/k8s/backend-secret.yaml
-

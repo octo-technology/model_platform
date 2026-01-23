@@ -166,7 +166,7 @@ class TestProjectMlflowRegistry:
     def test_list_models_should_succeed(self, login_fixture):
         """Test that listing models works even when empty."""
         # Give some time for the registry to be fully operational
-        time.sleep(60)
+        time.sleep(90)
 
         result = run_cli("projects", "list-models", PROJECT_NAME)
 
@@ -199,7 +199,7 @@ class TestProjectDeletion:
     def test_delete_project_should_remove_namespace(self, login_fixture):
         """Test that project deletion removes the K8s namespace."""
         # Wait for namespace deletion
-        time.sleep(70)
+        time.sleep(90)
 
         namespace = get_namespace(PROJECT_NAME)
         assert namespace is None, f"Namespace {PROJECT_NAME} was not deleted"

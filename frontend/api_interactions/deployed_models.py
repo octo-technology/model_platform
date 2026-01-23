@@ -36,6 +36,7 @@ def sanitize_project_name(project_name: str) -> str:
     sanitized_name = re.sub(r"-+$", "", sanitized_name)  # Supprimer tirets à la fin
     return sanitized_name
 
+
 def internal_cluster_url(project_name: str, deployment_name: str, port: int = 8000, path: str = "/health") -> str:
     ns = sanitize_project_name(project_name)
     return f"http://{deployment_name}.{ns}.svc.cluster.local:{port}{path}"

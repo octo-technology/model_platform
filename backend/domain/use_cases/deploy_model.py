@@ -11,12 +11,16 @@ from backend.infrastructure.k8s_model_deployment_adapter import K8SModelDeployme
 from backend.infrastructure.log_events_handler_json_adapter import LogEventsHandlerFileAdapter
 from backend.infrastructure.mlflow_model_registry_adapter import MLFlowModelRegistryAdapter
 
-
 EVENT_LOGGER = LogEventsHandlerFileAdapter()
 
 
 def deploy_model(
-    registry: MLFlowModelRegistryAdapter, project_name: str, model_name: str, version: str, dashboard_handler: DashboardHandler, current_user: str = None
+    registry: MLFlowModelRegistryAdapter,
+    project_name: str,
+    model_name: str,
+    version: str,
+    dashboard_handler: DashboardHandler,
+    current_user: str = None,
 ) -> int:
     k8s_deployment = K8SDeploymentClusterAdapter()
     if not k8s_deployment.check_if_model_deployment_exists(project_name, model_name, version):
@@ -51,7 +55,9 @@ def deploy_model(
     return build_status
 
 
-def remove_model_deployment(project_name: str, model_name: str, version: str, dashboard_handler: DashboardHandler, current_user: str = None) -> int:
+def remove_model_deployment(
+    project_name: str, model_name: str, version: str, dashboard_handler: DashboardHandler, current_user: str = None
+) -> int:
     """
     Removes the specified model and version from the Kubernetes cluster.
 

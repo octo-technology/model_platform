@@ -1,9 +1,9 @@
 import typer
 
 from cli.commands.auth import login, me
-from cli.commands.models import list_models, deploy_model, undeploy_model, list_deployed_models
-from cli.commands.projects import list_projects, add_project, delete_project, project_info, add_user_to_project
-from cli.commands.users import list_users, add_user
+from cli.commands.models import deploy_model, list_deployed_models, list_models, undeploy_model
+from cli.commands.projects import add_project, add_user_to_project, delete_project, list_projects, project_info
+from cli.commands.users import add_user, list_users
 
 app = typer.Typer()
 project_app = typer.Typer()

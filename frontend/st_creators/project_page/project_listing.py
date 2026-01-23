@@ -90,7 +90,9 @@ def create_project_creation_container():
     # Auto-fill demo button outside the form
     col1, col2, col3 = st.columns([0.6, 0.2, 0.2])
     with col3:
-        if st.button("🎲 Auto-fill démo", help="Remplir automatiquement avec un projet d'exemple", use_container_width=True):
+        if st.button(
+            "🎲 Auto-fill démo", help="Remplir automatiquement avec un projet d'exemple", use_container_width=True
+        ):
             demo_project = get_random_demo_project()
             st.session_state["demo_project_name"] = demo_project["name"]
             st.session_state["demo_project_owner"] = demo_project["owner"]
@@ -100,26 +102,24 @@ def create_project_creation_container():
 
     with st.form("Project Creation"):
         name = st.text_input(
-            "Name",
-            placeholder="Insert a project name",
-            value=st.session_state.get("demo_project_name", "")
+            "Name", placeholder="Insert a project name", value=st.session_state.get("demo_project_name", "")
         )
         owner = st.text_input(
             "Owner",
             placeholder="Insert a project owner (person or organization), responsible for this project.",
-            value=st.session_state.get("demo_project_owner", "")
+            value=st.session_state.get("demo_project_owner", ""),
         )
         scope = st.text_area(
             "Scope",
             placeholder="Insert a project scope: what is this project about?",
             value=st.session_state.get("demo_project_scope", ""),
-            height=150
+            height=150,
         )
         data_perimeter = st.text_area(
             "Data perimeter",
             placeholder="Insert a description about the data perimeter of this project.",
             value=st.session_state.get("demo_project_data_perimeter", ""),
-            height=150
+            height=150,
         )
         submitted = st.form_submit_button("Create Project")
         if submitted:

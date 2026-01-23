@@ -1,5 +1,5 @@
 import io
-import json
+
 import mlflow.pyfunc
 import numpy as np
 import tensorflow as tf
