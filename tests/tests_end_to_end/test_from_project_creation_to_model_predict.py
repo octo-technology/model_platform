@@ -168,7 +168,175 @@ def test_project_train_model_should_push_model_to_mlflow():
     assert list_result.returncode == 0
     assert MODEL_NAME in list_result.stdout
 
-#TODO add deployment and undeploy test
+
+MODEL_VERSION = "1"
+
+
+def test_deploy_model_should_initiate_deployment():
+    """Test that deploying a model initiates the deployment process."""
+    result = run_cli(
+        "models", "deploy", PROJECT_NAME,
+        "--model-name", MODEL_NAME,
+        "--model-version", MODEL_VERSION
+    )
+
+    assert result.returncode == 0, f"Deploy failed: {result.stderr}"
+    assert "✅ Model deployed successfully" in result.stdout or "Deployment initiated" in result.stdout
+
+
+def wait_for_deployment_ready(deployment_name: str, namespace: str, timeout: int = 300) -> bool:
+    """Wait for a K8s deployment to be ready."""
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        try:
+            result = subprocess.run(
+                ["kubectl", "get", "deployment", deployment_name, "-n", namespace, "-o", "json"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            deployment = json.loads(result.stdout)
+            status = deployment.get("status", {})
+            ready_replicas = status.get("readyReplicas", 0)
+            replicas = status.get("replicas", 1)
+            if ready_replicas >= replicas and ready_replicas > 0:
+                return True
+        except (subprocess.CalledProcessError, json.JSONDecodeError):
+            pass
+        time.sleep(10)
+    return False
+
+
+def get_deployed_model_service(project_name: str, model_name: str, version: str) -> dict | None:
+    """Get the deployed model service from K8s."""
+    # Service name format: {project}-{model}-v{version}
+    service_name = f"{project_name}-{model_name.replace('_', '-')}-v{version}"
+    try:
+        result = subprocess.run(
+            ["kubectl", "get", "service", service_name, "-n", project_name, "-o", "json"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return json.loads(result.stdout)
+    except (subprocess.CalledProcessError, json.JSONDecodeError):
+        return None
+
+
+def test_deployed_model_should_have_running_deployment():
+    """Test that deployed model has a running K8s deployment."""
+    # Wait for deployment to be ready (model build and deploy can take time)
+    deployment_name = f"{PROJECT_NAME}-{MODEL_NAME.replace('_', '-')}-v{MODEL_VERSION}"
+
+    is_ready = wait_for_deployment_ready(deployment_name, PROJECT_NAME, timeout=300)
+    assert is_ready, f"Deployment {deployment_name} did not become ready within timeout"
+
+
+def test_deployed_model_should_respond_to_health_check():
+    """Test that deployed model responds to health check."""
+    # The model endpoint should be accessible via the ingress
+    model_endpoint = f"http://{MP_HOSTNAME}/models/{PROJECT_NAME}/{MODEL_NAME}/v{MODEL_VERSION}/health"
+
+    # Retry several times as the service might take a moment to be fully available
+    max_retries = 10
+    for i in range(max_retries):
+        try:
+            response = requests.get(model_endpoint, timeout=10)
+            if response.status_code == 200:
+                return
+        except requests.RequestException:
+            pass
+        time.sleep(10)
+
+    # If direct health endpoint fails, try inference endpoint
+    invocations_endpoint = f"http://{MP_HOSTNAME}/models/{PROJECT_NAME}/{MODEL_NAME}/v{MODEL_VERSION}/invocations"
+    response = requests.post(
+        invocations_endpoint,
+        json={"data": [[5.1, 3.5, 1.4, 0.2]]},
+        headers={"Content-Type": "application/json"},
+        timeout=10
+    )
+    assert response.status_code in [200, 400], f"Model endpoint not responding: {response.status_code}"
+
+
+def test_deployed_model_should_return_predictions():
+    """Test that deployed model returns predictions for valid input."""
+    invocations_endpoint = f"http://{MP_HOSTNAME}/models/{PROJECT_NAME}/{MODEL_NAME}/v{MODEL_VERSION}/invocations"
+
+    # Iris dataset format: 4 features
+    test_data = {
+        "data": [[5.1, 3.5, 1.4, 0.2], [6.2, 3.4, 5.4, 2.3]]
+    }
+
+    response = requests.post(
+        invocations_endpoint,
+        json=test_data,
+        headers={"Content-Type": "application/json"},
+        timeout=30
+    )
+
+    assert response.status_code == 200, f"Prediction failed: {response.text}"
+    predictions = response.json()
+    assert "predictions" in predictions or isinstance(predictions, list), "Response should contain predictions"
+
+
+def test_list_deployed_models_should_show_deployed_model():
+    """Test that list deployed models shows the deployed model."""
+    result = run_cli("models", "list-deployed", PROJECT_NAME)
+
+    assert result.returncode == 0, f"List deployed models failed: {result.stderr}"
+    assert MODEL_NAME in result.stdout or "test_model" in result.stdout
+
+
+def test_undeploy_model_should_succeed():
+    """Test that undeploying a model succeeds."""
+    result = run_cli(
+        "models", "undeploy", PROJECT_NAME,
+        "--model-name", MODEL_NAME,
+        "--model-version", MODEL_VERSION
+    )
+
+    assert result.returncode == 0, f"Undeploy failed: {result.stderr}"
+    assert "✅ Model undeployed successfully" in result.stdout or "return_code" in result.stdout
+
+
+def test_undeployed_model_should_not_have_deployment():
+    """Test that undeployed model no longer has a K8s deployment."""
+    # Wait for cleanup
+    time.sleep(30)
+
+    deployment_name = f"{PROJECT_NAME}-{MODEL_NAME.replace('_', '-')}-v{MODEL_VERSION}"
+    try:
+        result = subprocess.run(
+            ["kubectl", "get", "deployment", deployment_name, "-n", PROJECT_NAME, "-o", "json"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        # If we get here, deployment still exists
+        assert False, f"Deployment {deployment_name} should have been deleted"
+    except subprocess.CalledProcessError:
+        # Expected - deployment should not exist
+        pass
+
+
+def test_undeployed_model_should_not_respond():
+    """Test that undeployed model endpoint no longer responds."""
+    invocations_endpoint = f"http://{MP_HOSTNAME}/models/{PROJECT_NAME}/{MODEL_NAME}/v{MODEL_VERSION}/invocations"
+
+    try:
+        response = requests.post(
+            invocations_endpoint,
+            json={"data": [[5.1, 3.5, 1.4, 0.2]]},
+            headers={"Content-Type": "application/json"},
+            timeout=5
+        )
+        # Should get 502/503/504 (service unavailable) or 404
+        assert response.status_code in [404, 502, 503, 504], f"Endpoint should not be available: {response.status_code}"
+    except requests.RequestException:
+        # Connection refused/timeout is also acceptable
+        pass
+
 
 def test_remove_project_should_correctly_remove_project_registry():
     # Utiliser la commande delete (déjà testée plus haut) mais on répète pour la cohérence de scénario
