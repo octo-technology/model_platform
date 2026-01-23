@@ -15,25 +15,21 @@ k8s-network-conf:
 	kubectl rollout restart deployment/nginx-reverse-proxy
 	kubectl apply -f infrastructure/k8s/ingress.yaml
 
-
+#TODO add target to buil and push to github registry
 k8s-backend:
-	@if [ "$$SHELL" = "/bin/zsh" ] || [ "$$SHELL" = "/usr/bin/zsh" ]; then \
-		eval $$(minikube docker-env) && docker build ./ -f ./backend/Dockerfile --no-cache -t backend && kubectl apply -f infrastructure/k8s/backend-deployment.yaml ; \
-	elif [ "$SHELL" = "/usr/bin/fish" ] || [ "$SHELL" = "/bin/fish" ] || [ -n "$$FISH_VERSION" ]; then \
-		eval $(minikube -p minikube docker-env) && docker build ./ -f ./backend/Dockerfile --no-cache -t backend && kubectl apply -f infrastructure/k8s/backend-deployment.yaml ; \
+	kubectl apply -f infrastructure/k8s/backend-configmap.yaml
+	@if [ -f infrastructure/k8s/backend-secret.yaml ]; then \
+		kubectl apply -f infrastructure/k8s/backend-secret.yaml; \
 	else \
-		eval $$(minikube docker-env) && docker build ./ -f ./backend/Dockerfile --no-cache -t backend && kubectl apply -f infrastructure/k8s/backend-deployment.yaml ; \
+		echo "⚠️  backend-secret.yaml non trouvé. Copiez backend-secret.yaml.example et remplissez les valeurs."; \
+		exit 1; \
 	fi
+	kubectl apply -f infrastructure/k8s/backend-deployment.yaml
 	kubectl rollout restart deployment/backend -n model-platform
 
 k8s-frontend:
-	@if [ "$$SHELL" = "/bin/zsh" ] || [ "$$SHELL" = "/usr/bin/zsh" ]; then \
-		eval $$(minikube docker-env) && docker build ./ -f ./frontend/Dockerfile -t frontend && kubectl apply -f infrastructure/k8s/frontend-deployment.yaml ; \
-	elif [ "$$SHELL" = "/usr/bin/fish" ] || [ "$$SHELL" = "/bin/fish" ] || [ -n "$$FISH_VERSION" ]; then \
-		eval $(minikube -p minikube docker-env) && docker build ./ -f ./frontend/Dockerfile -t frontend && kubectl apply -f infrastructure/k8s/frontend-deployment.yaml ; \
-	else \
-		eval $$(minikube docker-env) && docker build ./ -f ./frontend/Dockerfile -t frontend && kubectl apply -f infrastructure/k8s/frontend-deployment.yaml ; \
-	fi
+	kubectl apply -f infrastructure/k8s/frontend-configmap.yaml
+	kubectl apply -f infrastructure/k8s/frontend-deployment.yaml
 	kubectl rollout restart deployment/frontend -n model-platform
 
 k8s-modelplatform: k8s-modelplatform k8s-backend k8s-frontend
@@ -93,3 +89,18 @@ set-ip:
 	python backend/domain/use_cases/main_update_registries_minio_ip.py
 
 model-platform: back front
+
+create-backend-secret:
+	@if [ -z "$(POSTGRES_PWD)" ] || [ -z "$(JWT_SECRET)" ] || [ -z "$(ADMIN_EMAIL)" ] || [ -z "$(ADMIN_PWD)" ]; then \
+		echo "❌ Usage: make create-backend-secret POSTGRES_PWD=<pwd> JWT_SECRET=<secret> ADMIN_EMAIL=<email> ADMIN_PWD=<pwd>"; \
+		exit 1; \
+	fi
+	kubectl create secret generic backend-secret \
+		--namespace=model-platform \
+		--from-literal=POSTGRES_PASSWORD='$(POSTGRES_PWD)' \
+		--from-literal=JWT_SECRET='$(JWT_SECRET)' \
+		--from-literal=ADMIN_EMAIL='$(ADMIN_EMAIL)' \
+		--from-literal=ADMIN_PASSWORD='$(ADMIN_PWD)' \
+		--dry-run=client -o yaml > infrastructure/k8s/backend-secret.yaml
+	@echo "✅ backend-secret.yaml créé (fichier local uniquement, non commité grâce au .gitignore)"
+

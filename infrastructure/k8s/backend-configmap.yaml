@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: model-platform
+data:
+  MP_HOST_NAME: "model-platform.com"
+  MP_REGISTRY_PORT: "5000"
+  MP_REGISTRY_PATH: "registry"
+  MP_DEPLOYMENT_PATH: "deploy"
+  MP_DEPLOYMENT_PORT: "8000"
+  MP_DEPLOYMENT_NAMESPACE: "deploy"
+  PROJECTS_DB_PATH: "projects.db"
+  PATH_LOG_EVENTS: "/app/events"
+  POSTGRES_HOST: "modelplatform-pgsql.pgsql.svc.cluster.local"
+  POSTGRES_NAMESPACE: "pgsql"
+  POSTGRES_USER: "postgres"
+  MLFLOW_S3_ENDPOINT_URL: "http://minio.minio.svc.cluster.local:9000"
