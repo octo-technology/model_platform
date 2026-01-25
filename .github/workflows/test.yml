@@ -169,11 +169,18 @@ jobs:
         run: |
           kubectl apply -f infrastructure/k8s/namespaces.yaml
           kubectl apply -f infrastructure/k8s/minio-deployment.yaml
-          kubectl apply -f infrastructure/k8s/nginx-deployment.yaml
+          # Apply configmap BEFORE deployment so nginx can start correctly
           kubectl apply -f infrastructure/k8s/nginx-configmap.yaml
-          kubectl rollout restart deployment/nginx-reverse-proxy
+          kubectl apply -f infrastructure/k8s/nginx-deployment.yaml
           kubectl apply -f infrastructure/k8s/ingress.yaml
-          kubectl wait --for=condition=available deployment/nginx-reverse-proxy --timeout=120s
+          # Wait for nginx to be ready with retries
+          for i in {1..3}; do
+            kubectl wait --for=condition=available deployment/nginx-reverse-proxy --timeout=60s && break
+            echo "Retry $i: nginx not ready yet, checking pod status..."
+            kubectl get pods -l app=nginx-reverse-proxy
+            kubectl describe deployment nginx-reverse-proxy
+            sleep 10
+          done
 
       - name: Run integration tests
         run: |
@@ -230,12 +237,11 @@ jobs:
 
       - name: Deploy full infrastructure
         run: |
-          # Network config
+          # Network config - apply configmap BEFORE deployment
           kubectl apply -f infrastructure/k8s/namespaces.yaml
           kubectl apply -f infrastructure/k8s/minio-deployment.yaml
-          kubectl apply -f infrastructure/k8s/nginx-deployment.yaml
           kubectl apply -f infrastructure/k8s/nginx-configmap.yaml
-          kubectl rollout restart deployment/nginx-reverse-proxy
+          kubectl apply -f infrastructure/k8s/nginx-deployment.yaml
           kubectl apply -f infrastructure/k8s/ingress.yaml
 
           # PostgreSQL
@@ -244,7 +250,13 @@ jobs:
           kubectl apply -f infrastructure/k8s/pgsql-deployment.yaml
           kubectl apply -f infrastructure/k8s/pgsql-init-job.yaml
 
-          kubectl wait --for=condition=available deployment/nginx-reverse-proxy --timeout=180s
+          # Wait for nginx with retries
+          for i in {1..3}; do
+            kubectl wait --for=condition=available deployment/nginx-reverse-proxy --timeout=60s && break
+            echo "Retry $i: nginx not ready yet..."
+            kubectl get pods -l app=nginx-reverse-proxy
+            sleep 10
+          done
 
           # Backend
           kubectl apply -f infrastructure/k8s/backend-configmap.yaml

@@ -10,9 +10,8 @@ SHELL := /bin/bash
 k8s-network-conf:
 	kubectl apply -f infrastructure/k8s/namespaces.yaml
 	kubectl apply -f infrastructure/k8s/minio-deployment.yaml
-	kubectl apply -f infrastructure/k8s/nginx-deployment.yaml
 	kubectl apply -f infrastructure/k8s/nginx-configmap.yaml
-	kubectl rollout restart deployment/nginx-reverse-proxy
+	kubectl apply -f infrastructure/k8s/nginx-deployment.yaml
 	kubectl apply -f infrastructure/k8s/ingress.yaml
 
 #TODO add target to buil and push to github registry

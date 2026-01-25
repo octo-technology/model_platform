@@ -127,8 +127,7 @@ def test_deployed_model_should_have_running_deployment():
 
     # Allow more time for the Docker image to be built and deployed (up to 5 minutes)
     is_ready = wait_for_deployment_ready(deployment_name, PROJECT_NAME, timeout=300)
-    if not is_ready:
-        pytest.skip(f"Deployment {deployment_name} did not become ready within timeout - infrastructure issue")
+    assert is_ready, f"Deployment {deployment_name} did not become ready within timeout"
 
 
 def test_deployed_model_should_respond_to_health_check():
@@ -140,13 +139,14 @@ def test_deployed_model_should_respond_to_health_check():
 
     # Retry several times as the service might take a moment to be fully available
     max_retries = 10
+    last_error = None
     for i in range(max_retries):
         try:
             response = requests.get(model_endpoint, timeout=10)
             if response.status_code == 200:
                 return
-        except requests.RequestException:
-            pass
+        except requests.RequestException as e:
+            last_error = e
         time.sleep(10)
 
     # If direct health endpoint fails, try inference endpoint
@@ -165,10 +165,9 @@ def test_deployed_model_should_respond_to_health_check():
             headers={"Content-Type": "application/json"},
             timeout=10,
         )
-        if response.status_code not in [200, 400]:
-            pytest.skip(f"Model endpoint not responding: {response.status_code} - deployment may not be ready")
+        assert response.status_code in [200, 400], f"Model endpoint not responding: {response.status_code}"
     except requests.RequestException as e:
-        pytest.skip(f"Model endpoint not reachable: {e} - deployment may not be ready")
+        assert False, f"Model endpoint not reachable: {e} (last health check error: {last_error})"
 
 
 def test_deployed_model_should_return_predictions():
@@ -192,11 +191,9 @@ def test_deployed_model_should_return_predictions():
             predict_endpoint, json=test_data, headers={"Content-Type": "application/json"}, timeout=30
         )
     except requests.RequestException as e:
-        pytest.skip(f"Prediction endpoint not reachable: {e} - deployment may not be ready")
-        return  # Make it clear we exit here
+        assert False, f"Prediction endpoint not reachable: {e}"
 
-    if response.status_code in [502, 503, 504]:
-        pytest.skip(f"Prediction failed with {response.status_code} - deployment may not be ready")
+    assert response.status_code not in [502, 503, 504], f"Prediction failed with {response.status_code}"
 
     assert response.status_code == 200, f"Prediction failed: {response.text}"
     predictions = response.json()
@@ -208,9 +205,7 @@ def test_list_deployed_models_should_show_deployed_model():
     result = run_cli("projects", "list-deployed-models", PROJECT_NAME)
 
     assert result.returncode == 0, f"List deployed models failed: {result.stderr}"
-    # If output is empty, skip this test as the deployment may have failed
-    if not result.stdout.strip():
-        pytest.skip("No deployed models found - deployment may have failed in previous test")
+    assert result.stdout.strip(), "No deployed models found - deployment may have failed in previous test"
     # Model name may be sanitized (underscores replaced with dashes)
     assert MODEL_NAME in result.stdout or MODEL_NAME.replace("_", "-") in result.stdout
 
