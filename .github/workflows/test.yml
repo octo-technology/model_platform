@@ -149,6 +149,11 @@ jobs:
         run: |
           minikube addons enable ingress
           minikube addons enable ingress-dns
+          # Wait for ingress controller to be ready
+          kubectl wait --namespace ingress-nginx \
+            --for=condition=ready pod \
+            --selector=app.kubernetes.io/component=controller \
+            --timeout=120s
 
       - name: Verify Minikube is running
         run: |
@@ -166,8 +171,8 @@ jobs:
           kubectl apply -f infrastructure/k8s/minio-deployment.yaml
           kubectl apply -f infrastructure/k8s/nginx-deployment.yaml
           kubectl apply -f infrastructure/k8s/nginx-configmap.yaml
-          kubectl apply -f infrastructure/k8s/ingress.yaml
           kubectl rollout restart deployment/nginx-reverse-proxy
+          kubectl apply -f infrastructure/k8s/ingress.yaml
           kubectl wait --for=condition=available deployment/nginx-reverse-proxy --timeout=120s
 
       - name: Run integration tests
@@ -213,6 +218,11 @@ jobs:
         run: |
           minikube addons enable ingress
           minikube addons enable ingress-dns
+          # Wait for ingress controller to be ready
+          kubectl wait --namespace ingress-nginx \
+            --for=condition=ready pod \
+            --selector=app.kubernetes.io/component=controller \
+            --timeout=120s
 
       - name: Setup /etc/hosts for model-platform.com
         run: |
@@ -225,8 +235,8 @@ jobs:
           kubectl apply -f infrastructure/k8s/minio-deployment.yaml
           kubectl apply -f infrastructure/k8s/nginx-deployment.yaml
           kubectl apply -f infrastructure/k8s/nginx-configmap.yaml
-          kubectl apply -f infrastructure/k8s/ingress.yaml
           kubectl rollout restart deployment/nginx-reverse-proxy
+          kubectl apply -f infrastructure/k8s/ingress.yaml
 
           # PostgreSQL
           kubectl create namespace pgsql --dry-run=client -o yaml | kubectl apply -f -
