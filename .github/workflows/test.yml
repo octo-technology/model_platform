@@ -192,11 +192,9 @@ jobs:
             --from-literal=ADMIN_EMAIL='admin@test.com' \
             --from-literal=ADMIN_PASSWORD='test_admin_password'
           kubectl apply -f infrastructure/k8s/backend-deployment.yaml
-          kubectl wait --for=condition=available deployment/backend -n model-platform --timeout=300s
-
-      - name: Wait for infrastructure to be ready
-        run: |
-          echo "Waiting for services to be fully operational..."
+          # Patch deployment to add imagePullSecrets for GHCR
+          kubectl patch deployment backend -n model-platform --type='json' \
+            -p='[{"op": "add", "path": "/spec/template/spec/imagePullSecrets", "value": [{"name": "ghcr-secret"}]}]'
           sleep 60
           kubectl get pods --all-namespaces
           curl -f http://model-platform.com/health || echo "Health check pending"
@@ -209,10 +207,17 @@ jobs:
       - name: Collect logs on failure
         if: failure()
         run: |
-          echo "=== Pod logs ==="
+          echo "=== All Pods Status ==="
+          kubectl get pods --all-namespaces
+          echo "=== Backend Pod logs ==="
           kubectl logs -n model-platform -l app=backend --tail=100 || true
-          echo "=== Events ==="
-          kubectl get events --all-namespaces --sort-by='.lastTimestamp' | tail -50 || true
+          echo "=== Backend Pod describe ==="
+          kubectl describe pod -n model-platform -l app=backend || true
+          echo "=== Nginx Pod logs ==="
+          kubectl logs -l app=nginx-reverse-proxy --tail=100 || true
+          echo "=== Nginx Pod describe ==="
+          kubectl describe pod -l app=nginx-reverse-proxy || true
+          echo "=== Pod logs ==="
 
       - name: Stop Minikube
         if: always()

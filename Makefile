@@ -31,7 +31,6 @@ k8s-frontend:
 	kubectl apply -f infrastructure/k8s/frontend-deployment.yaml
 	kubectl rollout restart deployment/frontend -n model-platform
 
-k8s-modelplatform: k8s-modelplatform k8s-backend k8s-frontend
 
 restart-modelplatform:
 	kubectl get deployments -n model-platform -o name | xargs -I {} kubectl rollout restart {} -n model-platform
@@ -103,56 +102,4 @@ create-backend-secret:
 		--dry-run=client -o yaml > infrastructure/k8s/backend-secret.yaml
 	@echo "✅ backend-secret.yaml créé (fichier local uniquement, non commité grâce au .gitignore)"
 
-# ==================== Testing targets ====================
-
-test-unit:
-	@echo "🧪 Running unit tests..."
-	uv run pytest tests/test_unitaires -v
-
-test-integration-kind:
-	@echo "🧪 Running Kind integration tests..."
-	@if ! kind get clusters 2>/dev/null | grep -q .; then \
-		echo "⚠️  No Kind cluster found. Creating one..."; \
-		kind create cluster --name model-platform-test; \
-	fi
-	uv run pytest tests/integration/test_minimal_kind.py -v
-	@echo "✅ Kind integration tests completed"
-
-test-integration-minikube:
-	@echo "🧪 Running Minikube integration tests..."
-	@if ! minikube status 2>/dev/null | grep -q "Running"; then \
-		echo "❌ Minikube is not running. Please start it with: minikube start"; \
-		exit 1; \
-	fi
-	uv run pytest tests/integration/ -v -m "not slow"
-	@echo "✅ Minikube integration tests completed"
-
-test-e2e:
-	@echo "🧪 Running end-to-end tests (requires full Minikube setup)..."
-	@if ! minikube status 2>/dev/null | grep -q "Running"; then \
-		echo "❌ Minikube is not running. Please start it with: minikube start"; \
-		exit 1; \
-	fi
-	@if ! curl -sf http://model-platform.com/health > /dev/null 2>&1; then \
-		echo "⚠️  Backend health check failed. Make sure infrastructure is deployed."; \
-	fi
-	uv run pytest tests/tests_end_to_end/test_from_project_creation_to_model_predict.py -v
-	@echo "✅ End-to-end tests completed"
-
-test-e2e-monitoring:
-	@echo "🧪 Running monitoring persistence tests..."
-	uv run pytest tests/tests_end_to_end/test_monitoring_resources_persistence.py -v -m "slow and destructive"
-	@echo "✅ Monitoring tests completed"
-
-test-all:
-	@echo "🧪 Running all tests..."
-	$(MAKE) test-unit
-	$(MAKE) test-integration-minikube
-	$(MAKE) test-e2e
-	@echo "✅ All tests completed"
-
-test-ci-local:
-	@echo "🧪 Simulating CI test run locally..."
-	$(MAKE) test-unit
-	$(MAKE) test-integration-kind
-	@echo "✅ CI simulation completed"
+k8s-modelplatform: k8s-network-conf k8s-pgsql k8s-backend k8s-frontend
