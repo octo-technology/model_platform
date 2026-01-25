@@ -75,9 +75,7 @@ class K8SRegistryDeployment(RegistryDeployment, K8SDeployment):
                                     "-c",
                                     f"psql -h {self.pgsql_cluster_host} -U {self.pgsql_user} -d postgres -tc \"SELECT 1 FROM pg_database WHERE datname = '{self.mlflow_db_name}';\" | grep -q 1 || psql -h {self.pgsql_cluster_host} -U {self.pgsql_user} -d postgres -c 'CREATE DATABASE {self.mlflow_db_name};'",  # noqa
                                 ],
-                                env=[
-                                    client.V1EnvVar(name="PGPASSWORD", value=self.pgsql_password),
-                                ],
+                                env=[client.V1EnvVar(name="PGPASSWORD", value=self.pgsql_password)],
                             )
                         ],
                         containers=[
@@ -107,17 +105,6 @@ class K8SRegistryDeployment(RegistryDeployment, K8SDeployment):
                                     #  "--static-prefix",
                                     #  f"/{self.sub_path}/{project_name}",
                                 ],
-                                lifecycle=client.V1Lifecycle(
-                                    pre_stop=client.V1LifecycleHandler(
-                                        _exec=client.V1ExecAction(
-                                            command=[
-                                                "sh",
-                                                "-c",
-                                                f'psql -h {self.pgsql_cluster_host} -U {self.pgsql_user} -d postgres -tc "DROP DATABASE IF EXISTS {self.mlflow_db_name};" ',  # noqa
-                                            ],
-                                        )
-                                    )
-                                ),
                             )
                         ],
                     ),
@@ -137,55 +124,52 @@ class K8SRegistryDeployment(RegistryDeployment, K8SDeployment):
                 logger.info(f"⚠️ Error while creating/updating the deployment: {e}")
 
     def create_db_dropper_job(self):
-        # TODO ne fonctionne pas actuellement
+        """Create a Kubernetes job to drop the MLflow database."""
         logger.info(f"Creating job to drop database {self.mlflow_db_name}...")
-        batch_api_instance = client.BatchV1Api()
-        job_name = "drop-db-job"
+        batch_api = client.BatchV1Api()
+        job_name = f"drop-db-{self.mlflow_db_name}"
+
+        # Delete existing job if present
         try:
-            logger.info("Checking if job already exists...")
-            batch_api_instance.read_namespaced_job(name=job_name, namespace="pgsql")
-            batch_api_instance.delete_namespaced_job(
-                name=job_name, namespace="pgsql", body=client.V1DeleteOptions(propagation_policy="Foreground")
+            batch_api.delete_namespaced_job(
+                name=job_name,
+                namespace="pgsql",
+                body=client.V1DeleteOptions(propagation_policy="Foreground"),
             )
-            logger.info(f"ℹ️ Job {job_name} existent supprimé avant recréation.")
         except ApiException as e:
             if e.status != 404:
-                logger.error(f"⚠️ Erreur en vérifiant/supprimant le job existent {job_name}: {e}")
-                return
+                logger.error(f"Error deleting existing job {job_name}: {e}")
 
-        container = client.V1Container(
-            name="drop-db-container",
-            image="postgres:13",
-            command=[
-                "/bin/sh",
-                "-c",
-                # First check if database exists, if not exit successfully
-                f"PGPASSWORD=$PGPASSWORD psql -h {self.pgsql_cluster_host} -U {self.pgsql_user} "
-                f"-d postgres -tAc \"SELECT 1 FROM pg_database WHERE datname = '{self.mlflow_db_name}'\" |"
-                f" grep -q 1 || exit 0; "
-                # If database exists, revoke connections and drop it
-                f"PGPASSWORD=$PGPASSWORD psql -h {self.pgsql_cluster_host} -U {self.pgsql_user} "
-                f'-d postgres -c "REVOKE CONNECT ON DATABASE {self.mlflow_db_name} FROM PUBLIC;" && '
-                f"PGPASSWORD=$PGPASSWORD psql -h {self.pgsql_cluster_host} -U {self.pgsql_user} "
-                f'-d postgres -c "SELECT pg_terminate_backend(pid) '
-                f"FROM pg_stat_activity WHERE datname = '{self.mlflow_db_name}' AND pid <> pg_backend_pid();\" && "
-                f"PGPASSWORD=$PGPASSWORD psql -h {self.pgsql_cluster_host} -U {self.pgsql_user} "
-                f'-d postgres -c "DROP DATABASE IF EXISTS {self.mlflow_db_name};"',
-            ],
-            env=[client.V1EnvVar(name="PGPASSWORD", value=self.pgsql_password)],
+        # Create the job
+        drop_cmd = (
+            f"psql -h {self.pgsql_cluster_host} -U {self.pgsql_user} -d postgres -c "
+            f"\"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '{self.mlflow_db_name}';\" && "
+            f"psql -h {self.pgsql_cluster_host} -U {self.pgsql_user} -d postgres -c "
+            f'"DROP DATABASE IF EXISTS {self.mlflow_db_name};"'
         )
 
-        template = client.V1PodTemplateSpec(
-            metadata=client.V1ObjectMeta(labels={"job-name": job_name}),
-            spec=client.V1PodSpec(restart_policy="Never", containers=[container]),
+        job = client.V1Job(
+            metadata=client.V1ObjectMeta(name=job_name),
+            spec=client.V1JobSpec(
+                ttl_seconds_after_finished=60,
+                template=client.V1PodTemplateSpec(
+                    spec=client.V1PodSpec(
+                        restart_policy="Never",
+                        containers=[
+                            client.V1Container(
+                                name="drop-db",
+                                image="postgres:13",
+                                command=["sh", "-c", drop_cmd],
+                                env=[client.V1EnvVar(name="PGPASSWORD", value=self.pgsql_password)],
+                            )
+                        ],
+                    )
+                ),
+            ),
         )
-
-        job_spec = client.V1JobSpec(template=template, backoff_limit=4, ttl_seconds_after_finished=30)
-
-        job = client.V1Job(metadata=client.V1ObjectMeta(name=job_name), spec=job_spec)
 
         try:
-            batch_api_instance.create_namespaced_job(namespace="pgsql", body=job)
+            batch_api.create_namespaced_job(namespace="pgsql", body=job)
             logger.info(f"✅ Job {job_name} created to drop database {self.mlflow_db_name}.")
         except ApiException as e:
-            logger.error(f"⚠️ Error while creating job {job_name}: {e}")
+            logger.error(f"Error creating job {job_name}: {e}")
