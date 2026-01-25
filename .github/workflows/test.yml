@@ -117,100 +117,11 @@ jobs:
         run: |
           kind delete cluster --name model-platform-ci
 
-  integration-tests-minikube:
-    runs-on: ubuntu-22.04
-    environment: dev
-    needs: test-and-quality-check
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
-        with:
-          version: "latest"
-
-      - name: Set up Python
-        run: uv python install 3.11
-
-      - name: Install dependencies
-        run: |
-          uv sync --group dev --group backend --group cli --group notebooks
-
-      - name: Start Minikube
-        uses: medyagh/setup-minikube@v0.0.18
-        with:
-          minikube-version: '1.32.0'
-          kubernetes-version: 'v1.28.3'
-          driver: docker
-          memory: 4096
-          cpus: 2
-
-      - name: Enable Minikube addons
-        run: |
-          minikube addons enable ingress
-          minikube addons enable ingress-dns
-          # Wait for ingress controller to be ready
-          kubectl wait --namespace ingress-nginx \
-            --for=condition=ready pod \
-            --selector=app.kubernetes.io/component=controller \
-            --timeout=120s
-
-      - name: Verify Minikube is running
-        run: |
-          minikube status
-          kubectl cluster-info
-          kubectl get nodes
-
-      - name: Setup /etc/hosts for model-platform.com
-        run: |
-          echo "$(minikube ip) model-platform.com" | sudo tee -a /etc/hosts
-
-      - name: Deploy infrastructure
-        run: |
-          kubectl apply -f infrastructure/k8s/namespaces.yaml
-          kubectl apply -f infrastructure/k8s/minio-deployment.yaml
-          # Apply configmap BEFORE deployment so nginx can start correctly
-          kubectl apply -f infrastructure/k8s/nginx-configmap.yaml
-          kubectl apply -f infrastructure/k8s/nginx-deployment.yaml
-          kubectl apply -f infrastructure/k8s/ingress.yaml
-          # Wait for nginx to be ready with retries
-          for i in {1..3}; do
-            kubectl wait --for=condition=available deployment/nginx-reverse-proxy --timeout=60s && break
-            echo "Retry $i: nginx not ready yet, checking pod status..."
-            kubectl get pods -l app=nginx-reverse-proxy
-            kubectl describe deployment nginx-reverse-proxy
-            sleep 10
-          done
-
-      - name: Deploy backend
-        run: |
-          kubectl apply -f infrastructure/k8s/backend-configmap.yaml
-          kubectl create secret generic backend-secret \
-            --namespace=model-platform \
-            --from-literal=POSTGRES_PASSWORD='test_password' \
-            --from-literal=JWT_SECRET='test_jwt_secret_for_ci' \
-            --from-literal=ADMIN_EMAIL='admin@test.com' \
-            --from-literal=ADMIN_PASSWORD='test_admin_password'
-          kubectl apply -f infrastructure/k8s/backend-deployment.yaml
-          kubectl wait --for=condition=available deployment/backend -n model-platform --timeout=180s
-          echo "Backend deployed, checking pods..."
-          kubectl get pods -n model-platform
-
-      - name: Run integration tests
-        run: |
-          echo "Launching Minikube integration tests"
-          uv run pytest tests/integration/ -v --tb=short -m "not slow"
-
-      - name: Stop Minikube
-        if: always()
-        run: |
-          minikube stop
 
   e2e-tests-minikube:
     runs-on: ubuntu-22.04
     environment: dev
-    needs: [test-and-quality-check, integration-tests-kind]
-    if: github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'run-e2e')
+    needs: test-and-quality-check
     steps:
       - uses: actions/checkout@v4
 
