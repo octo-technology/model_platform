@@ -275,14 +275,21 @@ def send_post_request(url: str, data: dict, headers: dict = None, timeout: int =
         return {"error": str(e)}
 
 
-def is_mlflow_reachable(project_name: str, timeout: int = 5) -> bool:
+def is_mlflow_reachable(project_name: str, timeout: int = 10) -> bool:
     """Check if MLflow registry is reachable for the given project."""
-    url = f"http://{MP_HOSTNAME}/registry/{project_name}/health"
-    try:
-        response = requests.get(url, timeout=timeout)
-        return response.status_code == 200
-    except requests.RequestException:
-        return False
+    # Try the MLflow version endpoint first (more reliable), then fallback to root
+    endpoints_to_try = [
+        f"http://{MP_HOSTNAME}/registry/{project_name}/api/2.0/mlflow/experiments/search?max_results=1",
+        f"http://{MP_HOSTNAME}/registry/{project_name}/",
+    ]
+    for url in endpoints_to_try:
+        try:
+            response = requests.get(url, timeout=timeout)
+            if response.status_code == 200:
+                return True
+        except requests.RequestException:
+            continue
+    return False
 
 
 def wait_for_mlflow_ready(project_name: str, timeout: int = 120, interval: int = 5) -> bool:

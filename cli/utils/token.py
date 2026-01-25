@@ -26,4 +26,9 @@ def get_client() -> httpx.Client:
     if not token:
         typer.echo("You need to login first (use `mycli login`).")
         raise typer.Exit(1)
-    return httpx.Client(base_url=API_URL, headers={"Authorization": f"Bearer {token['access_token']}"}, verify=False)
+    return httpx.Client(
+        base_url=API_URL,
+        headers={"Authorization": f"Bearer {token['access_token']}"},
+        verify=False,
+        timeout=120.0,  # Increase timeout for long-running operations like deployments
+    )

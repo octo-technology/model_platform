@@ -159,13 +159,18 @@ class K8SRegistryDeployment(RegistryDeployment, K8SDeployment):
             command=[
                 "/bin/sh",
                 "-c",
+                # First check if database exists, if not exit successfully
                 f"PGPASSWORD=$PGPASSWORD psql -h {self.pgsql_cluster_host} -U {self.pgsql_user} "
-                f'-d postgres -v ON_ERROR_STOP=1 -c "REVOKE CONNECT ON DATABASE {self.mlflow_db_name} FROM PUBLIC;" '
-                f"&& PGPASSWORD=$PGPASSWORD psql -h {self.pgsql_cluster_host} -U {self.pgsql_user} "
-                f'-d postgres -v ON_ERROR_STOP=1 -c "SELECT pg_terminate_backend(pid) '
-                f"FROM pg_stat_activity WHERE datname = '{self.mlflow_db_name}' AND pid <> pg_backend_pid();\" "
-                f"&& PGPASSWORD=$PGPASSWORD psql -h {self.pgsql_cluster_host} -U {self.pgsql_user} "
-                f'-d postgres -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS {self.mlflow_db_name};"',
+                f"-d postgres -tAc \"SELECT 1 FROM pg_database WHERE datname = '{self.mlflow_db_name}'\" |"
+                f" grep -q 1 || exit 0; "
+                # If database exists, revoke connections and drop it
+                f"PGPASSWORD=$PGPASSWORD psql -h {self.pgsql_cluster_host} -U {self.pgsql_user} "
+                f'-d postgres -c "REVOKE CONNECT ON DATABASE {self.mlflow_db_name} FROM PUBLIC;" && '
+                f"PGPASSWORD=$PGPASSWORD psql -h {self.pgsql_cluster_host} -U {self.pgsql_user} "
+                f'-d postgres -c "SELECT pg_terminate_backend(pid) '
+                f"FROM pg_stat_activity WHERE datname = '{self.mlflow_db_name}' AND pid <> pg_backend_pid();\" && "
+                f"PGPASSWORD=$PGPASSWORD psql -h {self.pgsql_cluster_host} -U {self.pgsql_user} "
+                f'-d postgres -c "DROP DATABASE IF EXISTS {self.mlflow_db_name};"',
             ],
             env=[client.V1EnvVar(name="PGPASSWORD", value=self.pgsql_password)],
         )

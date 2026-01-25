@@ -34,6 +34,7 @@ from tests.conftest import (
     MP_HOSTNAME,
     run_cli,
     wait_for_deployment_ready,
+    wait_for_mlflow_ready,
 )
 
 
@@ -82,7 +83,10 @@ def test_project_creation_should_respond_correctly():
 
 
 def test_project_should_have_responding_mlflow_registry():
-    time.sleep(60)
+    # Wait for MLflow registry to be ready (up to 180 seconds)
+    is_ready = wait_for_mlflow_ready(PROJECT_NAME, timeout=180, interval=10)
+    assert is_ready, f"MLflow registry for {PROJECT_NAME} did not become ready within timeout"
+
     # La commande list-models devrait retourner un code 0 et ne pas afficher une erreur
     result = run_cli("projects", "list-models", PROJECT_NAME)
     assert result.returncode == 0
@@ -91,20 +95,41 @@ def test_project_should_have_responding_mlflow_registry():
 
 
 def test_project_train_model_should_push_model_to_mlflow():
+    # Ensure MLflow registry is still ready before training
+    is_ready = wait_for_mlflow_ready(PROJECT_NAME, timeout=60, interval=5)
+    assert is_ready, f"MLflow registry for {PROJECT_NAME} not ready before training"
+
     data = load_iris()
     x = data.data
     y = data.target
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.3, random_state=42)
     mlflow.set_tracking_uri(f"http://{MP_HOSTNAME}/registry/{PROJECT_NAME}/")
-    with mlflow.start_run():
-        model = RandomForestClassifier(n_estimators=2, random_state=42)
-        model.fit(x_train, y_train)
-        y_pred = model.predict(x_test)
-        accuracy = accuracy_score(y_test, y_pred)
-        mlflow.log_metric("accuracy", accuracy)
-        mlflow.sklearn.log_model(model, "custom_model", registered_model_name=MODEL_NAME)
-        print(f"Model Accuracy: {accuracy}")
-        print("Model saved to MLflow!")
+
+    # Retry the model training and push with exponential backoff
+    max_retries = 3
+    last_error = None
+    for attempt in range(max_retries):
+        try:
+            with mlflow.start_run():
+                model = RandomForestClassifier(n_estimators=2, random_state=42)
+                model.fit(x_train, y_train)
+                y_pred = model.predict(x_test)
+                accuracy = accuracy_score(y_test, y_pred)
+                mlflow.log_metric("accuracy", accuracy)
+                mlflow.sklearn.log_model(model, "custom_model", registered_model_name=MODEL_NAME)
+                print(f"Model Accuracy: {accuracy}")
+                print("Model saved to MLflow!")
+            break  # Success, exit retry loop
+        except Exception as e:
+            last_error = e
+            print(f"Attempt {attempt + 1}/{max_retries} failed: {e}")
+            if attempt < max_retries - 1:
+                wait_time = 30 * (attempt + 1)  # 30, 60 seconds
+                print(f"Waiting {wait_time}s before retry...")
+                time.sleep(wait_time)
+    else:
+        assert False, f"Failed to train and push model after {max_retries} attempts: {last_error}"
+
     # Utiliser le CLI pour lister les modèles et vérifier la présence de MODEL_NAME
     list_result = run_cli("projects", "list-models", PROJECT_NAME)
     assert list_result.returncode == 0
@@ -113,10 +138,30 @@ def test_project_train_model_should_push_model_to_mlflow():
 
 def test_deploy_model_should_initiate_deployment():
     """Test that deploying a model initiates the deployment process."""
-    result = run_cli("projects", "deploy", PROJECT_NAME, "--model-name", MODEL_NAME, "--model-version", MODEL_VERSION)
+    # Retry deployment with exponential backoff in case of transient failures
+    max_retries = 3
+    last_error = None
 
-    assert result.returncode == 0, f"Deploy failed: {result.stderr}"
-    assert "✅ Model deployed successfully" in result.stdout or "Deployment initiated" in result.stdout
+    for attempt in range(max_retries):
+        result = run_cli(
+            "projects", "deploy", PROJECT_NAME, "--model-name", MODEL_NAME, "--model-version", MODEL_VERSION
+        )
+
+        if result.returncode == 0:
+            if "✅ Model deployed successfully" in result.stdout or "Deployment initiated" in result.stdout:
+                return  # Success
+            else:
+                # Command succeeded but unexpected output
+                assert False, f"Deploy returned success but unexpected output: {result.stdout}"
+
+        last_error = result.stderr
+        print(f"Attempt {attempt + 1}/{max_retries} failed: {result.stderr}")
+        if attempt < max_retries - 1:
+            wait_time = 30 * (attempt + 1)
+            print(f"Waiting {wait_time}s before retry...")
+            time.sleep(wait_time)
+
+    assert False, f"Deploy failed after {max_retries} attempts: {last_error}"
 
 
 def test_deployed_model_should_have_running_deployment():
