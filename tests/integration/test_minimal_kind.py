@@ -79,8 +79,7 @@ class TestModelPlatformNamespace:
             text=True,
         )
 
-        if result.returncode != 0:
-            pytest.skip("Backend deployment not found")
+        assert result.returncode == 0, f"Backend deployment not found: {result.stderr}"
 
         deployment = json.loads(result.stdout)
         assert deployment["metadata"]["name"] == "backend"
@@ -93,12 +92,10 @@ class TestModelPlatformNamespace:
             text=True,
         )
 
-        if result.returncode != 0:
-            pytest.skip("Cannot get backend pods")
+        assert result.returncode == 0, f"Cannot get backend pods: {result.stderr}"
 
         pods = json.loads(result.stdout)
-        if not pods.get("items"):
-            pytest.skip("No backend pods found")
+        assert pods.get("items"), "No backend pods found"
 
         for pod in pods["items"]:
             phase = pod["status"]["phase"]

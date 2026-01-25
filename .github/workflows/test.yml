@@ -96,9 +96,20 @@ jobs:
           kubectl apply -f infrastructure/k8s/nginx-configmap.yaml
           kubectl apply -f infrastructure/k8s/ingress.yaml
           kubectl wait --for=condition=available deployment/nginx-reverse-proxy --timeout=120s || true
-          echo "Infrastructure deployed, waiting for pods..."
-          sleep 10
-          kubectl get pods --all-namespaces
+
+      - name: Deploy backend
+        run: |
+          kubectl apply -f infrastructure/k8s/backend-configmap.yaml
+          kubectl create secret generic backend-secret \
+            --namespace=model-platform \
+            --from-literal=POSTGRES_PASSWORD='test_password' \
+            --from-literal=JWT_SECRET='test_jwt_secret_for_ci' \
+            --from-literal=ADMIN_EMAIL='admin@test.com' \
+            --from-literal=ADMIN_PASSWORD='test_admin_password'
+          kubectl apply -f infrastructure/k8s/backend-deployment.yaml
+          kubectl wait --for=condition=available deployment/backend -n model-platform --timeout=180s
+          echo "Backend deployed, checking pods..."
+          kubectl get pods -n model-platform
 
       - name: Run Kind integration tests (minimal infrastructure tests)
         run: |
@@ -114,7 +125,6 @@ jobs:
     runs-on: ubuntu-22.04
     environment: dev
     needs: test-and-quality-check
-    if: github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'run-e2e')
     steps:
       - uses: actions/checkout@v4
 
