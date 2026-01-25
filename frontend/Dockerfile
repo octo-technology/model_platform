@@ -1,4 +1,4 @@
-FROM python:3.11-slim AS runtime
+FROM python:3.11-slim
 
 WORKDIR /app
 
@@ -13,8 +13,6 @@ RUN uv sync --frozen --no-install-project --group frontend
 
 COPY ./frontend ./frontend
 
-FROM runtime AS final
-WORKDIR /app
 
 ENV PYTHONPATH=/app
 ENV PATH="/app/.venv/bin:$PATH"

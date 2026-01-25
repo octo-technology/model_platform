@@ -1,4 +1,4 @@
-FROM python:3.11-slim AS runtime
+FROM python:3.11-slim
 
 RUN apt-get update && \
     apt-get install -y docker.io && \
@@ -14,8 +14,6 @@ RUN uv sync --frozen --no-install-project --group backend
 
 COPY ./backend ./backend
 
-FROM runtime AS final
-WORKDIR /app
 
 ENV PYTHONPATH=/app
 ENV PATH="/app/.venv/bin:$PATH"
