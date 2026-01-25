@@ -80,10 +80,30 @@ jobs:
           kubectl cluster-info
           kubectl get nodes
 
+      - name: Install ingress-nginx controller for Kind
+        run: |
+          kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
+          kubectl wait --namespace ingress-nginx \
+            --for=condition=ready pod \
+            --selector=app.kubernetes.io/component=controller \
+            --timeout=90s
+
+      - name: Deploy infrastructure (namespaces, minio, nginx, ingress)
+        run: |
+          kubectl apply -f infrastructure/k8s/namespaces.yaml
+          kubectl apply -f infrastructure/k8s/minio-deployment.yaml
+          kubectl apply -f infrastructure/k8s/nginx-deployment.yaml
+          kubectl apply -f infrastructure/k8s/nginx-configmap.yaml
+          kubectl apply -f infrastructure/k8s/ingress.yaml
+          kubectl wait --for=condition=available deployment/nginx-reverse-proxy --timeout=120s || true
+          echo "Infrastructure deployed, waiting for pods..."
+          sleep 10
+          kubectl get pods --all-namespaces
+
       - name: Run Kind integration tests (minimal infrastructure tests)
         run: |
           echo "Launching Kind integration tests"
-          poetry run pytest tests/integration/test_minimal_kind.py -v --tb=short || echo "Some Kind tests skipped (infrastructure not fully deployed)"
+          poetry run pytest tests/integration/test_minimal_kind.py -v --tb=short
 
       - name: Delete Kind cluster
         if: always()

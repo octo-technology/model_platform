@@ -130,11 +130,9 @@ class TestNginxInfrastructure:
             text=True,
         )
 
-        if result.returncode != 0:
-            pytest.skip("No ingress found")
-
+        assert result.returncode == 0, f"Failed to get ingress: {result.stderr}"
         ingresses = json.loads(result.stdout)
-        assert len(ingresses.get("items", [])) > 0, "No ingress resources found"
+        assert len(ingresses.get("items", [])) > 0, "No ingress resources found in default namespace"
 
 
 class TestMinioStorage:
@@ -148,5 +146,6 @@ class TestMinioStorage:
             text=True,
         )
 
+        assert result.returncode == 0, f"MinIO service not found: {result.stderr}"
         service = json.loads(result.stdout)
         assert service["metadata"]["name"] == "minio"
