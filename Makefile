@@ -1,5 +1,5 @@
-include .env
-export $(shell sed 's/=.*//' .env)
+-include .env
+export $(shell [ -f .env ] && sed 's/=.*//' .env)
 
 PGSQL_HOST := modelplatform-pgsql
 PGSQL_NAMESPACE := pgsql
@@ -108,7 +108,7 @@ create-backend-secret:
 
 test-unit:
 	@echo "🧪 Running unit tests..."
-	poetry run pytest tests/test_unitaires -v
+	uv run pytest tests/test_unitaires -v
 
 test-integration-kind:
 	@echo "🧪 Running Kind integration tests..."
@@ -116,7 +116,7 @@ test-integration-kind:
 		echo "⚠️  No Kind cluster found. Creating one..."; \
 		kind create cluster --name model-platform-test; \
 	fi
-	poetry run pytest tests/integration/test_minimal_kind.py -v
+	uv run pytest tests/integration/test_minimal_kind.py -v
 	@echo "✅ Kind integration tests completed"
 
 test-integration-minikube:
@@ -125,7 +125,7 @@ test-integration-minikube:
 		echo "❌ Minikube is not running. Please start it with: minikube start"; \
 		exit 1; \
 	fi
-	poetry run pytest tests/integration/ -v -m "not slow"
+	uv run pytest tests/integration/ -v -m "not slow"
 	@echo "✅ Minikube integration tests completed"
 
 test-e2e:
@@ -137,12 +137,12 @@ test-e2e:
 	@if ! curl -sf http://model-platform.com/health > /dev/null 2>&1; then \
 		echo "⚠️  Backend health check failed. Make sure infrastructure is deployed."; \
 	fi
-	poetry run pytest tests/tests_end_to_end/test_from_project_creation_to_model_predict.py -v
+	uv run pytest tests/tests_end_to_end/test_from_project_creation_to_model_predict.py -v
 	@echo "✅ End-to-end tests completed"
 
 test-e2e-monitoring:
 	@echo "🧪 Running monitoring persistence tests..."
-	poetry run pytest tests/tests_end_to_end/test_monitoring_resources_persistence.py -v -m "slow and destructive"
+	uv run pytest tests/tests_end_to_end/test_monitoring_resources_persistence.py -v -m "slow and destructive"
 	@echo "✅ Monitoring tests completed"
 
 test-all:
