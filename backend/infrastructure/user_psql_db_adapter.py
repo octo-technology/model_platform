@@ -9,17 +9,7 @@ from backend.domain.entities.role import ProjectRole, Role
 from backend.domain.entities.user import User
 from backend.domain.ports.user_handler import UserHandler
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__truncate_error=False)
-
-
-def hash_password(password: str) -> str:
-    """Hash password, truncating to 72 bytes for bcrypt compatibility."""
-    return pwd_context.hash(password[:72])
-
-
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify password, truncating to 72 bytes for bcrypt compatibility."""
-    return pwd_context.verify(plain_password[:72], hashed_password)
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 class UserPgsqlDbAdapter(UserHandler):
@@ -171,7 +161,7 @@ class UserPgsqlDbAdapter(UserHandler):
             cursor = connection.cursor()
             cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
             row = cursor.fetchone()
-            if row and verify_password(password, row[2]):
+            if row and pwd_context.verify(password, row[2]):
                 user = User(
                     id=row[0],
                     email=row[1],
@@ -293,7 +283,7 @@ class UserPgsqlDbAdapter(UserHandler):
             cursor = connection.cursor()
             email = self.admin_config["email"]
             password = self.admin_config["password"]
-            hashed_password = hash_password(password)
+            hashed_password = pwd_context.hash(password)
             cursor.execute(
                 """
                 INSERT INTO users (email, hashed_password, role)
