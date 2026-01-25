@@ -15,7 +15,7 @@ import subprocess
 
 import pytest
 
-from tests.integration.conftest import is_kubectl_available
+from tests.conftest import is_kubectl_available
 
 
 # Skip all tests if no cluster available

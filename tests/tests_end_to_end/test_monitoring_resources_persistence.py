@@ -11,15 +11,10 @@ import time
 
 import pytest
 
+from tests.conftest import is_minikube_running
 
-def is_minikube_running():
-    try:
-        result = subprocess.run(["minikube", "status"], capture_output=True, text=True, check=True)
-        return "Running" in result.stdout
-    except subprocess.CalledProcessError:
-        return False
-    except FileNotFoundError:
-        return False
+# Skip if no local cluster available
+pytestmark = pytest.mark.skipif(not is_minikube_running(), reason="Minikube is not running")
 
 
 TEST_SERVICE_MONITOR_NAME = "test-persistence-servicemonitor"
@@ -89,7 +84,7 @@ def delete_resource(resource_type, name, namespace="monitoring"):
 
 
 def run_make_k8s_monitoring():
-    subprocess.run(["make", "k8s-monitoring"], capture_output=True, timeout=300)
+    subprocess.run(["make", "k8s-monitoring"], capture_output=True, timeout=90)
 
 
 @pytest.mark.slow
@@ -100,10 +95,6 @@ def test_k8s_monitoring_preserves_custom_resources():
 
     Run with: pytest -m "slow and destructive" path/to/this/file.py
     """
-    assert (
-        is_minikube_running()
-    ), "Minikube is not running. Please start it with `minikube start` before running this test."
-
     create_test_service_monitor(TEST_SERVICE_MONITOR_NAME)
     create_test_dashboard_configmap(TEST_CONFIGMAP_NAME)
 
