@@ -165,6 +165,17 @@ jobs:
           # Network config - apply configmap BEFORE deployment
           kubectl apply -f infrastructure/k8s/namespaces.yaml
           kubectl apply -f infrastructure/k8s/minio-deployment.yaml
+
+          # Deploy monitoring (Prometheus/Grafana) before nginx to avoid DNS resolution errors
+          kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+          helm repo update
+          helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+            --namespace monitoring \
+            -f infrastructure/k8s/monitoring/prometheus-values.yaml \
+            -f infrastructure/k8s/monitoring/grafana-values.yaml \
+            --wait --timeout=300s
+
           kubectl apply -f infrastructure/k8s/nginx-configmap.yaml
           kubectl apply -f infrastructure/k8s/nginx-deployment.yaml
           kubectl apply -f infrastructure/k8s/ingress.yaml
