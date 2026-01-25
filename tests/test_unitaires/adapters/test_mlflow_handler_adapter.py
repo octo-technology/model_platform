@@ -9,9 +9,10 @@ from backend.infrastructure.mlflow_handler_adapter import MLFlowHandlerAdapter
 
 @pytest.fixture
 def mock_mlflow_client():
-    with patch("backend.infrastructure.mlflow_handler_adapter.MLflowClientManager") as MockClientManager, patch(
-        "backend.infrastructure.mlflow_handler_adapter.MLFlowModelRegistryAdapter"
-    ) as MockRegistryAdapter:
+    with (
+        patch("backend.infrastructure.mlflow_handler_adapter.MLflowClientManager") as MockClientManager,
+        patch("backend.infrastructure.mlflow_handler_adapter.MLFlowModelRegistryAdapter") as MockRegistryAdapter,
+    ):
         mock_client_manager = MockClientManager.return_value
         mock_registry_adapter = MockRegistryAdapter.return_value
 
