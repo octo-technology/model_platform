@@ -57,18 +57,6 @@ k8s-monitoring:
 		-f infrastructure/k8s/monitoring/grafana-values.yaml
 	kubectl rollout restart deployment/nginx-reverse-proxy
 
-run-ci-arm:
-	act -W .github/workflows/test.yml --container-architecture linux/arm64
-
-run-ci-amd:
-	act -W .github/workflows/test.yml
-
-front:
-	python -m streamlit run frontend/app.py --server.runOnSave=true
-
-back:
-	eval $(minikube docker-env); python -m backend
-
 build-mlflow:
 	@if [ "$$SHELL" = "/bin/zsh" ] || [ "$$SHELL" = "/usr/bin/zsh" ]; then \
 		eval $$(minikube docker-env) && docker build -t mlflow -f infrastructure/registry/Dockerfile .; \
@@ -79,14 +67,6 @@ build-mlflow:
 	fi
 
 MINIKUBE_GATEWAY := $(shell minikube ssh "ip route" | grep '^default' | awk '{print $$3}')
-
-get-ip:
-	@echo "Gateway Minikube: $(MINIKUBE_GATEWAY)"
-
-set-ip:
-	python backend/domain/use_cases/main_update_registries_minio_ip.py
-
-model-platform: back front
 
 create-backend-secret:
 	@if [ -z "$(POSTGRES_PWD)" ] || [ -z "$(JWT_SECRET)" ] || [ -z "$(ADMIN_EMAIL)" ] || [ -z "$(ADMIN_PWD)" ]; then \
