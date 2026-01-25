@@ -181,7 +181,7 @@ def test_deployed_model_returns_predictions():
     response = requests.post(predict_url, json=test_data, headers={"Content-Type": "application/json"}, timeout=30)
     assert response.status_code == 200, f"Prediction failed: {response.text}"
     predictions = response.json()
-    assert "predictions" in predictions or isinstance(predictions, list), "Response should contain predictions"
+    assert "outputs" in predictions, f"Response should contain outputs or predictions: {predictions}"
 
 
 def test_list_deployed_models():
@@ -202,7 +202,7 @@ def test_undeploy_model():
 def test_undeployed_model_is_removed():
     """Test that undeployed model no longer has a K8s deployment."""
     _skip_if_mlflow_not_ready()
-    time.sleep(30)  # Wait for cleanup
+    time.sleep(30)
 
     deployment_name = sanitize_ressource_name(f"{PROJECT_NAME}-{MODEL_NAME}-{MODEL_VERSION}-deployment")
     result = subprocess.run(
