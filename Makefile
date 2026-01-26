@@ -82,4 +82,6 @@ create-backend-secret:
 		--dry-run=client -o yaml > infrastructure/k8s/backend-secret.yaml
 	@echo "✅ backend-secret.yaml créé (fichier local uniquement, non commité grâce au .gitignore)"
 
-k8s-modelplatform: k8s-pgsql k8s-monitoring k8s-network-conf k8s-backend k8s-frontend
+k8s-infra: k8s-pgsql k8s-monitoring k8s-network-conf
+
+k8s-modelplatform: k8s-backend k8s-frontend
