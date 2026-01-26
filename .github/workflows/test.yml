@@ -166,6 +166,11 @@ jobs:
           make create-backend-secret POSTGRES_PWD=your_postgres_password JWT_SECRET="ask for the JWT secret" ADMIN_EMAIL=alice@example.com ADMIN_PWD=pass!
           make k8s-modelplatform
 
+      - name: Wait for infrastructure to settle (3m)
+        run: |
+          echo "Waitin 3 minutes for infrastructure to settle"
+          sleep 180
+
       - name: Run end-to-end tests
         run: |
           echo "Launching end-to-end tests"
