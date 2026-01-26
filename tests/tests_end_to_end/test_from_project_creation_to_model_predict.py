@@ -96,6 +96,7 @@ def _skip_if_mlflow_not_ready():
 
 def test_train_and_push_model_to_mlflow():
     """Test model training and push to MLflow."""
+    time.sleep(60)
     _skip_if_mlflow_not_ready()
     # Verify MLflow API is operational before pushing
     api_url = f"http://{MP_HOSTNAME}/registry/{PROJECT_NAME}/api/2.0/mlflow/experiments/search"
