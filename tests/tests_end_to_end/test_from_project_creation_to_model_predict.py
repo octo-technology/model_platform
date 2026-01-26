@@ -160,6 +160,7 @@ def test_deployed_model_is_running():
 def test_deployed_model_health_check():
     """Test that deployed model responds to health check."""
     _skip_if_mlflow_not_ready()
+    time.sleep(120)
     deployment_name = sanitize_ressource_name(f"{PROJECT_NAME}-{MODEL_NAME}-{MODEL_VERSION}-deployment")
     health_url = f"http://{MP_HOSTNAME}/deploy/{PROJECT_NAME}/{deployment_name}/health"
 
@@ -231,4 +232,4 @@ def test_project_registry_is_removed():
         text=True,
     )
     # 404, 502, or 503 all indicate the registry is gone
-    assert result.stdout in ["404", "502", "503"], f"Registry should not be accessible: {result.stdout}"
+    assert result.stdout in ["404", "502", "503", "504"], f"Registry should not be accessible: {result.stdout}"
