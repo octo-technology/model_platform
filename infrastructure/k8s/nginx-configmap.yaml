@@ -7,7 +7,7 @@ data:
     events {}
     http {
          error_log /var/log/nginx/error.log debug;
-         resolver 10.96.0.10 valid=10s;
+         resolver kube-dns.kube-system.svc.cluster.local valid=10s;
          resolver_timeout 5s;
 
          server {
