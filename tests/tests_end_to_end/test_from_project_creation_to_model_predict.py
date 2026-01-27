@@ -114,7 +114,7 @@ def test_train_and_push_model_to_mlflow():
         mlflow.sklearn.log_model(model, "custom_model", registered_model_name=MODEL_NAME)
 
     # Verify model is registered
-    time.sleep(5)
+    time.sleep(60)
     result = run_cli("projects", "list-models", PROJECT_NAME)
     assert result.returncode == 0, f"list-models failed: {result.stderr}"
     assert MODEL_NAME in result.stdout, f"Model {MODEL_NAME} not found in: {result.stdout}"
