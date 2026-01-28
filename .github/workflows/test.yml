@@ -158,7 +158,7 @@ jobs:
 
       - name: Setup /etc/hosts for model-platform.com
         run: |
-          echo "$(minikube ip) model-platform.com" | sudo tee -a /etc/hosts
+          echo "127.0.0.1 model-platform.com" | sudo tee -a /etc/hosts
 
       - name: Deploy full infrastructure
         run: |
