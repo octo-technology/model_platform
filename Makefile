@@ -50,7 +50,8 @@ k8s-pgsql:
 	kubectl create namespace pgsql --dry-run=client -o yaml | kubectl apply -f -
 
 	kubectl apply -f infrastructure/k8s/pg-init-schemas.yaml
-	kubectl apply -f infrastructure/k8s/pgsql-deployment.yaml
+	@export $$(cat .env | grep -v '^#' | xargs) && \
+		envsubst < infrastructure/k8s/pgsql-deployment.yaml | kubectl apply -f -
 	kubectl apply -f infrastructure/k8s/pgsql-init-job.yaml
 
 k8s-monitoring:

@@ -40,8 +40,8 @@ metadata:
     app: postgresdb
 data:
   POSTGRES_DB: ps_db
-  POSTGRES_USER: postgres
-  POSTGRES_PASSWORD: your_postgres_password
+  POSTGRES_USER: ${POSTGRES_USER}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
 ---
 apiVersion: apps/v1
 kind: Deployment

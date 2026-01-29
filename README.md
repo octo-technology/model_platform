@@ -34,14 +34,15 @@ Install helm
 Start minikube cluster with recommended specs
 
 ```bash
+colima start --cpu 4 --memory 8
+```
+
+```bash
 #recommended configuration to avoid freezing/timeouts
 minikube start --cpus 2 --memory 7800 --disk-size 50g
 ```
-(You may need to start colima with custom config)
 
-```bash
-colima start --cpu 4 --memory 8
-```
+
 
 Activate Ingress controller add-on
 
