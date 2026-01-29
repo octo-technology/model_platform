@@ -14,9 +14,18 @@ def mock_k8s_config():
 
 @pytest.fixture
 def mock_k8s_client():
+    # On importe le vrai client pour les objets de données
+    from kubernetes import client as real_client
+
     with patch("backend.infrastructure.grafana_dashboard_adapter.client") as mock_client:
+        # On mock seulement l'API, pas les classes de données
         mock_v1 = MagicMock()
         mock_client.CoreV1Api.return_value = mock_v1
+
+        # On garde les vrais objets de données (V1ConfigMap, V1ObjectMeta, etc.)
+        mock_client.V1ConfigMap = real_client.V1ConfigMap
+        mock_client.V1ObjectMeta = real_client.V1ObjectMeta
+
         yield mock_v1
 
 
@@ -71,7 +80,7 @@ def test_create_dashboard_sets_correct_labels(adapter, mock_k8s_client):
     )
 
     call_args = mock_k8s_client.create_namespaced_config_map.call_args
-    configmap = call_args[1]["body"]
+    configmap = call_args.kwargs["body"]
     assert configmap.metadata.labels["grafana_dashboard"] == "1"
 
 
