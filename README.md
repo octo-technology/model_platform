@@ -19,7 +19,7 @@ A tribe project to build a Model Platform
 
 ## How to run
 
-### - Setup your K8S env 
+### - Setup your K8S env
 
 A working minikube is needed for dev purposes
 
@@ -68,12 +68,12 @@ minikube ip
 IP.RESULT model-platform.com
 ```
 
-### -  Fill .env file 
+### -  Fill .env file
 
 **Some values are used (pgsql password etc...) in the init scripts !!**
 
-```bash 
-Use the .env.example 
+```bash
+Use the .env.example
 ```
 ### - Setup Namespaces, NGINX, Ingress
 
@@ -87,16 +87,16 @@ make k8s-network-conf
 make k8s-pgsql
 ```
 
-### - Prepare a custom MLFLow Docker image 
-With integrated psycopg2 package 
+### - Prepare a custom MLFLow Docker image
+With integrated psycopg2 package
 
 ```bash
 make build-mlflow
 ```
 
-**You should now have a working k8s environment** 
+**You should now have a working k8s environment**
 
-## Deploy the model platform en k8s 
+## Deploy the model platform en k8s
 
 ```bash
 make k8s-modelplatform
@@ -110,8 +110,8 @@ make k8s-monitoring
 
 ### Connect to model platform
 
-Via fronted 
-    
+Via fronted
+
     http://model-platform.com
 
 or
@@ -128,11 +128,11 @@ or
 
     Error executing docker build: [Errno 2] No such file or directory: 'docker'
 
-Run 
+Run
 
     minikube docker-env
     #Check if same in .env
-    if not update and run 
+    if not update and run
     k8s-modelplatform
 
 

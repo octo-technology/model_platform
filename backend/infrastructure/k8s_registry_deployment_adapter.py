@@ -92,9 +92,7 @@ class K8SRegistryDeployment(RegistryDeployment, K8SDeployment):
                                     client.V1EnvVar(name="MLFLOW_SERVER_PORT", value=str(self.port)),
                                     client.V1EnvVar(name="AWS_ACCESS_KEY_ID", value="minio_user"),
                                     client.V1EnvVar(name="AWS_SECRET_ACCESS_KEY", value="minio_password"),
-                                    client.V1EnvVar(
-                                        name="MLFLOW_S3_ENDPOINT_URL", value=self.mlflow_s3_endpoint_url
-                                    ),
+                                    client.V1EnvVar(name="MLFLOW_S3_ENDPOINT_URL", value=self.mlflow_s3_endpoint_url),
                                 ],
                                 command=[
                                     "mlflow",
@@ -140,7 +138,7 @@ class K8SRegistryDeployment(RegistryDeployment, K8SDeployment):
                 logger.info(f"⚠️ Error while creating/updating the deployment: {e}")
 
     def create_db_dropper_job(self):
-        #TODO ne fonctionne pas actuellement
+        # TODO ne fonctionne pas actuellement
         logger.info(f"Creating job to drop database {self.mlflow_db_name}...")
         batch_api_instance = client.BatchV1Api()
         job_name = "drop-db-job"
@@ -162,9 +160,18 @@ class K8SRegistryDeployment(RegistryDeployment, K8SDeployment):
             command=[
                 "/bin/sh",
                 "-c",
-                f"PGPASSWORD=$PGPASSWORD psql -h {self.pgsql_cluster_host} -U {self.pgsql_user} -d postgres -v ON_ERROR_STOP=1 -c \"REVOKE CONNECT ON DATABASE {self.mlflow_db_name} FROM PUBLIC;\" "
-                f"&& PGPASSWORD=$PGPASSWORD psql -h {self.pgsql_cluster_host} -U {self.pgsql_user} -d postgres -v ON_ERROR_STOP=1 -c \"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '{self.mlflow_db_name}' AND pid <> pg_backend_pid();\" "
-                f"&& PGPASSWORD=$PGPASSWORD psql -h {self.pgsql_cluster_host} -U {self.pgsql_user} -d postgres -v ON_ERROR_STOP=1 -c \"DROP DATABASE IF EXISTS {self.mlflow_db_name};\""
+                (
+                    f"PGPASSWORD=$PGPASSWORD psql -h {self.pgsql_cluster_host} "
+                    f"-U {self.pgsql_user} -d postgres -v ON_ERROR_STOP=1 "
+                    f'-c "REVOKE CONNECT ON DATABASE {self.mlflow_db_name} FROM PUBLIC;" '
+                    f"&& PGPASSWORD=$PGPASSWORD psql -h {self.pgsql_cluster_host} "
+                    f"-U {self.pgsql_user} -d postgres -v ON_ERROR_STOP=1 "
+                    f'-c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity '
+                    f"WHERE datname = '{self.mlflow_db_name}' AND pid <> pg_backend_pid();\" "
+                    f"&& PGPASSWORD=$PGPASSWORD psql -h {self.pgsql_cluster_host} "
+                    f"-U {self.pgsql_user} -d postgres -v ON_ERROR_STOP=1 "
+                    f'-c "DROP DATABASE IF EXISTS {self.mlflow_db_name};"'
+                ),
             ],
             env=[client.V1EnvVar(name="PGPASSWORD", value=self.pgsql_password)],
         )

@@ -2,6 +2,7 @@ from frontend.utils import send_get_query
 
 STATUS_COLOR = {"healthy": "🟢", "unhealthy": "🟠", "unreachable": "🔴"}
 
+
 def check_url_health(url):
     try:
         response = send_get_query(url, timeout=1)
@@ -11,4 +12,3 @@ def check_url_health(url):
             return "unhealthy", STATUS_COLOR["unhealthy"]
     except Exception:
         return "unreachable", STATUS_COLOR["unreachable"]
-

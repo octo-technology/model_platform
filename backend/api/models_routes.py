@@ -5,7 +5,6 @@ This module provides endpoints for interacting with the model registry.
 
 import inspect
 import logging
-import os
 import uuid
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Request
@@ -177,7 +176,9 @@ def route_deploy_model(
     tasks_status[task_id] = "queued"
     logger.debug(f"Deploying {model_name}:{version} with task_id: {task_id}")
     decorated_task = track_task_status(task_id, tasks_status)(deploy_model)
-    background_tasks.add_task(decorated_task, registry, project_name, model_name, version, dashboard_handler, current_user["email"])
+    background_tasks.add_task(
+        decorated_task, registry, project_name, model_name, version, dashboard_handler, current_user["email"]
+    )
 
     return JSONResponse({"task_id": task_id, "status": "Deployment initiated"}, media_type="application/json")
 

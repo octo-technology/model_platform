@@ -46,20 +46,16 @@ def format_projects_response(projects: dict) -> pd.DataFrame:
 
 def build_project_registry_url(project_name: str) -> tuple[str, str]:
     cluster_registry_url = (
-            "http://"
-            + sanitize_name(project_name)
-            + "."
-            + sanitize_name(project_name)
-            + ".svc.cluster.local:5000"
+        "http://" + sanitize_name(project_name) + "." + sanitize_name(project_name) + ".svc.cluster.local:5000"
     )
     project_registry_url = (
-            "http://"
-            + os.environ["MP_HOST_NAME"]
-            + "/"
-            + os.environ["MP_REGISTRY_PATH"]
-            + "/"
-            + sanitize_name(project_name)
-            + "/"
+        "http://"
+        + os.environ["MP_HOST_NAME"]
+        + "/"
+        + os.environ["MP_REGISTRY_PATH"]
+        + "/"
+        + sanitize_name(project_name)
+        + "/"
     )
     return project_registry_url, cluster_registry_url
 

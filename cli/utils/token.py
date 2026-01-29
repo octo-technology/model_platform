@@ -20,13 +20,10 @@ def load_token():
             return json.load(f)
     return None
 
+
 def get_client() -> httpx.Client:
     token = load_token()
     if not token:
         typer.echo("You need to login first (use `mycli login`).")
         raise typer.Exit(1)
-    return httpx.Client(
-        base_url=API_URL,
-        headers={"Authorization": f"Bearer {token['access_token']}"},
-        verify=False
-    )
+    return httpx.Client(base_url=API_URL, headers={"Authorization": f"Bearer {token['access_token']}"}, verify=False)

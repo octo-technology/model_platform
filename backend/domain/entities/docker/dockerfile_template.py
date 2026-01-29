@@ -14,7 +14,8 @@ class DockerfileTemplate:
 
         # Set environment variables
         ENV IMAGE_NAME={image_name}
-        ENV OTEL_METRICS_EXPORTER_LABELS="project_name={project_name},model_name={model_name},model_version={model_version}"
+        ENV OTEL_METRICS_EXPORTER_LABELS="project_name={project_name},\
+        model_name={model_name},model_version={model_version}"
 
         # Setup uv
         RUN wget -qO- https://astral.sh/uv/install.sh | sh && which uv || echo "UV installation failed"
@@ -45,7 +46,9 @@ class DockerfileTemplate:
         EXPOSE 8000
 
         # Activate conda environment and start the application
-        CMD ["bash", "-c", "uv run opentelemetry-instrument --service_name $IMAGE_NAME uvicorn fast_api_template:app --host 0.0.0.0 --port 8000 --log-level debug"]
+        CMD ["bash", "-c", \
+            "uv run opentelemetry-instrument --service_name $IMAGE_NAME \
+            uvicorn fast_api_template:app --host 0.0.0.0 --port 8000 --log-level debug"]
         """
 
     def generate_dockerfile(

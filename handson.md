@@ -1,10 +1,10 @@
-# Demi journée MLOps x SmartIndus 
+# Demi journée MLOps x SmartIndus
 30/09/2025
 
 ## Objectifs
 
 - Se familiariser avec VIO et la model platform
-- Modifier le déploiement d'un modèle sur la modèle platform pour 
+- Modifier le déploiement d'un modèle sur la modèle platform pour
   - qu'il puisse recevoir une image en input
   - retourne les prédictions au format attendu par VIO
 
@@ -19,7 +19,7 @@
   - Kubectl
   - Helm
   - Make
-  - Python >= 3.11 
+  - Python >= 3.11
   - Poetry
 
 Repo model platform :
@@ -35,12 +35,12 @@ Suivre les instructions du README du repo model_platform : [README.md](README.md
 
 ## Installation de VIO
 
-Suivre les instructions du README du repo VIO 
+Suivre les instructions du README du repo VIO
 
 
 ## Configurer l'environnement de développement python / notebook
 - Créer un environnement virtuel python
-    
+
         pip install poetry
         poetry env use 3.11.X (la version de votre python)
         poetry install --with notebooks
@@ -64,7 +64,7 @@ Suivre les instructions du README du repo VIO
   - [images](demos/notebooks/tensorflow/images) images de test
   - [marker_quality_control](demos/notebooks/tensorflow/marker_quality_control) modèle pré entrainé
     - Utilisez le concept de model as code https://mlflow.org/docs/3.0.1/model/models-from-code/ pour encapsuler le modèle tensorflow
-      - Encapsuler le modèle dans une classe héritant de mlflow.pyfunc.PythonModel 
+      - Encapsuler le modèle dans une classe héritant de mlflow.pyfunc.PythonModel
         - Doit implémenter les méthodes `load_context` et `predict`
       - Logguer le modèle sur la modèle platform en utilisant la cellule 6 du notebook.
       - Déployer le modèle
@@ -72,7 +72,7 @@ Suivre les instructions du README du repo VIO
         ```
         curl -X POST http://model-platform.com/deploy/test/test-marker-quality-control-1-deployment-3b4041/predict \-F "file=@images/10.jpg"
         ```
-        
+
 ### Adapter VIO pour qu'il puisse utiliser le modèle déployé sur la model paltform
  - Comprendre le fonctionne de VIO (comment changer le endpoint du model serving)
  - Il va falloir adapter la construction de l'url dans l'orchestrator VIO
@@ -82,4 +82,3 @@ Suivre les instructions du README du repo VIO
 ````
 curl -H "Host: model-platform.com" http://host.docker.internal/deploy/test/test-marker-quality-control-1-deployment-3b4041/health
 ````
- 

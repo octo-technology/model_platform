@@ -15,8 +15,9 @@ def pretty_print(output_json):
         print(" ".join(f"{str(output_json.get(h, '')):20}" for h in headers))
 
 
-def get_and_print(endpoint: str, error_message: str = "❌ Error fetching query",
-                  success_message: str = "Empty") -> None:
+def get_and_print(
+    endpoint: str, error_message: str = "❌ Error fetching query", success_message: str = "Empty"
+) -> None:
     client = get_client()
     r = client.get(endpoint)
     if r.status_code == 200:
@@ -31,8 +32,9 @@ def get_and_print(endpoint: str, error_message: str = "❌ Error fetching query"
         print(error_message)
 
 
-def post_and_print(endpoint: str, payload: dict, error_message: str = "❌ Error",
-                   success_message: str = "✅Success") -> None:
+def post_and_print(
+    endpoint: str, payload: dict, error_message: str = "❌ Error", success_message: str = "✅Success"
+) -> None:
     client = get_client()
     if payload is not None:
         r = client.post(endpoint, json=payload)

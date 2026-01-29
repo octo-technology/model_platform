@@ -72,11 +72,13 @@ def create_test_dashboard_configmap(name, namespace="monitoring"):
             "labels": {"grafana_dashboard": "1", "app": "test-persistence"},
         },
         "data": {
-            "test-dashboard.json": json.dumps({
-                "uid": "test-persistence-dashboard",
-                "title": "Test Persistence Dashboard",
-                "panels": [],
-            })
+            "test-dashboard.json": json.dumps(
+                {
+                    "uid": "test-persistence-dashboard",
+                    "title": "Test Persistence Dashboard",
+                    "panels": [],
+                }
+            )
         },
     }
     run_kubectl("apply", "-f", "-", input_data=json.dumps(resource))
@@ -98,9 +100,9 @@ def test_k8s_monitoring_preserves_custom_resources():
 
     Run with: pytest -m "slow and destructive" path/to/this/file.py
     """
-    assert is_minikube_running(), (
-        "Minikube is not running. Please start it with `minikube start` before running this test."
-    )
+    assert (
+        is_minikube_running()
+    ), "Minikube is not running. Please start it with `minikube start` before running this test."
 
     create_test_service_monitor(TEST_SERVICE_MONITOR_NAME)
     create_test_dashboard_configmap(TEST_CONFIGMAP_NAME)
