@@ -169,7 +169,7 @@ jobs:
       - name: Wait for infrastructure to settle (3m)
         run: |
           echo "Waitin 3 minutes for infrastructure to settle"
-          sleep 180
+          sleep 60
 
       - name: Run end-to-end tests
         run: |

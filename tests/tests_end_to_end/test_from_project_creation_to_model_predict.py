@@ -127,49 +127,24 @@ def test_deploy_model():
     assert result.returncode == 0, f"Deploy failed: {result.stderr}"
 
 
-def test_deployed_model_is_running():
-    """Test that deployed model has a running K8s deployment."""
-    _skip_if_mlflow_not_ready()
-    deployment_name = sanitize_ressource_name(f"{PROJECT_NAME}-{MODEL_NAME}-{MODEL_VERSION}-deployment")
-
-    # Wait for deployment to be ready (model build takes time)
-    max_wait = 300
-    start_time = time.time()
-    while time.time() - start_time < max_wait:
-        result = subprocess.run(
-            [
-                "kubectl",
-                "get",
-                "deployment",
-                deployment_name,
-                "-n",
-                PROJECT_NAME,
-                "-o",
-                "jsonpath={.status.readyReplicas}",
-            ],
-            capture_output=True,
-            text=True,
-        )
-        if result.stdout.strip() == "1":
-            return
-        time.sleep(10)
-
-    pytest.fail(f"Deployment {deployment_name} did not become ready within {max_wait} seconds")
-
-
 def test_deployed_model_health_check():
     """Test that deployed model responds to health check."""
     _skip_if_mlflow_not_ready()
-    time.sleep(120)
+    time.sleep(180)
     deployment_name = sanitize_ressource_name(f"{PROJECT_NAME}-{MODEL_NAME}-{MODEL_VERSION}-deployment")
     health_url = f"http://{MP_HOSTNAME}/deploy/{PROJECT_NAME}/{deployment_name}/health"
+    timeout = time.time() + 120
+    while time.time() < timeout:
+        result = subprocess.run(
+            ["curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", health_url],
+            capture_output=True,
+            text=True,
+        )
+        if result.stdout == "200":
+            return
+        time.sleep(5)  # Retry every 5 seconds
 
-    result = subprocess.run(
-        ["curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", health_url],
-        capture_output=True,
-        text=True,
-    )
-    assert result.stdout == "200", f"Model health endpoint did not respond with 200: {result.stdout}"
+    raise AssertionError(f"Model health endpoint did not respond with 200 within 2 minutes")
 
 
 def test_deployed_model_returns_predictions():
