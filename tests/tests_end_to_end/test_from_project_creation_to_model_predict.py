@@ -14,6 +14,7 @@ import random
 import string
 import subprocess
 import time
+import os
 
 import mlflow
 import mlflow.sklearn
@@ -97,6 +98,36 @@ def _skip_if_mlflow_not_ready():
 # --- Debug helpers to surface CI failures ---
 
 
+def _setup_minikube_docker_env():
+    """Ensure we're using minikube's docker daemon for image builds."""
+    try:
+        # Get minikube docker env
+        result = subprocess.run(
+            ["minikube", "docker-env", "--shell", "bash"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if result.returncode == 0:
+            # Parse the env vars from minikube docker-env output
+            env_lines = [line.strip() for line in result.stdout.split("\n") if line.startswith("export ")]
+            for line in env_lines:
+                if "=" in line:
+                    # Extract VAR=value from "export VAR=value"
+                    var_assignment = line.replace("export ", "", 1)
+                    if "=" in var_assignment:
+                        key, value = var_assignment.split("=", 1)
+                        # Remove quotes from value if present
+                        value = value.strip("\"'")
+                        os.environ[key] = value
+                        print(f"[DEBUG] Set {key}={value}")
+            print("[DEBUG] Minikube docker environment configured")
+        else:
+            print(f"[DEBUG] Failed to get minikube docker-env: {result.stderr}")
+    except Exception as exc:
+        print(f"[DEBUG] Error setting up minikube docker env: {exc}")
+
+
 def _run_debug_cmd(label, cmd):
     print(f"[DEBUG] {label}: {' '.join(cmd)}")
     try:
@@ -137,7 +168,11 @@ def _dump_deployment_debug_info(deployment_name):
     pod_name = _first_pod_name(PROJECT_NAME)
     if pod_name:
         _run_debug_cmd("kubectl describe pod", ["kubectl", "describe", "pod", pod_name, "-n", PROJECT_NAME])
-        _run_debug_cmd("kubectl logs", ["kubectl", "logs", pod_name, "-n", PROJECT_NAME])
+        _run_debug_cmd("kubectl logs current", ["kubectl", "logs", pod_name, "-n", PROJECT_NAME])
+        _run_debug_cmd("kubectl logs previous", ["kubectl", "logs", pod_name, "-n", PROJECT_NAME, "--previous"])
+
+    # Also check available images in minikube
+    _run_debug_cmd("minikube image ls", ["minikube", "image", "ls"])
 
 
 def _dump_registry_status():
@@ -174,7 +209,16 @@ def test_train_and_push_model_to_mlflow():
 def test_deploy_model():
     """Test model deployment."""
     _skip_if_mlflow_not_ready()
+    # Ensure we use minikube's docker daemon for image builds
+    _setup_minikube_docker_env()
     result = run_cli("projects", "deploy", PROJECT_NAME, "--model-name", MODEL_NAME, "--model-version", MODEL_VERSION)
+
+    # Check if image exists in minikube after deployment
+    expected_image_name = (
+        f"{PROJECT_NAME.lower().replace('_', '-')}-{MODEL_NAME.lower().replace('_', '-')}-{MODEL_VERSION}-ctr:latest"
+    )
+    _run_debug_cmd("minikube image ls", ["minikube", "image", "ls"])
+
     assert result.returncode == 0, f"Deploy failed: {result.stderr}"
 
 
