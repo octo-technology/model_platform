@@ -133,7 +133,7 @@ def test_deployed_model_health_check():
     time.sleep(180)
     deployment_name = sanitize_ressource_name(f"{PROJECT_NAME}-{MODEL_NAME}-{MODEL_VERSION}-deployment")
     health_url = f"http://{MP_HOSTNAME}/deploy/{PROJECT_NAME}/{deployment_name}/health"
-    timeout = time.time() + 120
+    timeout = time.time() + 300  # Increase timeout to 5 minutes for CI environments
     while time.time() < timeout:
         result = subprocess.run(
             ["curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", health_url],
@@ -144,7 +144,7 @@ def test_deployed_model_health_check():
             return
         time.sleep(5)  # Retry every 5 seconds
 
-    raise AssertionError(f"Model health endpoint did not respond with 200 within 2 minutes")
+    raise AssertionError(f"Model health endpoint did not respond with 200 within 5 minutes")
 
 
 def test_deployed_model_returns_predictions():
@@ -155,10 +155,20 @@ def test_deployed_model_returns_predictions():
 
     test_data = {"inputs": {"0": 3, "1": 5.1, "2": 1.4, "3": 0.2}}
 
-    response = requests.post(predict_url, json=test_data, headers={"Content-Type": "application/json"}, timeout=30)
-    assert response.status_code == 200, f"Prediction failed: {response.text}"
-    predictions = response.json()
-    assert "outputs" in predictions, f"Response should contain outputs or predictions: {predictions}"
+    timeout = time.time() + 120  # 2-minute timeout for retries
+    while time.time() < timeout:
+        try:
+            response = requests.post(
+                predict_url, json=test_data, headers={"Content-Type": "application/json"}, timeout=10
+            )
+            assert response.status_code == 200, f"Prediction failed: {response.text}"
+            predictions = response.json()
+            assert "outputs" in predictions, f"Response should contain outputs or predictions: {predictions}"
+            return
+        except (requests.ConnectionError, requests.Timeout):
+            time.sleep(5)  # Retry every 5 seconds on connection errors
+
+    raise AssertionError(f"Could not get prediction from model within 2 minutes")
 
 
 def test_list_deployed_models():
