@@ -37,7 +37,20 @@ MODEL_VERSION = "1"
 @pytest.fixture(scope="module", autouse=True)
 def setup_and_teardown():
     """Clean up project before and after tests."""
-    # Setup: Login (no cleanup needed since PROJECT_NAME has a random suffix)
+    # Setup: Login and configure docker env for minikube
+    print("[DEBUG] Setting up e2e test environment")
+
+    # Check minikube status first
+    try:
+        result = subprocess.run(["minikube", "status"], capture_output=True, text=True, timeout=30)
+        print(f"[DEBUG] minikube status exit code: {result.returncode}")
+        print(f"[DEBUG] minikube status output:\n{result.stdout}")
+        if result.stderr:
+            print(f"[DEBUG] minikube status stderr:\n{result.stderr}")
+    except Exception as exc:
+        print(f"[DEBUG] Error checking minikube status: {exc}")
+
+    _setup_minikube_docker_env()
     assert login() == 0, "Login failed"
 
     yield
@@ -100,6 +113,7 @@ def _skip_if_mlflow_not_ready():
 
 def _setup_minikube_docker_env():
     """Ensure we're using minikube's docker daemon for image builds."""
+    print("[DEBUG] Configuring minikube docker environment...")
     try:
         # Get minikube docker env
         result = subprocess.run(
@@ -108,7 +122,9 @@ def _setup_minikube_docker_env():
             text=True,
             timeout=30,
         )
+        print(f"[DEBUG] minikube docker-env exit code: {result.returncode}")
         if result.returncode == 0:
+            print(f"[DEBUG] minikube docker-env output:\n{result.stdout}")
             # Parse the env vars from minikube docker-env output
             env_lines = [line.strip() for line in result.stdout.split("\n") if line.startswith("export ")]
             for line in env_lines:
@@ -121,9 +137,14 @@ def _setup_minikube_docker_env():
                         value = value.strip("\"'")
                         os.environ[key] = value
                         print(f"[DEBUG] Set {key}={value}")
-            print("[DEBUG] Minikube docker environment configured")
+            print("[DEBUG] Minikube docker environment configured successfully")
+
+            # Verify the configuration worked
+            docker_host = os.environ.get("DOCKER_HOST", "not set")
+            print(f"[DEBUG] Current DOCKER_HOST: {docker_host}")
         else:
             print(f"[DEBUG] Failed to get minikube docker-env: {result.stderr}")
+            print(f"[DEBUG] minikube docker-env stdout: {result.stdout}")
     except Exception as exc:
         print(f"[DEBUG] Error setting up minikube docker env: {exc}")
 
@@ -209,15 +230,22 @@ def test_train_and_push_model_to_mlflow():
 def test_deploy_model():
     """Test model deployment."""
     _skip_if_mlflow_not_ready()
-    # Ensure we use minikube's docker daemon for image builds
-    _setup_minikube_docker_env()
+
+    # Verify Docker environment is still configured for minikube
+    docker_host = os.environ.get("DOCKER_HOST", "not set")
+    print(f"[DEBUG] Deploy test - Current DOCKER_HOST: {docker_host}")
+
     result = run_cli("projects", "deploy", PROJECT_NAME, "--model-name", MODEL_NAME, "--model-version", MODEL_VERSION)
 
     # Check if image exists in minikube after deployment
     expected_image_name = (
         f"{PROJECT_NAME.lower().replace('_', '-')}-{MODEL_NAME.lower().replace('_', '-')}-{MODEL_VERSION}-ctr:latest"
     )
+    print(f"[DEBUG] Expected image name: {expected_image_name}")
     _run_debug_cmd("minikube image ls", ["minikube", "image", "ls"])
+
+    # Also check docker images to see what's available
+    _run_debug_cmd("docker images", ["docker", "images"])
 
     assert result.returncode == 0, f"Deploy failed: {result.stderr}"
 
