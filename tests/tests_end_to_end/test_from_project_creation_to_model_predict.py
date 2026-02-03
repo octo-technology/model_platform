@@ -94,6 +94,57 @@ def _skip_if_mlflow_not_ready():
         pytest.skip("MLflow registry not ready - skipping dependent test")
 
 
+# --- Debug helpers to surface CI failures ---
+
+
+def _run_debug_cmd(label, cmd):
+    print(f"[DEBUG] {label}: {' '.join(cmd)}")
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=40)
+        print(f"[DEBUG] {label} exit={result.returncode}")
+        if result.stdout:
+            print(f"[DEBUG] {label} stdout:\n{result.stdout}")
+        if result.stderr:
+            print(f"[DEBUG] {label} stderr:\n{result.stderr}")
+    except Exception as exc:  # noqa: BLE001 - debug path only
+        print(f"[DEBUG] {label} error: {exc}")
+
+
+def _first_pod_name(namespace):
+    result = subprocess.run(
+        ["kubectl", "get", "pods", "-n", namespace, "--no-headers"],
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
+    if result.returncode == 0 and result.stdout.strip():
+        return result.stdout.strip().splitlines()[0].split()[0]
+    return None
+
+
+def _dump_deployment_debug_info(deployment_name):
+    print(f"[DEBUG] Dumping state for deployment {deployment_name} in namespace {PROJECT_NAME}")
+    _run_debug_cmd("kubectl get pods", ["kubectl", "get", "pods", "-n", PROJECT_NAME, "-o", "wide"])
+    _run_debug_cmd(
+        "kubectl get deployment",
+        ["kubectl", "get", "deployment", deployment_name, "-n", PROJECT_NAME, "-o", "yaml"],
+    )
+    _run_debug_cmd("kubectl get svc", ["kubectl", "get", "svc", "-n", PROJECT_NAME])
+    _run_debug_cmd(
+        "kubectl get events",
+        ["kubectl", "get", "events", "-n", PROJECT_NAME, "--sort-by=.metadata.creationTimestamp"],
+    )
+    pod_name = _first_pod_name(PROJECT_NAME)
+    if pod_name:
+        _run_debug_cmd("kubectl describe pod", ["kubectl", "describe", "pod", pod_name, "-n", PROJECT_NAME])
+        _run_debug_cmd("kubectl logs", ["kubectl", "logs", pod_name, "-n", PROJECT_NAME])
+
+
+def _dump_registry_status():
+    registry_url = f"http://{MP_HOSTNAME}/registry/{PROJECT_NAME}/"
+    _run_debug_cmd("curl registry index", ["curl", "-v", "--max-time", "20", registry_url])
+
+
 def test_train_and_push_model_to_mlflow():
     """Test model training and push to MLflow."""
     time.sleep(120)
@@ -134,17 +185,26 @@ def test_deployed_model_health_check():
     deployment_name = sanitize_ressource_name(f"{PROJECT_NAME}-{MODEL_NAME}-{MODEL_VERSION}-deployment")
     health_url = f"http://{MP_HOSTNAME}/deploy/{PROJECT_NAME}/{deployment_name}/health"
     timeout = time.time() + 300  # Increase timeout to 5 minutes for CI environments
+    start = time.time()
+    last_status = None
     while time.time() < timeout:
         result = subprocess.run(
             ["curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", health_url],
             capture_output=True,
             text=True,
         )
-        if result.stdout == "200":
+        last_status = result.stdout.strip()
+        if last_status == "200":
             return
         time.sleep(5)  # Retry every 5 seconds
 
-    raise AssertionError(f"Model health endpoint did not respond with 200 within 5 minutes")
+    print(
+        f"[DEBUG] Health check failed after {time.time() - start:.1f}s for {deployment_name}; last_status={last_status}"
+    )
+    _run_debug_cmd("curl health verbose", ["curl", "-v", "--max-time", "20", health_url])
+    _dump_deployment_debug_info(deployment_name)
+    _dump_registry_status()
+    raise AssertionError("Model health endpoint did not respond with 200 within 5 minutes")
 
 
 def test_deployed_model_returns_predictions():
@@ -156,19 +216,36 @@ def test_deployed_model_returns_predictions():
     test_data = {"inputs": {"0": 3, "1": 5.1, "2": 1.4, "3": 0.2}}
 
     timeout = time.time() + 120  # 2-minute timeout for retries
+    start = time.time()
+    last_status = None
+    last_body = None
+    last_error = None
     while time.time() < timeout:
         try:
             response = requests.post(
                 predict_url, json=test_data, headers={"Content-Type": "application/json"}, timeout=10
             )
-            assert response.status_code == 200, f"Prediction failed: {response.text}"
-            predictions = response.json()
-            assert "outputs" in predictions, f"Response should contain outputs or predictions: {predictions}"
-            return
-        except (requests.ConnectionError, requests.Timeout):
-            time.sleep(5)  # Retry every 5 seconds on connection errors
+            last_status = response.status_code
+            last_body = response.text
+            if response.status_code == 200:
+                predictions = response.json()
+                assert "outputs" in predictions, f"Response should contain outputs or predictions: {predictions}"
+                return
+        except (requests.ConnectionError, requests.Timeout) as exc:
+            last_error = str(exc)
+        time.sleep(5)  # Retry every 5 seconds on connection errors
 
-    raise AssertionError(f"Could not get prediction from model within 2 minutes")
+    print(
+        f"[DEBUG] Prediction failed after {time.time() - start:.1f}s for {deployment_name}; "
+        f"last_status={last_status}, last_error={last_error}, last_body={last_body}"
+    )
+    _run_debug_cmd(
+        "curl predict verbose",
+        ["curl", "-v", "--max-time", "20", "-H", "Content-Type: application/json", "-d", str(test_data), predict_url],
+    )
+    _dump_deployment_debug_info(deployment_name)
+    _dump_registry_status()
+    raise AssertionError("Could not get prediction from model within 2 minutes")
 
 
 def test_list_deployed_models():
