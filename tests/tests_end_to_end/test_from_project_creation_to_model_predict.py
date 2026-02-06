@@ -186,11 +186,36 @@ def _dump_deployment_debug_info(deployment_name):
         "kubectl get events",
         ["kubectl", "get", "events", "-n", PROJECT_NAME, "--sort-by=.metadata.creationTimestamp"],
     )
-    pod_name = _first_pod_name(PROJECT_NAME)
-    if pod_name:
-        _run_debug_cmd("kubectl describe pod", ["kubectl", "describe", "pod", pod_name, "-n", PROJECT_NAME])
-        _run_debug_cmd("kubectl logs current", ["kubectl", "logs", pod_name, "-n", PROJECT_NAME])
-        _run_debug_cmd("kubectl logs previous", ["kubectl", "logs", pod_name, "-n", PROJECT_NAME, "--previous"])
+
+    # Check all pods for this specific deployment (not just first pod in namespace)
+    result = subprocess.run(
+        ["kubectl", "get", "pods", "-n", PROJECT_NAME, "-l", f"app={deployment_name}", "--no-headers"],
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
+    if result.returncode == 0 and result.stdout.strip():
+        pod_lines = result.stdout.strip().splitlines()
+        for line in pod_lines:
+            pod_name = line.split()[0]
+            print(f"[DEBUG] Checking logs for pod: {pod_name}")
+            _run_debug_cmd(
+                f"kubectl describe pod {pod_name}", ["kubectl", "describe", "pod", pod_name, "-n", PROJECT_NAME]
+            )
+            _run_debug_cmd(
+                f"kubectl logs current {pod_name}", ["kubectl", "logs", pod_name, "-n", PROJECT_NAME, "--tail=100"]
+            )
+            _run_debug_cmd(
+                f"kubectl logs previous {pod_name}",
+                ["kubectl", "logs", pod_name, "-n", PROJECT_NAME, "--previous", "--tail=100"],
+            )
+    else:
+        # Fallback to first pod in namespace
+        pod_name = _first_pod_name(PROJECT_NAME)
+        if pod_name:
+            _run_debug_cmd("kubectl describe pod", ["kubectl", "describe", "pod", pod_name, "-n", PROJECT_NAME])
+            _run_debug_cmd("kubectl logs current", ["kubectl", "logs", pod_name, "-n", PROJECT_NAME])
+            _run_debug_cmd("kubectl logs previous", ["kubectl", "logs", pod_name, "-n", PROJECT_NAME, "--previous"])
 
     # Also check available images in minikube
     _run_debug_cmd("minikube image ls", ["minikube", "image", "ls"])
@@ -255,6 +280,28 @@ def test_deployed_model_health_check():
     _skip_if_mlflow_not_ready()
     time.sleep(180)
     deployment_name = sanitize_ressource_name(f"{PROJECT_NAME}-{MODEL_NAME}-{MODEL_VERSION}-deployment")
+
+    # Check pod status first for debugging
+    print(f"[DEBUG] Checking pod status for deployment {deployment_name}")
+    result = subprocess.run(
+        ["kubectl", "get", "pods", "-n", PROJECT_NAME, "-l", f"app={deployment_name}", "--no-headers"],
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
+    if result.returncode == 0 and result.stdout.strip():
+        pod_lines = result.stdout.strip().splitlines()
+        for line in pod_lines:
+            parts = line.split()
+            if len(parts) >= 3:
+                pod_name, ready, status = parts[0], parts[1], parts[2]
+                print(f"[DEBUG] Pod {pod_name}: ready={ready}, status={status}")
+                if status not in ["Running", "Pending"]:
+                    print(f"[DEBUG] Pod is in unexpected state: {status}, checking logs...")
+                    _run_debug_cmd(
+                        f"kubectl logs {pod_name}", ["kubectl", "logs", pod_name, "-n", PROJECT_NAME, "--tail=50"]
+                    )
+
     health_url = f"http://{MP_HOSTNAME}/deploy/{PROJECT_NAME}/{deployment_name}/health"
     timeout = time.time() + 300  # Increase timeout to 5 minutes for CI environments
     start = time.time()
