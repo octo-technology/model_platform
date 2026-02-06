@@ -37,8 +37,9 @@ def build_image_from_context(context_dir: str, image_name: str) -> int:
         version_output = subprocess.check_output(["docker", "version", "--format", "{{.Server.Version}}"], text=True)
         major_version = int(version_output.split(".")[0])
         if major_version >= 19:
-            # cmd.extend(["--platform", "linux/amd64"])
-            cmd.extend(["--platform", "linux/arm64"])
+            # Force la plateforme linux/amd64 pour la compatibilité avec minikube
+            # cmd.extend(["--platform", "linux/arm64"])
+            cmd.extend(["--platform", "linux/amd64"])
     except Exception as e:
         logger.warning(f"Couldn't determine Docker version: {e}. Platform option might not be applied.")
 
