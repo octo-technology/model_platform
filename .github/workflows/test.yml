@@ -4,10 +4,52 @@ run-name: "Test workflow [${{ github.ref_name }}] ${{ github.event.repository.pu
 on:
   pull_request:
   push:
-    branches:
-      - main
 
 jobs:
+  build-ci-images:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        image:
+          - name: frontend
+            dockerfile: ./frontend/Dockerfile
+          - name: backend
+            context: .
+            dockerfile: ./backend/Dockerfile
+          - name: mlflow
+            context: .
+            dockerfile: ./infrastructure/registry/Dockerfile
+    env:
+      REGISTRY: ghcr.io
+      IMAGE_NAMESPACE: ${{ github.repository_owner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set image tag for CI
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "IMAGE_TAG=ci-${GITHUB_SHA}" >> $GITHUB_ENV
+          else
+            echo "IMAGE_TAG=test" >> $GITHUB_ENV
+          fi
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push ${{ matrix.image.name }}
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.image.context }}
+          file: ${{ matrix.image.dockerfile }}
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/model-platform/${{ matrix.image.name }}:${{ env.IMAGE_TAG }}
+
   test-and-quality-check:
     runs-on: ubuntu-22.04
     environment: dev
@@ -37,11 +79,29 @@ jobs:
           uv run pytest tests/test_unitaires
 
   integration-tests-kind:
+    if: github.event_name == 'push'
     runs-on: ubuntu-22.04
     environment: dev
-    needs: test-and-quality-check
+    needs: [test-and-quality-check, build-ci-images]
+    env:
+      REGISTRY: ghcr.io
+      IMAGE_NAMESPACE: ${{ github.repository_owner }}
+      BACKEND_IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/model-platform/backend
+      FRONTEND_IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/model-platform/frontend
+      MLFLOW_IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/model-platform/mlflow
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install gettext for envsubst
+        run: sudo apt-get update && sudo apt-get install -y gettext-base
+
+      - name: Set image tag for tests
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "IMAGE_TAG=ci-${GITHUB_SHA}" >> $GITHUB_ENV
+          else
+            echo "IMAGE_TAG=test" >> $GITHUB_ENV
+          fi
 
       - name: Install uv
         uses: astral-sh/setup-uv@v4
@@ -102,7 +162,7 @@ jobs:
             --from-literal=JWT_SECRET='test_jwt_secret_for_ci' \
             --from-literal=ADMIN_EMAIL='admin@test.com' \
             --from-literal=ADMIN_PASSWORD='test_admin_password'
-          kubectl apply -f infrastructure/k8s/backend-deployment.yaml
+          envsubst < infrastructure/k8s/backend-deployment.yaml | kubectl apply -f -
           kubectl wait --for=condition=available deployment/backend -n model-platform --timeout=180s
           echo "Backend deployed, checking pods..."
           kubectl get pods -n model-platform
@@ -117,13 +177,30 @@ jobs:
         run: |
           kind delete cluster --name model-platform-ci
 
-
   e2e-tests-minikube:
+    if: github.event_name == 'push'
     runs-on: ubuntu-22.04
     environment: dev
-    needs: test-and-quality-check
+    needs: [test-and-quality-check, build-ci-images]
+    env:
+      REGISTRY: ghcr.io
+      IMAGE_NAMESPACE: ${{ github.repository_owner }}
+      BACKEND_IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/model-platform/backend
+      FRONTEND_IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/model-platform/frontend
+      MLFLOW_IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/model-platform/mlflow
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install gettext for envsubst
+        run: sudo apt-get update && sudo apt-get install -y gettext-base
+
+      - name: Set image tag for tests
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "IMAGE_TAG=ci-${GITHUB_SHA}" >> $GITHUB_ENV
+          else
+            echo "IMAGE_TAG=test" >> $GITHUB_ENV
+          fi
 
       - name: Install uv
         uses: astral-sh/setup-uv@v4
@@ -164,7 +241,7 @@ jobs:
         run: |
           make k8s-infra
           make create-backend-secret POSTGRES_PWD=your_postgres_password JWT_SECRET="ask for the JWT secret" ADMIN_EMAIL=alice@example.com ADMIN_PWD=pass!
-          make k8s-modelplatform
+          make k8s-modelplatform BACKEND_IMAGE=${BACKEND_IMAGE} FRONTEND_IMAGE=${FRONTEND_IMAGE} MLFLOW_IMAGE=${MLFLOW_IMAGE} IMAGE_TAG=${IMAGE_TAG}
 
       - name: Wait for infrastructure to settle (3m)
         run: |
@@ -209,3 +286,89 @@ jobs:
         if: always()
         run: |
           minikube stop
+
+  build-rc-images:
+    if: github.event_name == 'push' && github.ref_name != 'main'
+    runs-on: ubuntu-22.04
+    needs: [test-and-quality-check, integration-tests-kind, e2e-tests-minikube]
+    strategy:
+      matrix:
+        image:
+          - name: frontend
+            context: .
+            dockerfile: ./frontend/Dockerfile
+          - name: backend
+            context: .
+            dockerfile: ./backend/Dockerfile
+          - name: mlflow
+            context: .
+            dockerfile: ./infrastructure/registry/Dockerfile
+    env:
+      REGISTRY: ghcr.io
+      IMAGE_NAMESPACE: ${{ github.repository_owner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set RC tag
+        run: |
+          SAFE_REF=$(echo "${{ github.ref_name }}" | tr '/' '-')
+          echo "RC_TAG=rc-${SAFE_REF}" >> $GITHUB_ENV
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push ${{ matrix.image.name }} (RC)
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.image.context }}
+          file: ${{ matrix.image.dockerfile }}
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/model-platform/${{ matrix.image.name }}:${{ env.RC_TAG }}
+
+  build-release-images:
+    if: github.event_name == 'push' && github.ref_name == 'main'
+    runs-on: ubuntu-22.04
+    needs: [test-and-quality-check, integration-tests-kind, e2e-tests-minikube]
+    strategy:
+      matrix:
+        image:
+          - name: frontend
+            context: .
+            dockerfile: ./frontend/Dockerfile
+          - name: backend
+            context: .
+            dockerfile: ./backend/Dockerfile
+          - name: mlflow
+            context: .
+            dockerfile: ./infrastructure/registry/Dockerfile
+    env:
+      REGISTRY: ghcr.io
+      IMAGE_NAMESPACE: ${{ github.repository_owner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set release tag
+        run: |
+          echo "RELEASE_TAG=v${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push ${{ matrix.image.name }} (release)
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.image.context }}
+          file: ${{ matrix.image.dockerfile }}
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/model-platform/${{ matrix.image.name }}:${{ env.RELEASE_TAG }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/model-platform/${{ matrix.image.name }}:latest

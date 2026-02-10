@@ -23,7 +23,7 @@ spec:
       serviceAccountName: backend-sa
       containers:
         - name: backend
-          image: ghcr.io/octo-technology/model-platform/backend:latest
+          image: ${BACKEND_IMAGE}:${IMAGE_TAG}
           imagePullPolicy: Always
           ports:
             - containerPort: 8000

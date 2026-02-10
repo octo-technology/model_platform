@@ -16,3 +16,7 @@ data:
   POSTGRES_NAMESPACE: "pgsql"
   POSTGRES_USER: "postgres"
   MLFLOW_S3_ENDPOINT_URL: "http://minio.minio.svc.cluster.local:9000"
+  BACKEND_IMAGE: "ghcr.io/octo-technology/model-platform/backend"
+  FRONTEND_IMAGE: "ghcr.io/octo-technology/model-platform/frontend"
+  MLFLOW_IMAGE: "ghcr.io/octo-technology/model-platform/mlflow"
+  IMAGE_TAG: "latest"

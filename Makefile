@@ -1,6 +1,13 @@
 -include .env
 export $(shell [ -f .env ] && sed 's/=.*//' .env)
 
+BACKEND_CONFIGMAP := infrastructure/k8s/backend-configmap.yaml
+BACKEND_IMAGE := $(shell awk -F'"' '/BACKEND_IMAGE:/ {print $$2}' $(BACKEND_CONFIGMAP))
+FRONTEND_IMAGE := $(shell awk -F'"' '/FRONTEND_IMAGE:/ {print $$2}' $(BACKEND_CONFIGMAP))
+MLFLOW_IMAGE := $(shell awk -F'"' '/MLFLOW_IMAGE:/ {print $$2}' $(BACKEND_CONFIGMAP))
+IMAGE_TAG := $(shell awk -F'"' '/IMAGE_TAG:/ {print $$2}' $(BACKEND_CONFIGMAP))
+export BACKEND_IMAGE FRONTEND_IMAGE MLFLOW_IMAGE IMAGE_TAG
+
 PGSQL_HOST := modelplatform-pgsql
 PGSQL_NAMESPACE := pgsql
 POSTGRES_PASSWORD := your_postgres_password
@@ -23,12 +30,12 @@ k8s-backend:
 		echo "⚠️  backend-secret.yaml non trouvé. Copiez backend-secret.yaml.example et remplissez les valeurs."; \
 		exit 1; \
 	fi
-	kubectl apply -f infrastructure/k8s/backend-deployment.yaml
+	envsubst < infrastructure/k8s/backend-deployment.yaml | kubectl apply -f -
 	kubectl rollout restart deployment/backend -n model-platform
 
 k8s-frontend:
 	kubectl apply -f infrastructure/k8s/frontend-configmap.yaml
-	kubectl apply -f infrastructure/k8s/frontend-deployment.yaml
+	envsubst < infrastructure/k8s/frontend-deployment.yaml | kubectl apply -f -
 	kubectl rollout restart deployment/frontend -n model-platform
 
 
