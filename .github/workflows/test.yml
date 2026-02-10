@@ -324,22 +324,21 @@ jobs:
   cleanup-feature-images:
     if: github.event_name == 'pull_request' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main'
     runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        package: [frontend, backend, mlflow]
     steps:
-      - name: Remove feature tag images from GHCR
-        env:
-          OWNER: ${{ github.repository_owner }}
+      - name: Set feature tag
+        id: tag
         run: |
           SAFE_REF=$(echo "${{ github.event.pull_request.head.ref }}" | tr '/' '-')
-          TAG="feature-${SAFE_REF}"
-          for IMAGE in frontend backend mlflow; do
-            PACKAGE="model-platform%2F${IMAGE}"
-            for SCOPE in orgs users; do
-              IDS=$(gh api -H "Accept: application/vnd.github+json" "/${SCOPE}/${OWNER}/packages/container/${PACKAGE}/versions" --paginate --jq ".[] | select(.metadata.container.tags[]? == \"${TAG}\") | .id" 2>/dev/null || true)
-              if [ -n "${IDS}" ]; then
-                for ID in ${IDS}; do
-                  gh api -X DELETE -H "Accept: application/vnd.github+json" "/${SCOPE}/${OWNER}/packages/container/${PACKAGE}/versions/${ID}"
-                done
-                break
-              fi
-            done
-          done
+          echo "tag=feature-${SAFE_REF}" >> $GITHUB_OUTPUT
+
+      - name: Delete ${{ matrix.package }}:${{ steps.tag.outputs.tag }}
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: model-platform/${{ matrix.package }}
+          package-type: container
+          package-version-ids: ${{ steps.tag.outputs.tag }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
