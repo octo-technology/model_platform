@@ -157,7 +157,6 @@ jobs:
             --from-literal=JWT_SECRET='test_jwt_secret_for_ci' \
             --from-literal=ADMIN_EMAIL='admin@test.com' \
             --from-literal=ADMIN_PASSWORD='test_admin_password'
-          envsubst < infrastructure/k8s/backend-deployment.yaml | kubectl apply -f -
           kubectl wait --for=condition=available deployment/backend -n model-platform --timeout=180s
           echo "Backend deployed, checking pods..."
           kubectl get pods -n model-platform
