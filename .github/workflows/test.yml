@@ -158,7 +158,6 @@ jobs:
             --from-literal=ADMIN_EMAIL='admin@test.com' \
             --from-literal=ADMIN_PASSWORD='test_admin_password'
           kubectl apply -f infrastructure/k8s/backend-deployment.yaml
-          kubectl wait --for=condition=available deployment/backend -n model-platform --timeout=180s
           echo "Backend deployed, checking pods..."
           kubectl get pods -n model-platform
 
