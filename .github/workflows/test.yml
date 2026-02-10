@@ -3,11 +3,16 @@ run-name: "Test workflow [${{ github.ref_name }}] ${{ github.event.repository.pu
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, closed]
   push:
+
+permissions:
+  contents: read
+  packages: write
 
 jobs:
   build-ci-images:
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && github.ref_name != 'main'
     runs-on: ubuntu-22.04
     strategy:
       matrix:
@@ -29,7 +34,8 @@ jobs:
 
       - name: Set image tag for CI
         run: |
-          echo "IMAGE_TAG=test" >> $GITHUB_ENV
+          SAFE_REF=$(echo "${{ github.ref_name }}" | tr '/' '-')
+          echo "IMAGE_TAG=feature-${SAFE_REF}" >> $GITHUB_ENV
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v2
@@ -76,7 +82,7 @@ jobs:
           uv run pytest tests/test_unitaires
 
   integration-tests-kind:
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && github.ref_name != 'main'
     runs-on: ubuntu-22.04
     environment: dev
     needs: [test-and-quality-check, build-ci-images]
@@ -88,7 +94,8 @@ jobs:
 
       - name: Set image tag for tests
         run: |
-          echo "IMAGE_TAG=test" >> $GITHUB_ENV
+          SAFE_REF=$(echo "${{ github.ref_name }}" | tr '/' '-')
+          echo "IMAGE_TAG=feature-${SAFE_REF}" >> $GITHUB_ENV
 
       - name: Install uv
         uses: astral-sh/setup-uv@v4
@@ -166,7 +173,7 @@ jobs:
           kind delete cluster --name model-platform-ci
 
   e2e-tests-minikube:
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && github.ref_name != 'main'
     runs-on: ubuntu-22.04
     environment: dev
     needs: [test-and-quality-check, build-ci-images]
@@ -178,7 +185,8 @@ jobs:
 
       - name: Set image tag for tests
         run: |
-          echo "IMAGE_TAG=test" >> $GITHUB_ENV
+          SAFE_REF=$(echo "${{ github.ref_name }}" | tr '/' '-')
+          echo "IMAGE_TAG=feature-${SAFE_REF}" >> $GITHUB_ENV
 
       - name: Install uv
         uses: astral-sh/setup-uv@v4
@@ -219,6 +227,7 @@ jobs:
         run: |
           make k8s-infra
           make create-backend-secret POSTGRES_PWD=your_postgres_password JWT_SECRET="ask for the JWT secret" ADMIN_EMAIL=alice@example.com ADMIN_PWD=pass!
+          kubectl apply -f infrastructure/k8s/backend-configmap.yaml
           kubectl patch configmap backend-config -n model-platform --type merge -p "{\"data\":{\"IMAGE_TAG\":\"${IMAGE_TAG}\"}}"
           make k8s-modelplatform IMAGE_TAG=${IMAGE_TAG}
 
@@ -270,7 +279,7 @@ jobs:
   build-release-images:
     if: github.event_name == 'push' && github.ref_name == 'main'
     runs-on: ubuntu-22.04
-    needs: [test-and-quality-check, integration-tests-kind, e2e-tests-minikube]
+    needs: [test-and-quality-check]
     strategy:
       matrix:
         image:
@@ -288,6 +297,8 @@ jobs:
       IMAGE_NAMESPACE: ${{ github.repository_owner }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Set release tag
         run: |
@@ -309,3 +320,26 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/model-platform/${{ matrix.image.name }}:${{ env.RELEASE_TAG }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/model-platform/${{ matrix.image.name }}:latest
+
+  cleanup-feature-images:
+    if: github.event_name == 'pull_request' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Remove feature tag images from GHCR
+        env:
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          SAFE_REF=$(echo "${{ github.event.pull_request.head.ref }}" | tr '/' '-')
+          TAG="feature-${SAFE_REF}"
+          for IMAGE in frontend backend mlflow; do
+            PACKAGE="model-platform%2F${IMAGE}"
+            for SCOPE in orgs users; do
+              IDS=$(gh api -H "Accept: application/vnd.github+json" "/${SCOPE}/${OWNER}/packages/container/${PACKAGE}/versions" --paginate --jq ".[] | select(.metadata.container.tags[]? == \"${TAG}\") | .id" 2>/dev/null || true)
+              if [ -n "${IDS}" ]; then
+                for ID in ${IDS}; do
+                  gh api -X DELETE -H "Accept: application/vnd.github+json" "/${SCOPE}/${OWNER}/packages/container/${PACKAGE}/versions/${ID}"
+                done
+                break
+              fi
+            done
+          done
