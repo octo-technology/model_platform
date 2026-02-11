@@ -12,8 +12,7 @@ permissions:
 
 jobs:
   build-ci-images:
-    if: false
-    # github.event_name == 'push' && github.ref_name != 'main'
+    if: github.event_name == 'push' && github.ref_name != 'main'
     runs-on: ubuntu-22.04
     strategy:
       matrix:
@@ -55,7 +54,6 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/model-platform/${{ matrix.image.name }}:${{ env.IMAGE_TAG }}
 
   unit-tests-and-quality-check:
-    if: false
     runs-on: ubuntu-22.04
     environment: dev
     steps:
@@ -86,7 +84,7 @@ jobs:
   integration-tests-kind:
     runs-on: ubuntu-22.04
     environment: dev
-    # needs: [unit-tests-and-quality-check, build-ci-images]
+    needs: [unit-tests-and-quality-check, build-ci-images]
     steps:
       - uses: actions/checkout@v4
 
@@ -200,8 +198,7 @@ jobs:
           kind delete cluster --name model-platform-ci
 
   e2e-tests-minikube:
-    if : false
-    #if: github.event_name == 'push' && github.ref_name != 'main'
+    if: github.event_name == 'push' && github.ref_name != 'main'
     runs-on: ubuntu-22.04
     environment: dev
     needs: [unit-tests-and-quality-check, build-ci-images]
