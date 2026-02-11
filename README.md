@@ -80,6 +80,12 @@ Use the .env.example
 make k8s-infra
 ```
 
+### Add backend secrets
+
+```bash
+make create-backend-secret POSTGRES_PWD=your_postgres_password JWT_SECRET="ask for the JWT secret" ADMIN_EMAIL=alice@example.com ADMIN_PWD=pass!
+```
+
 **You should now have a working k8s environment**
 
 ## Deploy the model platform en k8s
@@ -96,9 +102,7 @@ Via fronted
 
 or
 
-    mp login --username XXXXX --password XXXX
-
- Root account is the one you set in the .env file
+    mp login --username alice@example.com --password pass!
 
 
 

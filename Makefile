@@ -21,7 +21,6 @@ k8s-network-conf:
 	kubectl apply -f infrastructure/k8s/nginx-deployment.yaml
 	kubectl apply -f infrastructure/k8s/ingress.yaml
 
-#TODO add target to buil and push to github registry
 k8s-backend:
 	kubectl apply -f infrastructure/k8s/backend-configmap.yaml
 	@if [ -f infrastructure/k8s/backend-secret.yaml ]; then \
@@ -64,14 +63,6 @@ k8s-monitoring:
 		-f infrastructure/k8s/monitoring/grafana-values.yaml
 	kubectl rollout restart deployment/nginx-reverse-proxy
 
-build-mlflow:
-	@if [ "$$SHELL" = "/bin/zsh" ] || [ "$$SHELL" = "/usr/bin/zsh" ]; then \
-		eval $$(minikube docker-env) && docker build -t mlflow -f infrastructure/registry/Dockerfile .; \
-	elif [ "$SHELL" = "/usr/bin/fish" ] || [ "$SHELL" = "/bin/fish" ] || [ -n "$FISH_VERSION" ]; then \
-		eval $(minikube -p minikube docker-env) && docker build -t mlflow -f infrastructure/registry/Dockerfile . ; \
-	else \
-		eval $$(minikube docker-env) && docker build -t mlflow -f infrastructure/registry/Dockerfile .; \
-	fi
 
 MINIKUBE_GATEWAY := $(shell minikube ssh "ip route" | grep '^default' | awk '{print $$3}')
 
