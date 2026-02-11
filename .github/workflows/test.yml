@@ -140,6 +140,12 @@ jobs:
           kubectl apply -f infrastructure/k8s/ingress.yaml
           kubectl wait --for=condition=available deployment/nginx-reverse-proxy --timeout=120s || true
 
+      - name: Set image tag and backend image
+        run: |
+          SAFE_REF=$(echo "${{ github.ref_name }}" | tr '/' '-')
+          echo "IMAGE_TAG=feature-${SAFE_REF}" >> $GITHUB_ENV
+          echo "BACKEND_IMAGE=ghcr.io/octo-technology/model-platform/backend" >> $GITHUB_ENV
+
       - name: Deploy backend
         run: |
           kubectl apply -f infrastructure/k8s/backend-configmap.yaml
@@ -150,7 +156,7 @@ jobs:
             --from-literal=JWT_SECRET='test_jwt_secret_for_ci' \
             --from-literal=ADMIN_EMAIL='admin@test.com' \
             --from-literal=ADMIN_PASSWORD='test_admin_password'
-          kubectl apply -f infrastructure/k8s/backend-deployment.yaml
+          BACKEND_IMAGE=${BACKEND_IMAGE} IMAGE_TAG=${IMAGE_TAG} envsubst < infrastructure/k8s/backend-deployment.yaml | kubectl apply -f -
           kubectl wait --for=condition=available deployment/backend -n model-platform --timeout=180s
           echo "Backend deployed, checking pods..."
           kubectl get pods -n model-platform
