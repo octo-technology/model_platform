@@ -15,10 +15,13 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: frontend:latest
-          imagePullPolicy: IfNotPresent
+          image: ${FRONTEND_IMAGE}:${IMAGE_TAG}
+          imagePullPolicy: Always
           ports:
             - containerPort: 8501
+          envFrom:
+            - configMapRef:
+                name: frontend-config
 ---
 apiVersion: v1
 kind: Service

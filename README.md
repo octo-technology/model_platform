@@ -19,7 +19,7 @@ A tribe project to build a Model Platform
 
 ## How to run
 
-### - Setup your K8S env 
+### - Setup your K8S env
 
 A working minikube is needed for dev purposes
 
@@ -67,74 +67,46 @@ minikube ip
 IP.RESULT model-platform.com
 ```
 
-### -  Fill .env file 
+### -  Fill .env file
 
 **Some values are used (pgsql password etc...) in the init scripts !!**
 
-```bash 
-Use the .env.example 
+```bash
+Use the .env.example
 ```
-### - Setup Namespaces, NGINX, Ingress
+### - Setup K8S infrastructure : Namespaces, NGINX, Ingress
 
 ```bash
-make k8s-network-conf
+make k8s-infra
 ```
 
-### - Deploy a PGSQL instance with helm
+### Add backend secrets
 
 ```bash
-make k8s-pgsql
+make create-backend-secret POSTGRES_PWD=your_postgres_password JWT_SECRET="ask for the JWT secret" ADMIN_EMAIL=alice@example.com ADMIN_PWD=pass!
 ```
 
-### - Prepare a custom MLFLow Docker image 
-With integrated psycopg2 package 
+**You should now have a working k8s environment**
 
-```bash
-make build-mlflow
-```
-
-**You should now have a working k8s environment** 
-
-## Deploy the model platform en k8s 
+## Deploy the model platform en k8s
 
 ```bash
 make k8s-modelplatform
 ```
 
-### Deploy monitoring stack (Prometheus + Grafana)
-
-```bash
-make k8s-monitoring
-```
-
 ### Connect to model platform
 
-Via fronted 
-    
+Via fronted
+
     http://model-platform.com
 
 or
 
-    mp login --username XXXXX --password XXXX
-
- Root account is the one you set in the .env file
+    mp login --username alice@example.com --password pass!
 
 
 
 ## TROUBLESHOOTING
-
-### Backend cannot find docker executable
-
-    Error executing docker build: [Errno 2] No such file or directory: 'docker'
-
-Run 
-
-    minikube docker-env
-    #Check if same in .env
-    if not update and run 
-    k8s-modelplatform
-
-
 ## Dev expérience
 
 ### Running CI locally

@@ -14,9 +14,9 @@ def mock_k8s_config():
 
 @pytest.fixture
 def mock_k8s_client():
-    with patch("backend.infrastructure.grafana_dashboard_adapter.client") as mock_client:
+    with patch("backend.infrastructure.grafana_dashboard_adapter.client.CoreV1Api") as mock_core_v1_api:
         mock_v1 = MagicMock()
-        mock_client.CoreV1Api.return_value = mock_v1
+        mock_core_v1_api.return_value = mock_v1
         yield mock_v1
 
 

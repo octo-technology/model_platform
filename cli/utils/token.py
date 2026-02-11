@@ -20,6 +20,7 @@ def load_token():
             return json.load(f)
     return None
 
+
 def get_client() -> httpx.Client:
     token = load_token()
     if not token:
@@ -28,5 +29,6 @@ def get_client() -> httpx.Client:
     return httpx.Client(
         base_url=API_URL,
         headers={"Authorization": f"Bearer {token['access_token']}"},
-        verify=False
+        verify=False,
+        timeout=120.0,  # Increase timeout for long-running operations like deployments
     )

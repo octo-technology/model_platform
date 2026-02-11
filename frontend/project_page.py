@@ -23,4 +23,9 @@ with tabs[0]:
             models, elements_to_add=["List versions", "Deploy latest"], project_name=project_name
         )
         st.write("#### Deployed models")
-        build_model_version_listing(deployed_models, elements_to_add=["Dashboard", "Action"], project_name=project_name, component_name="deployed_models")
+        build_model_version_listing(
+            deployed_models,
+            elements_to_add=["Dashboard", "Action"],
+            project_name=project_name,
+            component_name="deployed_models",
+        )

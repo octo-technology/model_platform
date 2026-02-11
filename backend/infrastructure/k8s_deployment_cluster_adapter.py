@@ -100,16 +100,12 @@ class K8SDeploymentClusterAdapter(DeploymentClusterHandler, K8SDeployment):
                 patch_body = {
                     "spec": {
                         "template": {
-                            "spec": {
-                                "containers": [
-                                    {"name": container.name, "env": container.env}
-                                ]
-                            },
+                            "spec": {"containers": [{"name": container.name, "env": container.env}]},
                             "metadata": {
                                 "annotations": {
                                     "kubectl.kubernetes.io/restartedAt": datetime.datetime.utcnow().isoformat()
                                 }
-                            }
+                            },
                         }
                     }
                 }

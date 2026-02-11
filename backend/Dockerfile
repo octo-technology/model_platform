@@ -1,4 +1,4 @@
-FROM python:3.11-slim AS runtime
+FROM python:3.11-slim
 
 RUN apt-get update && \
     apt-get install -y docker.io && \
@@ -6,20 +6,17 @@ RUN apt-get update && \
 
 WORKDIR /app
 
-COPY ./pyproject.toml ./
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
+COPY ./pyproject.toml ./uv.lock ./
 
+RUN uv sync --frozen --no-install-project --group backend
 
-RUN ls -R ./
-RUN pip install poetry \
- && poetry config virtualenvs.create false \
- && poetry install --no-root
 COPY ./backend ./backend
-FROM runtime AS final
-WORKDIR /app
-COPY ./.env ./
+
 
 ENV PYTHONPATH=/app
+ENV PATH="/app/.venv/bin:$PATH"
 
 EXPOSE 8000
 

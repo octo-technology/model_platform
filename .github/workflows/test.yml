@@ -3,37 +3,367 @@ run-name: "Test workflow [${{ github.ref_name }}] ${{ github.event.repository.pu
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, closed]
   push:
-    branches:
-      - main
+
+permissions:
+  contents: read
+  packages: write
 
 jobs:
-  test-and-quality-check:
+  build-ci-images:
+    if: github.event_name == 'push' && github.ref_name != 'main'
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        image:
+          - name: frontend
+            context: .
+            dockerfile: ./frontend/Dockerfile
+          - name: backend
+            context: .
+            dockerfile: ./backend/Dockerfile
+          - name: mlflow
+            context: .
+            dockerfile: ./infrastructure/registry/Dockerfile
+    env:
+      REGISTRY: ghcr.io
+      IMAGE_NAMESPACE: ${{ github.repository_owner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set image tag for CI
+        run: |
+          SAFE_REF=$(echo "${{ github.ref_name }}" | tr '/' '-')
+          echo "IMAGE_TAG=feature-${SAFE_REF}" >> $GITHUB_ENV
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push ${{ matrix.image.name }}
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.image.context }}
+          file: ${{ matrix.image.dockerfile }}
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/model-platform/${{ matrix.image.name }}:${{ env.IMAGE_TAG }}
+
+  unit-tests-and-quality-check:
     runs-on: ubuntu-22.04
     environment: dev
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5.0.0
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
         with:
-          python-version: 3.11
+          version: "latest"
 
-      - name: Install Poetry
-        run: |
-          python -m pip install --upgrade pip
-          pip install poetry==1.8.5
+      - name: Set up Python
+        run: uv python install 3.11
 
       - name: Install dependencies and project
         run: |
-          poetry install --with dev
+          uv sync --group dev --group backend
 
       - name: Run pre-commit hooks
         run: |
-          poetry run pre-commit install
-          poetry run pre-commit run --all-files
+          uv run pre-commit install
+          uv run pre-commit run --all-files
 
       - name: Run unit tests
         run: |
           echo "Launching unit tests"
-          poetry run pytest tests/test_unitaires
+          uv run pytest tests/test_unitaires
+
+  integration-tests-kind:
+    runs-on: ubuntu-22.04
+    environment: dev
+    needs: [unit-tests-and-quality-check, build-ci-images]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        run: |
+          uv sync --group dev --group backend --group cli
+
+      - name: Install Kind
+        run: |
+          curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64
+          chmod +x ./kind
+          sudo mv ./kind /usr/local/bin/kind
+
+      - name: Create Kind cluster
+        run: |
+          kind create cluster --name model-platform-ci --wait 60s
+
+      - name: Install kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+
+      - name: Verify cluster is running
+        run: |
+          kubectl cluster-info
+          kubectl get nodes
+
+      - name: Install ingress-nginx controller for Kind
+        run: |
+          kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
+          kubectl wait --namespace ingress-nginx \
+            --for=condition=ready pod \
+            --selector=app.kubernetes.io/component=controller \
+            --timeout=90s
+
+      - name: Deploy infrastructure (namespaces, minio, nginx, ingress)
+        run: |
+          kubectl apply -f infrastructure/k8s/namespaces.yaml
+          kubectl apply -f infrastructure/k8s/minio-deployment.yaml
+          kubectl apply -f infrastructure/k8s/nginx-deployment.yaml
+          kubectl apply -f infrastructure/k8s/nginx-configmap.yaml
+          kubectl apply -f infrastructure/k8s/ingress.yaml
+          kubectl wait --for=condition=available deployment/nginx-reverse-proxy --timeout=120s || true
+
+      - name: Set image tag and backend image
+        run: |
+          SAFE_REF=$(echo "${{ github.ref_name }}" | tr '/' '-')
+          echo "IMAGE_TAG=feature-${SAFE_REF}" >> $GITHUB_ENV
+          echo "BACKEND_IMAGE=ghcr.io/octo-technology/model-platform/backend" >> $GITHUB_ENV
+
+      - name: Deploy backend
+        run: |
+          kubectl apply -f infrastructure/k8s/backend-configmap.yaml
+          kubectl patch configmap backend-config -n model-platform --type merge -p "{\"data\":{\"IMAGE_TAG\":\"${IMAGE_TAG}\"}}"
+          kubectl create secret generic backend-secret \
+            --namespace=model-platform \
+            --from-literal=POSTGRES_PASSWORD='test_password' \
+            --from-literal=JWT_SECRET='test_jwt_secret_for_ci' \
+            --from-literal=ADMIN_EMAIL='admin@test.com' \
+            --from-literal=ADMIN_PASSWORD='test_admin_password'
+          BACKEND_IMAGE=${BACKEND_IMAGE} IMAGE_TAG=${IMAGE_TAG} envsubst < infrastructure/k8s/backend-deployment.yaml | kubectl apply -f -
+          kubectl wait --for=condition=available deployment/backend -n model-platform --timeout=180s
+          echo "Backend deployed, checking pods..."
+          kubectl get pods -n model-platform
+
+      - name: Collect logs on failure
+        if: failure()
+        run: |
+          echo "=== All Pods Status ==="
+          kubectl get pods --all-namespaces -o wide
+          echo "=== All Events ==="
+          kubectl get events --all-namespaces --sort-by=.metadata.creationTimestamp | tail -50
+          echo "=== Backend Pod logs ==="
+          kubectl logs -n model-platform -l app=backend --tail=100 || true
+          echo "=== Backend Pod describe ==="
+          kubectl describe pod -n model-platform -l app=backend || true
+          echo "=== Nginx Pod logs ==="
+          kubectl logs -l app=nginx-reverse-proxy --tail=100 || true
+          echo "=== Nginx Pod describe ==="
+          kubectl describe pod -l app=nginx-reverse-proxy || true
+          echo "=== Model deployment pods logs and status ==="
+          for namespace in $(kubectl get namespaces -o name | grep -E "e2e|test" | sed 's/namespace\///'); do
+            echo "--- Namespace: $namespace ---"
+            kubectl get pods -n $namespace -o wide || true
+            for pod in $(kubectl get pods -n $namespace -o name 2>/dev/null | grep -E "deployment|model" | sed 's/pod\///'); do
+              echo "Pod: $pod"
+              kubectl describe pod $pod -n $namespace || true
+              kubectl logs $pod -n $namespace --tail=50 || true
+              kubectl logs $pod -n $namespace --previous --tail=50 2>/dev/null || true
+            done
+          done
+          echo "=== Docker images in minikube ==="
+
+      - name: Run Kind integration tests (minimal infrastructure tests)
+        run: |
+          echo "Launching Kind integration tests"
+          uv run pytest tests/integration/test_minimal_kind.py -v --tb=short
+
+      - name: Delete Kind cluster
+        if: always()
+        run: |
+          kind delete cluster --name model-platform-ci
+
+  e2e-tests-minikube:
+    if: github.event_name == 'push' && github.ref_name != 'main'
+    runs-on: ubuntu-22.04
+    environment: dev
+    needs: [unit-tests-and-quality-check, build-ci-images]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install gettext for envsubst
+        run: sudo apt-get update && sudo apt-get install -y gettext-base
+
+      - name: Set image tag for tests
+        run: |
+          SAFE_REF=$(echo "${{ github.ref_name }}" | tr '/' '-')
+          echo "IMAGE_TAG=feature-${SAFE_REF}" >> $GITHUB_ENV
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        run: |
+          uv sync --group dev --group backend --group cli --group notebooks
+
+      - name: Start Minikube
+        uses: medyagh/setup-minikube@v0.0.18
+        with:
+          minikube-version: '1.32.0'
+          kubernetes-version: 'v1.28.3'
+          driver: docker
+          memory: 6144
+          cpus: 4
+
+      - name: Enable Minikube addons
+        run: |
+          minikube addons enable ingress
+          minikube addons enable ingress-dns
+          # Wait for ingress controller to be ready
+          kubectl wait --namespace ingress-nginx \
+            --for=condition=ready pod \
+            --selector=app.kubernetes.io/component=controller \
+            --timeout=120s
+
+      - name: Setup /etc/hosts for model-platform.com
+        run: |
+          echo "$(minikube ip) model-platform.com" | sudo tee -a /etc/hosts
+
+      - name: Deploy full infrastructure
+        run: |
+          make k8s-infra
+          make create-backend-secret POSTGRES_PWD=your_postgres_password JWT_SECRET="ask for the JWT secret" ADMIN_EMAIL=alice@example.com ADMIN_PWD=pass!
+          kubectl apply -f infrastructure/k8s/backend-configmap.yaml
+          kubectl patch configmap backend-config -n model-platform --type merge -p "{\"data\":{\"IMAGE_TAG\":\"${IMAGE_TAG}\"}}"
+          make k8s-modelplatform IMAGE_TAG=${IMAGE_TAG}
+
+      - name: Wait for infrastructure to settle (3m)
+        run: |
+          echo "Waitin 3 minutes for infrastructure to settle"
+          sleep 60
+
+      - name: Run end-to-end tests
+        run: |
+          echo "Launching end-to-end tests"
+          uv run pytest tests/tests_end_to_end/test_from_project_creation_to_model_predict.py -v --tb=long
+
+      - name: Collect logs on failure
+        if: failure()
+        run: |
+          echo "=== All Pods Status ==="
+          kubectl get pods --all-namespaces -o wide
+          echo "=== All Events ==="
+          kubectl get events --all-namespaces --sort-by=.metadata.creationTimestamp | tail -50
+          echo "=== Backend Pod logs ==="
+          kubectl logs -n model-platform -l app=backend --tail=100 || true
+          echo "=== Backend Pod describe ==="
+          kubectl describe pod -n model-platform -l app=backend || true
+          echo "=== Nginx Pod logs ==="
+          kubectl logs -l app=nginx-reverse-proxy --tail=100 || true
+          echo "=== Nginx Pod describe ==="
+          kubectl describe pod -l app=nginx-reverse-proxy || true
+          echo "=== Model deployment pods logs and status ==="
+          for namespace in $(kubectl get namespaces -o name | grep -E "e2e|test" | sed 's/namespace\///'); do
+            echo "--- Namespace: $namespace ---"
+            kubectl get pods -n $namespace -o wide || true
+            for pod in $(kubectl get pods -n $namespace -o name 2>/dev/null | grep -E "deployment|model" | sed 's/pod\///'); do
+              echo "Pod: $pod"
+              kubectl describe pod $pod -n $namespace || true
+              kubectl logs $pod -n $namespace --tail=50 || true
+              kubectl logs $pod -n $namespace --previous --tail=50 2>/dev/null || true
+            done
+          done
+          echo "=== Docker images in minikube ==="
+          minikube image ls || true
+
+      - name: Stop Minikube
+        if: always()
+        run: |
+          minikube stop
+
+
+  build-release-images:
+    if: github.event_name == 'push' && github.ref_name == 'main'
+    runs-on: ubuntu-22.04
+    needs: [unit-tests-and-quality-check]
+    strategy:
+      matrix:
+        image:
+          - name: frontend
+            context: .
+            dockerfile: ./frontend/Dockerfile
+          - name: backend
+            context: .
+            dockerfile: ./backend/Dockerfile
+          - name: mlflow
+            context: .
+            dockerfile: ./infrastructure/registry/Dockerfile
+    env:
+      REGISTRY: ghcr.io
+      IMAGE_NAMESPACE: ${{ github.repository_owner }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set release tag
+        run: |
+          echo "RELEASE_TAG=v${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push ${{ matrix.image.name }} (release)
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.image.context }}
+          file: ${{ matrix.image.dockerfile }}
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/model-platform/${{ matrix.image.name }}:${{ env.RELEASE_TAG }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/model-platform/${{ matrix.image.name }}:latest
+
+  cleanup-feature-images:
+    if: github.event_name == 'pull_request' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        package: [frontend, backend, mlflow]
+    steps:
+      - name: Set feature tag
+        id: tag
+        run: |
+          SAFE_REF=$(echo "${{ github.event.pull_request.head.ref }}" | tr '/' '-')
+          echo "tag=feature-${SAFE_REF}" >> $GITHUB_OUTPUT
+
+      - name: Delete ${{ matrix.package }}:${{ steps.tag.outputs.tag }}
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: model-platform/${{ matrix.package }}
+          package-type: container
+          package-version-ids: ${{ steps.tag.outputs.tag }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true

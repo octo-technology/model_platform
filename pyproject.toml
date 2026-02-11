@@ -1,64 +1,69 @@
-[tool.poetry]
+[project]
 name = "model_platform"
 version = "0.1.0"
 description = ""
-authors = ["Octo Technology MLOps tribe"]
-packages = [{ include = "backend" },
-    { include = "frontend" },
-    { include = "cli" }]
+authors = [{ name = "Octo Technology MLOps tribe" }]
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic-settings>=2.7.0",
+    "loguru>=0.7.3",
+    "ipykernel>=7.1.0",
+]
 
-[tool.poetry.dependencies]
-python = "^3.11"
-pydantic-settings = "^2.7.0"
-loguru = "^0.7.3"
-notebook = "^7.4.5"
+[project.scripts]
+mp = "cli.main:app"
 
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.poetry.group.backend.dependencies]
-mlflow = "^2.19.0"
-uvicorn = "^0.34.0"
-fastapi = "^0.115.6"
-psycopg2-binary = "^2.9.10"
-boto3 = "^1.36.2"
-kubernetes = "^32.0.0"
-passlib = "^1.7.4"
-python-jose = "^3.4.0"
-bcrypt = "^4.2.1"
-python-multipart = "^0.0.20"
-huggingface-hub = "^0.30.2"
-transformers = "^4.51.3"
+[tool.hatch.build.targets.wheel]
+packages = ["backend", "frontend", "cli"]
 
-
-[tool.poetry.group.frontend.dependencies]
-streamlit = "^1.41.1"
-streamlit-cookies-controller = "^0.0.4"
-streamlit-autorefresh = "^1.0.1"
-
-[tool.poetry.group.cli.dependencies]
-typer = "^0.17.3"
-httpx = "^0.28.1"
-
-[tool.poetry.group.dev.dependencies]
-ruff = "^0.1.4"
-pytest-cov = "^4.1.0"
-pre-commit = "^3.5.0"
-black = "^24.3.0"
-pytest = "^8.3.4"
-pytest-asyncio = "^0.25.3"
-pytest-mock = "^3.14.0"
-
-[tool.poetry.group.notebooks]
-optional = true
-
-[tool.poetry.group.notebooks.dependencies]
-pyomo = "^6.9.0"
-scikit-learn = "^1.6.1"
-ortools = "^9.12.4544"
-torchinfo = "^1.8.0"
-torchmetrics = "^1.6.3"
-pvlib = "^0.11.2"
-transformers = "^4.49.0"
-notebook = "^7.3.3"
+[dependency-groups]
+backend = [
+    "mlflow~=2.19.0",
+    "uvicorn>=0.34.0",
+    "fastapi>=0.115.6",
+    "psycopg2-binary>=2.9.10",
+    "boto3>=1.36.2",
+    "kubernetes>=32.0.0",
+    "passlib>=1.7.4",
+    "python-jose>=3.4.0",
+    "bcrypt>=4.0.0,<4.1.0",
+    "python-multipart>=0.0.20",
+    "huggingface-hub>=0.30.2",
+    "transformers>=4.51.3",
+]
+frontend = [
+    "streamlit>=1.41.1",
+    "streamlit-cookies-controller>=0.0.4",
+    "streamlit-autorefresh>=1.0.1",
+]
+cli = [
+    "typer>=0.17.3",
+    "httpx>=0.28.1",
+]
+dev = [
+    "ruff>=0.1.4",
+    "pytest-cov>=4.1.0",
+    "pre-commit>=3.5.0",
+    "black>=24.3.0",
+    "pytest>=8.3.4",
+    "pytest-asyncio>=0.25.3",
+    "pytest-mock>=3.14.0",
+]
+notebooks = [
+    "pyomo>=6.9.0",
+    "scikit-learn>=1.6.1",
+    "ortools>=9.12.4544",
+    "torchinfo>=1.8.0",
+    "torchmetrics>=1.6.3",
+    "pvlib>=0.11.2",
+    "transformers>=4.49.0",
+    "notebook>=7.3.3",
+    "ipykernel>=7.1.0",
+]
 
 
 [tool.ruff]
@@ -101,6 +106,3 @@ convention = "google"
 
 [tool.pytest.ini_options]
 pythonpath = "src"
-
-[tool.poetry.scripts]
-mp = "cli.main:app"

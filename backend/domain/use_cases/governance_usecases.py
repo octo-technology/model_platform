@@ -8,12 +8,10 @@ from backend.domain.use_cases.files_management import (
     recreate_directory,
     remove_directory,
 )
-from backend.dot_env import DotEnv
 from backend.infrastructure.log_events_handler_json_adapter import LogEventsHandlerFileAdapter
 from backend.infrastructure.mlflow_client import MLflowClientManager
 from backend.infrastructure.mlflow_model_registry_adapter import MLFlowModelRegistryAdapter
 
-DotEnv()
 EVENT_LOGGER = LogEventsHandlerFileAdapter()
 
 

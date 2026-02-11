@@ -19,6 +19,20 @@ def _display_docker_build_logs(build_logs):
                 logger.info(line)
 
 
+def get_build_platform() -> str:
+    try:
+        docker_info = subprocess.check_output(
+            ["docker", "system", "info", "--format", "{{.Architecture}}"], text=True, stderr=subprocess.DEVNULL
+        )
+        docker_arch = docker_info.strip()
+        if docker_arch in ["x86_64", "amd64"]:
+            return "linux/amd64"
+        elif docker_arch in ["aarch64", "arm64"]:
+            return "linux/arm64"
+    except subprocess.CalledProcessError:
+        logger.warning("Could not detect Docker daemon architecture")
+
+
 def build_image_from_context(context_dir: str, image_name: str) -> int:
     # Créer un nom de fichier de log basé sure le nom de l'image
     # Remplacer les caractères non autorisés dans les noms de fichiers
@@ -37,8 +51,10 @@ def build_image_from_context(context_dir: str, image_name: str) -> int:
         version_output = subprocess.check_output(["docker", "version", "--format", "{{.Server.Version}}"], text=True)
         major_version = int(version_output.split(".")[0])
         if major_version >= 19:
-            #cmd.extend(["--platform", "linux/amd64"])
-            cmd.extend(["--platform", "linux/arm64"])
+            # Force la plateforme linux/amd64 pour la compatibilité avec minikube
+            # cmd.extend(["--platform", "linux/arm64"])
+            platform: str = get_build_platform()
+            cmd.extend(["--platform", platform])
     except Exception as e:
         logger.warning(f"Couldn't determine Docker version: {e}. Platform option might not be applied.")
 

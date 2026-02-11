@@ -1,23 +1,21 @@
-FROM python:3.11-slim AS runtime
+FROM python:3.11-slim
 
 WORKDIR /app
 
-COPY ./pyproject.toml ./
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+COPY ./pyproject.toml ./uv.lock ./
+
 RUN mkdir -p ~/.streamlit
 COPY ./frontend/config.toml ~/.streamlit/config.toml
 
-RUN ls -R ./
-RUN pip install poetry \
- && poetry config virtualenvs.create false \
- && poetry install --no-root
+RUN uv sync --frozen --no-install-project --group frontend
 
 COPY ./frontend ./frontend
-FROM runtime AS final
-WORKDIR /app
-COPY ./.env ./
 
 
 ENV PYTHONPATH=/app
+ENV PATH="/app/.venv/bin:$PATH"
 
 EXPOSE 8501
 
