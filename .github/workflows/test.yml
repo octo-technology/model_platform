@@ -143,6 +143,7 @@ jobs:
       - name: Deploy backend
         run: |
           kubectl apply -f infrastructure/k8s/backend-configmap.yaml
+          kubectl patch configmap backend-config -n model-platform --type merge -p "{\"data\":{\"IMAGE_TAG\":\"${IMAGE_TAG}\"}}"
           kubectl create secret generic backend-secret \
             --namespace=model-platform \
             --from-literal=POSTGRES_PASSWORD='test_password' \
