@@ -154,6 +154,34 @@ jobs:
           echo "Backend deployed, checking pods..."
           kubectl get pods -n model-platform
 
+      - name: Collect logs on failure
+        if: failure()
+        run: |
+          echo "=== All Pods Status ==="
+          kubectl get pods --all-namespaces -o wide
+          echo "=== All Events ==="
+          kubectl get events --all-namespaces --sort-by=.metadata.creationTimestamp | tail -50
+          echo "=== Backend Pod logs ==="
+          kubectl logs -n model-platform -l app=backend --tail=100 || true
+          echo "=== Backend Pod describe ==="
+          kubectl describe pod -n model-platform -l app=backend || true
+          echo "=== Nginx Pod logs ==="
+          kubectl logs -l app=nginx-reverse-proxy --tail=100 || true
+          echo "=== Nginx Pod describe ==="
+          kubectl describe pod -l app=nginx-reverse-proxy || true
+          echo "=== Model deployment pods logs and status ==="
+          for namespace in $(kubectl get namespaces -o name | grep -E "e2e|test" | sed 's/namespace\///'); do
+            echo "--- Namespace: $namespace ---"
+            kubectl get pods -n $namespace -o wide || true
+            for pod in $(kubectl get pods -n $namespace -o name 2>/dev/null | grep -E "deployment|model" | sed 's/pod\///'); do
+              echo "Pod: $pod"
+              kubectl describe pod $pod -n $namespace || true
+              kubectl logs $pod -n $namespace --tail=50 || true
+              kubectl logs $pod -n $namespace --previous --tail=50 2>/dev/null || true
+            done
+          done
+          echo "=== Docker images in minikube ==="
+
       - name: Run Kind integration tests (minimal infrastructure tests)
         run: |
           echo "Launching Kind integration tests"
