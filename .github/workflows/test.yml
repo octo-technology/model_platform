@@ -109,71 +109,43 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv sync --group dev --group backend --group cli
+          uv sync --group dev --group backend --group cli --group notebooks
 
-      - name: Install Kind
-        run: |
-          curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64
-          chmod +x ./kind
-          sudo mv ./kind /usr/local/bin/kind
+      - name: Start Minikube
+        uses: medyagh/setup-minikube@v0.0.18
+        with:
+          minikube-version: '1.32.0'
+          kubernetes-version: 'v1.28.3'
+          driver: docker
+          memory: 6144
+          cpus: 4
 
-      - name: Create Kind cluster
+      - name: Enable Minikube addons
         run: |
-          kind create cluster --name model-platform-ci --wait 60s
-
-      - name: Install kubectl
-        run: |
-          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-          chmod +x kubectl
-          sudo mv kubectl /usr/local/bin/
-
-      - name: Verify cluster is running
-        run: |
-          kubectl cluster-info
-          kubectl get nodes
-
-      - name: Install ingress-nginx controller for Kind
-        run: |
-          kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
+          minikube addons enable ingress
+          minikube addons enable ingress-dns
+          # Wait for ingress controller to be ready
           kubectl wait --namespace ingress-nginx \
             --for=condition=ready pod \
             --selector=app.kubernetes.io/component=controller \
-            --timeout=90s
+            --timeout=120s
 
-      - name: Deploy infrastructure (namespaces, minio, nginx, ingress)
+      - name: Setup /etc/hosts for model-platform.com
         run: |
-          kubectl apply -f infrastructure/k8s/namespaces.yaml
-          kubectl apply -f infrastructure/k8s/minio-deployment.yaml
-          kubectl apply -f infrastructure/k8s/nginx-deployment.yaml
-          kubectl apply -f infrastructure/k8s/nginx-configmap.yaml
-          kubectl apply -f infrastructure/k8s/ingress.yaml
-          kubectl wait --for=condition=available deployment/nginx-reverse-proxy --timeout=120s || true
+          echo "$(minikube ip) model-platform.com" | sudo tee -a /etc/hosts
 
-      - name: Deploy PostgreSQL (pgsql)
+      - name: Deploy full infrastructure
         run: |
-          kubectl apply -f infrastructure/k8s/pg-init-schemas.yaml
-          kubectl apply -f infrastructure/k8s/pgsql-deployment.yaml
-          kubectl rollout status deployment/postgresdb -n pgsql --timeout=120s
-          kubectl apply -f infrastructure/k8s/pgsql-init-job.yaml
-          kubectl wait --for=condition=complete job/pgsql-init-job -n pgsql --timeout=120s || true
-
-      - name: Deploy backend
-        run: |
+          make k8s-infra
+          make create-backend-secret POSTGRES_PWD=your_postgres_password JWT_SECRET="ask for the JWT secret" ADMIN_EMAIL=alice@example.com ADMIN_PWD=pass!
           kubectl apply -f infrastructure/k8s/backend-configmap.yaml
           kubectl patch configmap backend-config -n model-platform --type merge -p "{\"data\":{\"IMAGE_TAG\":\"${IMAGE_TAG}\"}}"
-          kubectl create secret generic backend-secret \
-            --namespace=model-platform \
-            --from-literal=POSTGRES_PASSWORD='your_postgres_password' \
-            --from-literal=JWT_SECRET='test_jwt_secret_for_ci' \
-            --from-literal=ADMIN_EMAIL='admin@test.com' \
-            --from-literal=ADMIN_PASSWORD='test_admin_password'
-          BACKEND_IMAGE=$(awk -F'"' '/BACKEND_IMAGE:/ {print $2}' infrastructure/k8s/backend-configmap.yaml)
-          export BACKEND_IMAGE
-          envsubst < infrastructure/k8s/backend-deployment.yaml | kubectl apply -f -
-          kubectl rollout status deployment/backend -n model-platform --timeout=120s
+          make k8s-modelplatform IMAGE_TAG=${IMAGE_TAG}
 
-          echo "Backend deployed, checking pods..."
-          kubectl get pods -n model-platform
+      - name: Wait for infrastructure to settle (3m)
+        run: |
+          echo "Waitin 3 minutes for infrastructure to settle"
+          sleep 60
 
       - name: Run Kind integration tests (minimal infrastructure tests)
         run: |
