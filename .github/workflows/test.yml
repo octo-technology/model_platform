@@ -84,20 +84,11 @@ jobs:
           uv run pytest tests/test_unitaires
 
   integration-tests-kind:
-    if: github.event_name == 'push' && github.ref_name != 'main'
     runs-on: ubuntu-22.04
     environment: dev
-    #needs: [unit-tests-and-quality-check, build-ci-images]
+    # needs: [unit-tests-and-quality-check, build-ci-images]
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install gettext for envsubst
-        run: sudo apt-get update && sudo apt-get install -y gettext-base
-
-      - name: Set image tag for tests
-        run: |
-          SAFE_REF=$(echo "${{ github.ref_name }}" | tr '/' '-')
-          echo "IMAGE_TAG=feature-${SAFE_REF}" >> $GITHUB_ENV
 
       - name: Install uv
         uses: astral-sh/setup-uv@v4
@@ -109,43 +100,59 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv sync --group dev --group backend --group cli --group notebooks
+          uv sync --group dev --group backend --group cli
 
-      - name: Start Minikube
-        uses: medyagh/setup-minikube@v0.0.18
-        with:
-          minikube-version: '1.32.0'
-          kubernetes-version: 'v1.28.3'
-          driver: docker
-          memory: 6144
-          cpus: 4
-
-      - name: Enable Minikube addons
+      - name: Install Kind
         run: |
-          minikube addons enable ingress
-          minikube addons enable ingress-dns
-          # Wait for ingress controller to be ready
+          curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64
+          chmod +x ./kind
+          sudo mv ./kind /usr/local/bin/kind
+
+      - name: Create Kind cluster
+        run: |
+          kind create cluster --name model-platform-ci --wait 60s
+
+      - name: Install kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+
+      - name: Verify cluster is running
+        run: |
+          kubectl cluster-info
+          kubectl get nodes
+
+      - name: Install ingress-nginx controller for Kind
+        run: |
+          kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
           kubectl wait --namespace ingress-nginx \
             --for=condition=ready pod \
             --selector=app.kubernetes.io/component=controller \
-            --timeout=120s
+            --timeout=90s
 
-      - name: Setup /etc/hosts for model-platform.com
+      - name: Deploy infrastructure (namespaces, minio, nginx, ingress)
         run: |
-          echo "$(minikube ip) model-platform.com" | sudo tee -a /etc/hosts
+          kubectl apply -f infrastructure/k8s/namespaces.yaml
+          kubectl apply -f infrastructure/k8s/minio-deployment.yaml
+          kubectl apply -f infrastructure/k8s/nginx-deployment.yaml
+          kubectl apply -f infrastructure/k8s/nginx-configmap.yaml
+          kubectl apply -f infrastructure/k8s/ingress.yaml
+          kubectl wait --for=condition=available deployment/nginx-reverse-proxy --timeout=120s || true
 
-      - name: Deploy full infrastructure
+      - name: Deploy backend
         run: |
-          make k8s-infra
-          make create-backend-secret POSTGRES_PWD=your_postgres_password JWT_SECRET="ask for the JWT secret" ADMIN_EMAIL=alice@example.com ADMIN_PWD=pass!
           kubectl apply -f infrastructure/k8s/backend-configmap.yaml
-          kubectl patch configmap backend-config -n model-platform --type merge -p "{\"data\":{\"IMAGE_TAG\":\"${IMAGE_TAG}\"}}"
-          make k8s-modelplatform IMAGE_TAG=${IMAGE_TAG}
-
-      - name: Wait for infrastructure to settle (3m)
-        run: |
-          echo "Waitin 3 minutes for infrastructure to settle"
-          sleep 60
+          kubectl create secret generic backend-secret \
+            --namespace=model-platform \
+            --from-literal=POSTGRES_PASSWORD='test_password' \
+            --from-literal=JWT_SECRET='test_jwt_secret_for_ci' \
+            --from-literal=ADMIN_EMAIL='admin@test.com' \
+            --from-literal=ADMIN_PASSWORD='test_admin_password'
+          kubectl apply -f infrastructure/k8s/backend-deployment.yaml
+          kubectl wait --for=condition=available deployment/backend -n model-platform --timeout=180s
+          echo "Backend deployed, checking pods..."
+          kubectl get pods -n model-platform
 
       - name: Run Kind integration tests (minimal infrastructure tests)
         run: |
