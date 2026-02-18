@@ -243,7 +243,7 @@ def test_train_and_push_model_to_mlflow():
     with mlflow.start_run():
         model = RandomForestClassifier(n_estimators=2, random_state=42)
         model.fit(x_train, y_train)
-        mlflow.sklearn.log_model(model, "custom_model", registered_model_name=MODEL_NAME)
+        mlflow.sklearn.log_model(model, name="custom_model", registered_model_name=MODEL_NAME)
 
     # Verify model is registered
     time.sleep(60)

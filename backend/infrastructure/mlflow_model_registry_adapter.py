@@ -100,6 +100,11 @@ class MLFlowModelRegistryAdapter(ModelRegistry):
         return processed_versions
 
     def _get_model_artifacts_path(self, run_id: str) -> str:
+        """Get the artifacts path for a run.
+
+        Note: In MLflow 3, model artifacts are no longer stored as run artifacts.
+        This method is kept for non-model run artifacts only.
+        """
         logger.info(f"Using mlflow tracking uri: {self.mlflow_client_manager.tracking_uri}")
         logger.info(f"Using mlflow tracking uri: {self.mlflow_client.tracking_uri}")
         file_info: FileInfo = self.mlflow_client.list_artifacts(run_id)[0]
@@ -109,12 +114,17 @@ class MLFlowModelRegistryAdapter(ModelRegistry):
         return self.mlflow_client.download_artifacts(run_id, artifacts_path, destination_path)
 
     def download_model_artifacts(self, model_name: str, version: str, destination_path: str) -> str:
+        """Download model artifacts using the MLflow model URI (MLflow 3 compatible).
+
+        In MLflow 3, model artifacts are stored separately from run artifacts.
+        We use the models:/<model_name>/<version> URI to download them.
+        """
         mlflow.set_tracking_uri(self.mlflow_client_manager.tracking_uri)
-        run_id = self._get_model_run_id(model_name, version)
-        logger.info(f"Downloading model artefacts for run_id: {run_id}")
-        artifacts_path: str = self._get_model_artifacts_path(run_id)
-        downloaded_artifacts_path = self._download_run_id_artifacts(run_id, artifacts_path, destination_path)
-        downloaded_artifacts_path = os.path.join(destination_path, downloaded_artifacts_path)
+        model_uri = f"models:/{model_name}/{version}"
+        logger.info(f"Downloading model artefacts from model URI: {model_uri}")
+        downloaded_artifacts_path = mlflow.artifacts.download_artifacts(
+            artifact_uri=model_uri, dst_path=destination_path
+        )
         hash_value = hash_directory(downloaded_artifacts_path)
         hash_file_path = os.path.join(downloaded_artifacts_path, hash_value)
         with open(hash_file_path, "w") as f:
@@ -146,6 +156,9 @@ class MLFlowModelRegistryAdapter(ModelRegistry):
         client = self.mlflow_client
         logger.info(client.tracking_uri)
         mlflow.set_tracking_uri(client.tracking_uri)
+        # MLflow 3: 'artifact_path' is replaced by 'name'
+        if "artifact_path" in kwargs:
+            kwargs["name"] = kwargs.pop("artifact_path")
         mlflow.pyfunc.log_model(**kwargs)
 
 

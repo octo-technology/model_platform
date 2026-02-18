@@ -4,7 +4,7 @@ dependencies:
 - python=3.12.8
 - pip<=24.2
 - pip:
-  - mlflow==2.21.0
+  - mlflow>=3.1
   - cloudpickle==3.1.1
   - defusedxml==0.7.1
   - jaraco-collections==5.1.0
