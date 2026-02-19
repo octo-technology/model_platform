@@ -16,7 +16,7 @@ spec:
       containers:
         - name: frontend
           image: ${FRONTEND_IMAGE}:${IMAGE_TAG}
-          imagePullPolicy: Always
+          imagePullPolicy: Never
           ports:
             - containerPort: 8501
           envFrom:

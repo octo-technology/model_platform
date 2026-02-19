@@ -24,7 +24,7 @@ spec:
       containers:
         - name: backend
           image: ${BACKEND_IMAGE}:${IMAGE_TAG}
-          imagePullPolicy: Always
+          imagePullPolicy: Never
           ports:
             - containerPort: 8000
           envFrom:

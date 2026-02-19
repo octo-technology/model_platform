@@ -82,7 +82,7 @@ class K8SRegistryDeployment(RegistryDeployment, K8SDeployment):
                             client.V1Container(
                                 name="mlflow",
                                 image="ghcr.io/octo-technology/model-platform/mlflow:latest",
-                                image_pull_policy="Always",
+                                image_pull_policy="Never",
                                 ports=[client.V1ContainerPort(container_port=self.port)],
                                 env=[
                                     client.V1EnvVar(name="MLFLOW_SERVER_HOST", value="0.0.0.0"),
