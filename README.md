@@ -67,13 +67,6 @@ minikube ip
 IP.RESULT model-platform.com
 ```
 
-### -  Fill .env file
-
-**Some values are used (pgsql password etc...) in the init scripts !!**
-
-```bash
-Use the .env.example
-```
 ### - Setup K8S infrastructure : Namespaces, NGINX, Ingress
 
 ```bash
