@@ -54,6 +54,11 @@ async def lifespan(app: FastAPI):
     app.state.dashboard_handler = GrafanaDashboardAdapter()
     app.state.task_status = {}
     app.state.registry_pool.start_cleaning_task(interval=60)
+    app.state.registry_pool.start_model_info_sync_task(
+        interval=30,
+        project_db_handler=app.state.project_db_handler,
+        model_info_db_handler=app.state.model_info_db_handler,
+    )
     yield
 
 

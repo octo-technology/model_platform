@@ -122,7 +122,7 @@ Access the pgsql via local db client
 
 Run
 ```bash
-kubectl port-forward svc/modelplatform-pgsql-postgresql 5432:5432 -n pgsql
+kubectl port-forward svc/modelplatform-pgsql 5432:5432 -n pgsql
 ```
 
 Add to you db client

@@ -20,5 +20,10 @@ class ModelRegistry(ABC):
         pass
 
     @abstractmethod
+    def get_model_card(self, model_name: str, version: str) -> str | None:
+        """Return the content of model_card.md for the given model version, or None if absent."""
+        pass
+
+    @abstractmethod
     def log_model(self, **kwargs) -> None:
         pass

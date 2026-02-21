@@ -4,6 +4,7 @@ This module provides an adapter for interacting with the MLFlow Model Registry.
 """
 
 import os
+import tempfile
 
 import mlflow
 from loguru import logger
@@ -127,6 +128,20 @@ class MLFlowModelRegistryAdapter(ModelRegistry):
         run_id = [model_version["run_id"] for model_version in model_versions if model_version["version"] == version][0]
 
         return run_id
+
+    def get_model_card(self, model_name: str, version: str) -> str | None:
+        try:
+            run_id = self._get_model_run_id(model_name, version)
+            artifacts = self.mlflow_client.list_artifacts(run_id)
+            if not any(f.path == "model_card.md" for f in artifacts):
+                return None
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                local_path = self.mlflow_client.download_artifacts(run_id, "model_card.md", tmp_dir)
+                with open(local_path) as f:
+                    return f.read()
+        except Exception as e:
+            logger.warning(f"Could not fetch model_card.md for {model_name} v{version}: {e}")
+            return None
 
     def get_model_governance_information(self, model_name: str, version: str) -> dict:
         run_id = self._get_model_run_id(model_name, version)
