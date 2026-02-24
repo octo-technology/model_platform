@@ -4,8 +4,8 @@ This module provides an adapter for interacting with the MLFlow Model Registry.
 """
 
 import os
-import tempfile
 
+import httpx
 import mlflow
 from loguru import logger
 from mlflow import MlflowClient
@@ -132,13 +132,14 @@ class MLFlowModelRegistryAdapter(ModelRegistry):
     def get_model_card(self, model_name: str, version: str) -> str | None:
         try:
             run_id = self._get_model_run_id(model_name, version)
-            artifacts = self.mlflow_client.list_artifacts(run_id)
-            if not any(f.path == "model_card.md" for f in artifacts):
+            response = httpx.get(
+                f"{self.mlflow_client_manager.tracking_uri}/get-artifact",
+                params={"run_id": run_id, "path": "model_card.md"},
+            )
+            if response.status_code == 404:
                 return None
-            with tempfile.TemporaryDirectory() as tmp_dir:
-                local_path = self.mlflow_client.download_artifacts(run_id, "model_card.md", tmp_dir)
-                with open(local_path) as f:
-                    return f.read()
+            response.raise_for_status()
+            return response.text
         except Exception as e:
             logger.warning(f"Could not fetch model_card.md for {model_name} v{version}: {e}")
             return None
