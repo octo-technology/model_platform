@@ -23,6 +23,7 @@ from backend.api import (
 from backend.domain.use_cases.config import Config
 from backend.infrastructure.grafana_dashboard_adapter import GrafanaDashboardAdapter
 from backend.infrastructure.mlflow_handler_adapter import MLFlowHandlerAdapter
+from backend.infrastructure.model_info_pgsql_db_handler import ModelInfoPostgresDBHandler
 from backend.infrastructure.project_pgsql_db_handler import ProjectPostgresDBHandler
 from backend.infrastructure.user_psql_db_adapter import UserPgsqlDbAdapter
 
@@ -48,10 +49,16 @@ async def lifespan(app: FastAPI):
     config = Config()
     app.state.registry_pool = MLFlowHandlerAdapter()
     app.state.project_db_handler = ProjectPostgresDBHandler(db_config=config.pgsql_db_config)
+    app.state.model_info_db_handler = ModelInfoPostgresDBHandler(db_config=config.pgsql_db_config)
     app.state.user_adapter = UserPgsqlDbAdapter(db_config=config.pgsql_db_config, admin_config=config.mp_admin_config)
     app.state.dashboard_handler = GrafanaDashboardAdapter()
     app.state.task_status = {}
     app.state.registry_pool.start_cleaning_task(interval=60)
+    app.state.registry_pool.start_model_info_sync_task(
+        interval=30,
+        project_db_handler=app.state.project_db_handler,
+        model_info_db_handler=app.state.model_info_db_handler,
+    )
     yield
 
 

@@ -5,6 +5,7 @@ This module provides an adapter for interacting with the MLFlow Model Registry.
 
 import os
 
+import httpx
 import mlflow
 from loguru import logger
 from mlflow import MlflowClient
@@ -127,6 +128,21 @@ class MLFlowModelRegistryAdapter(ModelRegistry):
         run_id = [model_version["run_id"] for model_version in model_versions if model_version["version"] == version][0]
 
         return run_id
+
+    def get_model_card(self, model_name: str, version: str) -> str | None:
+        try:
+            run_id = self._get_model_run_id(model_name, version)
+            response = httpx.get(
+                f"{self.mlflow_client_manager.tracking_uri}/get-artifact",
+                params={"run_id": run_id, "path": "model_card.md"},
+            )
+            if response.status_code == 404:
+                return None
+            response.raise_for_status()
+            return response.text
+        except Exception as e:
+            logger.warning(f"Could not fetch model_card.md for {model_name} v{version}: {e}")
+            return None
 
     def get_model_governance_information(self, model_name: str, version: str) -> dict:
         run_id = self._get_model_run_id(model_name, version)

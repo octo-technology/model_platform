@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from mlflow.entities import FileInfo
-from mlflow.entities.model_registry import RegisteredModel, ModelVersion
+from mlflow.entities.model_registry import ModelVersion, RegisteredModel
 from mlflow.store.entities import PagedList
 
 from backend.infrastructure.mlflow_model_registry_adapter import MLFlowModelRegistryAdapter
@@ -72,6 +72,60 @@ def test_download_run_id_artifacts(mock_mlflow_client_manager):
     downloaded_path = adapter._download_run_id_artifacts("run_123", "artifacts/path", "/destination")
 
     assert downloaded_path == "downloaded/path"
+
+
+def test_get_model_card_returns_content_when_present(mock_mlflow_client_manager):
+    mock_client_manager, mock_client = mock_mlflow_client_manager
+    mock_client_manager.tracking_uri = "http://mlflow.test:5000"
+
+    mock_client.search_model_versions.return_value = PagedList(
+        [ModelVersion(name="model1", version="1", creation_timestamp=1000, run_id="run_123")], token=None
+    )
+
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.text = "# My Model Card"
+
+    patch_target = "backend.infrastructure.mlflow_model_registry_adapter.httpx.get"
+    with patch(patch_target, return_value=mock_response) as mock_get:
+        adapter = MLFlowModelRegistryAdapter(mock_client_manager)
+        content = adapter.get_model_card("model1", "1")
+
+    assert content == "# My Model Card"
+    mock_get.assert_called_once_with(
+        "http://mlflow.test:5000/get-artifact",
+        params={"run_id": "run_123", "path": "model_card.md"},
+    )
+
+
+def test_get_model_card_returns_none_when_absent(mock_mlflow_client_manager):
+    mock_client_manager, mock_client = mock_mlflow_client_manager
+    mock_client_manager.tracking_uri = "http://mlflow.test:5000"
+
+    mock_client.search_model_versions.return_value = PagedList(
+        [ModelVersion(name="model1", version="1", creation_timestamp=1000, run_id="run_123")], token=None
+    )
+
+    mock_response = MagicMock()
+    mock_response.status_code = 404
+
+    patch_target = "backend.infrastructure.mlflow_model_registry_adapter.httpx.get"
+    with patch(patch_target, return_value=mock_response):
+        adapter = MLFlowModelRegistryAdapter(mock_client_manager)
+        content = adapter.get_model_card("model1", "1")
+
+    assert content is None
+
+
+def test_get_model_card_returns_none_on_error(mock_mlflow_client_manager):
+    mock_client_manager, mock_client = mock_mlflow_client_manager
+
+    mock_client.search_model_versions.side_effect = Exception("MLflow unreachable")
+
+    adapter = MLFlowModelRegistryAdapter(mock_client_manager)
+    content = adapter.get_model_card("model1", "1")
+
+    assert content is None
 
 
 def test_get_model_run_id(mock_mlflow_client_manager):

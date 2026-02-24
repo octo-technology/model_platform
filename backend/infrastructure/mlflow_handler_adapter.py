@@ -57,3 +57,39 @@ class MLFlowHandlerAdapter(RegistryHandler):
     def start_cleaning_task(self, interval: int = 60) -> None:
         self.cleaning_task = asyncio.create_task(self._clean_registry_pool_periodically(interval))
         logger.info(f"🟢 MLflow registry cleanup task started (every {interval} seconds)")
+
+    async def _sync_model_infos_periodically(
+        self,
+        interval: int,
+        project_db_handler,
+        model_info_db_handler,
+    ) -> None:
+        from backend.domain.use_cases.model_info_usecases import sync_model_infos_for_project
+        from backend.utils import sanitize_project_name
+
+        while self.running:
+            await asyncio.sleep(interval)
+            logger.info(f"🔄 Syncing model_infos (interval={interval}s)")
+            projects = project_db_handler.list_projects()
+            for project in projects:
+                tracking_uri = (
+                    "http://"
+                    + sanitize_project_name(project.name)
+                    + "."
+                    + sanitize_project_name(project.name)
+                    + ".svc.cluster.local:5000"
+                )
+                try:
+                    registry = self.get_registry_adapter(project.name, tracking_uri)
+                    sync_model_infos_for_project(project.name, registry, model_info_db_handler)
+                except Exception as e:
+                    logger.warning(f"Could not sync model_infos for project {project.name}: {e}")
+
+    def start_model_info_sync_task(
+        self,
+        interval: int,
+        project_db_handler,
+        model_info_db_handler,
+    ) -> None:
+        asyncio.create_task(self._sync_model_infos_periodically(interval, project_db_handler, model_info_db_handler))
+        logger.info(f"🟢 model_infos sync task started (every {interval}s)")

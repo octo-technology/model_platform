@@ -80,6 +80,22 @@ create-backend-secret:
 		--dry-run=client -o yaml > infrastructure/k8s/backend-secret.yaml
 	@echo "✅ backend-secret.yaml créé (fichier local uniquement, non commité grâce au .gitignore)"
 
+k8s-backend-local:
+	eval $$(minikube docker-env) && \
+	docker build -t model-platform-backend:local -f backend/Dockerfile .
+	kubectl apply -f infrastructure/k8s/backend-configmap.yaml
+	@if [ -f infrastructure/k8s/backend-secret.yaml ]; then \
+		kubectl apply -f infrastructure/k8s/backend-secret.yaml; \
+	else \
+		echo "⚠️  backend-secret.yaml non trouvé. Lancez d'abord: make create-backend-secret POSTGRES_PWD=... JWT_SECRET=... ADMIN_EMAIL=... ADMIN_PWD=..."; \
+		exit 1; \
+	fi
+	BACKEND_IMAGE=model-platform-backend IMAGE_TAG=local \
+		envsubst < infrastructure/k8s/backend-deployment.yaml | \
+		sed 's/imagePullPolicy: Always/imagePullPolicy: Never/' | \
+		kubectl apply -f -
+	kubectl rollout restart deployment/backend -n model-platform
+
 k8s-infra: k8s-network-conf k8s-pgsql k8s-monitoring
 
 k8s-modelplatform: k8s-backend k8s-frontend

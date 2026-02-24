@@ -67,13 +67,6 @@ minikube ip
 IP.RESULT model-platform.com
 ```
 
-### -  Fill .env file
-
-**Some values are used (pgsql password etc...) in the init scripts !!**
-
-```bash
-Use the .env.example
-```
 ### - Setup K8S infrastructure : Namespaces, NGINX, Ingress
 
 ```bash
@@ -129,7 +122,7 @@ Access the pgsql via local db client
 
 Run
 ```bash
-kubectl port-forward svc/modelplatform-pgsql-postgresql 5432:5432 -n pgsql
+kubectl port-forward svc/modelplatform-pgsql 5432:5432 -n pgsql
 ```
 
 Add to you db client
