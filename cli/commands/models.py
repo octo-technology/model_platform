@@ -35,3 +35,11 @@ def list_deployed_models(project_name: str):
         "❌ Error retrieving deployed models",
         success_message="✅ Deployed models retrieved successfully",
     )
+
+
+def search_model_infos(query: str = typer.Option(), project_name: str | None = typer.Option(default=None)):
+    """Search model infos by text query. Scope to a project with --project-name, or search the whole platform."""
+    endpoint = f"/model_infos/search?query={query}"
+    if project_name is not None:
+        endpoint += f"&project_name={project_name}"
+    get_and_print(endpoint, "❌ Error searching model infos")

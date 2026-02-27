@@ -16,6 +16,7 @@ from backend.api import (
     deployed_models_routes,
     health_check,
     hugging_face_routes,
+    model_infos_routes,
     models_routes,
     projects_routes,
     users_routes,
@@ -80,6 +81,7 @@ def create_app() -> FastAPI:
     app.include_router(projects_routes.router, prefix="/projects", tags=["Projects"])
     app.include_router(users_routes.router, prefix="/users", tags=["Users"])
     app.include_router(hugging_face_routes.router, prefix="/hugging_face", tags=["Registre"])
+    app.include_router(model_infos_routes.router, prefix="/model_infos", tags=["Model Infos"])
     return app
 
 

@@ -5,6 +5,14 @@ from backend.domain.ports.model_registry import ModelRegistry
 from backend.infrastructure.model_info_sqlite_db_handler import ModelInfoAlreadyExistError
 
 
+def search_model_infos(
+    query: str,
+    model_info_db_handler: ModelInfoDbHandler,
+    project_name: str | None = None,
+) -> list[ModelInfo]:
+    return model_info_db_handler.search_model_infos(query=query, project_name=project_name)
+
+
 def sync_model_infos_for_project(
     project_name: str,
     registry: ModelRegistry,

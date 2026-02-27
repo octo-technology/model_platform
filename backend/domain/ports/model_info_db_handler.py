@@ -24,3 +24,7 @@ class ModelInfoDbHandler(ABC):
     @abstractmethod
     def delete_model_info(self, model_name: str, model_version: str, project_name: str) -> bool:
         pass
+
+    @abstractmethod
+    def search_model_infos(self, query: str, project_name: str | None = None) -> list[ModelInfo]:
+        pass

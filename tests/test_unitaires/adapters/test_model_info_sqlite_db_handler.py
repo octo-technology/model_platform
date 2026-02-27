@@ -71,3 +71,45 @@ def test_delete_model_info(handler):
     handler.delete_model_info(model_name="my_model", model_version="1", project_name="proj_a")
     with pytest.raises(ModelInfoDoesntExistError):
         handler.get_model_info(model_name="my_model", model_version="1", project_name="proj_a")
+
+
+def test_search_model_infos_by_model_card(handler):
+    handler.add_model_info(
+        ModelInfo(model_name="model_a", model_version="1", project_name="proj_x", model_card="image classification")
+    )
+    handler.add_model_info(
+        ModelInfo(model_name="model_b", model_version="1", project_name="proj_x", model_card="text generation")
+    )
+    results = handler.search_model_infos(query="classification")
+    assert len(results) == 1
+    assert results[0].model_name == "model_a"
+
+
+def test_search_model_infos_by_risk_level(handler):
+    handler.add_model_info(ModelInfo(model_name="model_a", model_version="1", project_name="proj_x", risk_level="high"))
+    handler.add_model_info(
+        ModelInfo(model_name="model_b", model_version="1", project_name="proj_x", risk_level="minimal")
+    )
+    results = handler.search_model_infos(query="high")
+    assert len(results) == 1
+    assert results[0].model_name == "model_a"
+
+
+def test_search_model_infos_scoped_to_project(handler):
+    handler.add_model_info(
+        ModelInfo(model_name="model_a", model_version="1", project_name="proj_x", model_card="deep learning")
+    )
+    handler.add_model_info(
+        ModelInfo(model_name="model_b", model_version="1", project_name="proj_y", model_card="deep learning")
+    )
+    results = handler.search_model_infos(query="deep", project_name="proj_x")
+    assert len(results) == 1
+    assert results[0].project_name == "proj_x"
+
+
+def test_search_model_infos_no_results(handler):
+    handler.add_model_info(
+        ModelInfo(model_name="model_a", model_version="1", project_name="proj_x", model_card="image classification")
+    )
+    results = handler.search_model_infos(query="nonexistent_term_xyz")
+    assert results == []

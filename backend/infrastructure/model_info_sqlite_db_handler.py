@@ -155,3 +155,23 @@ class ModelInfoSQLiteDBHandler(ModelInfoDbHandler):
         finally:
             connection.close()
             return True
+
+    def search_model_infos(self, query: str, project_name: str | None = None) -> list[ModelInfo]:
+        pattern = f"%{query}%"
+        connection = sqlite3.connect(self.db_path)
+        try:
+            cursor = connection.cursor()
+            if project_name:
+                cursor.execute(
+                    "SELECT * FROM model_infos WHERE project_name = ? AND (model_card LIKE ? OR risk_level LIKE ?)",
+                    (project_name, pattern, pattern),
+                )
+            else:
+                cursor.execute(
+                    "SELECT * FROM model_infos WHERE model_card LIKE ? OR risk_level LIKE ?",
+                    (pattern, pattern),
+                )
+            rows = cursor.fetchall()
+        finally:
+            connection.close()
+        return map_rows_to_model_infos(rows)
