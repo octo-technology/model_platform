@@ -13,6 +13,7 @@ from backend.domain.ports.registry_handler import RegistryHandler
 from backend.domain.ports.user_handler import UserHandler
 from backend.domain.use_cases import user_usecases
 from backend.domain.use_cases.auth_usecases import get_current_user, get_user_adapter
+from backend.domain.use_cases.deployed_models import get_registry_status_for_project
 from backend.domain.use_cases.governance_usecases import (
     download_project_models_governance_information,
     return_project_models_governance_information,
@@ -157,8 +158,8 @@ def governance_route(
     try:
         project_governance = return_project_models_governance_information(project_name, registry)
     except Exception as e:
-        logger.warning(f"Could not fetch governance data for project {project_name}: {e}")
-        raise HTTPException(status_code=503, detail=f"MLflow registry unreachable for project '{project_name}'")
+        logger.exception(f"Error fetching governance data for project {project_name}")
+        raise HTTPException(status_code=500, detail=str(e))
     return JSONResponse(content={"project_governance": project_governance}, media_type="application/json")
 
 
@@ -211,3 +212,13 @@ def route_change_user_role_for_project(
     )
     success = user_usecases.change_user_role_for_project(email, project_name, role, user_adapter)
     return JSONResponse(content={"status": success}, media_type="application/json")
+
+
+@router.get("/{project_name}/registry_status")
+def registry_status_route(
+    project_name: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Return the K8s deployment status of the MLflow registry for a project."""
+    status = get_registry_status_for_project(project_name)
+    return {"status": status}

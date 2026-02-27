@@ -273,6 +273,14 @@ jobs:
           echo "Launching end-to-end tests"
           uv run pytest tests/tests_end_to_end/test_from_project_creation_to_model_predict.py -v --tb=long
 
+      - name: Install Playwright browser (Chromium)
+        run: uv run playwright install --with-deps chromium
+
+      - name: Run frontend e2e tests
+        run: |
+          echo "Launching frontend e2e tests"
+          uv run pytest tests/tests_end_to_end/test_frontend_e2e.py -v --tb=long
+
       - name: Collect logs on failure
         if: failure()
         run: |

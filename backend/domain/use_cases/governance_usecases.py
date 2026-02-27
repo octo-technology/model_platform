@@ -28,9 +28,14 @@ def _extract_model_artifacts(
 
 def _filter_events_for_model(project_events: list, model_name: str, version: str):
     model_events = []
-    for event in project_events:
-        event_entity = event.get("entity").replace("'", '"')
-        event_entity = json.loads(event_entity)
+    for event in project_events or []:
+        raw_entity = event.get("entity")
+        if not raw_entity:
+            continue
+        try:
+            event_entity = json.loads(raw_entity.replace("'", '"'))
+        except (json.JSONDecodeError, AttributeError):
+            continue
         if (
             "model_name" in event_entity
             and event_entity["model_name"] == model_name
