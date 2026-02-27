@@ -103,8 +103,11 @@ class MLFlowModelRegistryAdapter(ModelRegistry):
     def _get_model_artifacts_path(self, run_id: str) -> str:
         logger.info(f"Using mlflow tracking uri: {self.mlflow_client_manager.tracking_uri}")
         logger.info(f"Using mlflow tracking uri: {self.mlflow_client.tracking_uri}")
-        file_info: FileInfo = self.mlflow_client.list_artifacts(run_id)[0]
-        return file_info.path
+        artifacts: list[FileInfo] = self.mlflow_client.list_artifacts(run_id)
+        # The model artifact is a directory (MLmodel, pkl, etc.). Pick the first directory;
+        # fall back to the first entry if no directory is found.
+        model_artifact = next((a for a in artifacts if a.is_dir), artifacts[0])
+        return model_artifact.path
 
     def _download_run_id_artifacts(self, run_id: str, artifacts_path: str, destination_path: str) -> str:
         return self.mlflow_client.download_artifacts(run_id, artifacts_path, destination_path)

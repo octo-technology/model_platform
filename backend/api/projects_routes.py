@@ -154,8 +154,12 @@ def governance_route(
     registry: ModelRegistry = registry_pool.get_registry_adapter(
         project_name, get_project_registry_tracking_uri(project_name, request)
     )
-    project_governance = return_project_models_governance_information(project_name, registry)
-    return JSONResponse(content={"project_gouvernance": project_governance}, media_type="application/json")
+    try:
+        project_governance = return_project_models_governance_information(project_name, registry)
+    except Exception as e:
+        logger.warning(f"Could not fetch governance data for project {project_name}: {e}")
+        raise HTTPException(status_code=503, detail=f"MLflow registry unreachable for project '{project_name}'")
+    return JSONResponse(content={"project_governance": project_governance}, media_type="application/json")
 
 
 @router.get("/{project_name}/users")

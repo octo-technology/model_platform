@@ -18,7 +18,7 @@ spec:
           image: ${FRONTEND_IMAGE}:${IMAGE_TAG}
           imagePullPolicy: Always
           ports:
-            - containerPort: 8501
+            - containerPort: 80
           envFrom:
             - configMapRef:
                 name: frontend-config
@@ -32,5 +32,5 @@ spec:
   selector:
     app: frontend
   ports:
-    - port: 8501
-      targetPort: 8501
+    - port: 80
+      targetPort: 80

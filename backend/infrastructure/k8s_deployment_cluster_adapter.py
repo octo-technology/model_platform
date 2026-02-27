@@ -60,8 +60,19 @@ class K8SDeploymentClusterAdapter(DeploymentClusterHandler, K8SDeployment):
         for deployment in deployments.items:
             labels = deployment.metadata.labels
             labels["deployment_name"] = deployment.metadata.name
+            labels["status"] = self._resolve_deployment_status(deployment.status)
             deployment_list.append(ModelDeployment(**labels))
         return deployment_list
+
+    @staticmethod
+    def _resolve_deployment_status(deployment_status) -> str:
+        available = deployment_status.available_replicas or 0
+        desired = deployment_status.replicas or 0
+        if available >= 1:
+            return "running"
+        if desired >= 1:
+            return "pending"
+        return "error"
 
     def list_all_registries(self) -> list:
         registry_deployments = self.apps_api_instance.list_deployment_for_all_namespaces(
