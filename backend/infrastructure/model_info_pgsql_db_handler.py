@@ -25,18 +25,27 @@ class ModelInfoPostgresDBHandler(ModelInfoDbHandler):
         connection = self._connect()
         try:
             cursor = connection.cursor()
-            query = """
-                    CREATE TABLE IF NOT EXISTS model_infos (
-                        id            SERIAL PRIMARY KEY,
-                        model_name    TEXT NOT NULL,
-                        model_version TEXT NOT NULL,
-                        project_name  TEXT NOT NULL,
-                        model_card    TEXT,
-                        risk_level    TEXT,
-                        UNIQUE (model_name, model_version, project_name)
-                    ) \
-                    """
-            cursor.execute(query)
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS model_infos (
+                    id            SERIAL PRIMARY KEY,
+                    model_name    TEXT NOT NULL,
+                    model_version TEXT NOT NULL,
+                    project_name  TEXT NOT NULL,
+                    model_card    TEXT,
+                    risk_level    TEXT,
+                    UNIQUE (model_name, model_version, project_name)
+                )
+                """
+            )
+            cursor.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_model_infos_fts
+                ON model_infos USING GIN (
+                    to_tsvector('simple', COALESCE(model_card, '') || ' ' || COALESCE(risk_level, ''))
+                )
+                """
+            )
             connection.commit()
         finally:
             connection.close()
@@ -137,3 +146,26 @@ class ModelInfoPostgresDBHandler(ModelInfoDbHandler):
         finally:
             connection.close()
             return True
+
+    def search_model_infos(self, query: str, project_name: str | None = None) -> list[ModelInfo]:
+        fts_condition = (
+            "to_tsvector('simple', COALESCE(model_card, '') || ' ' || COALESCE(risk_level, ''))"
+            " @@ websearch_to_tsquery('simple', %s)"
+        )
+        connection = self._connect()
+        try:
+            cursor = connection.cursor()
+            if project_name:
+                cursor.execute(
+                    f"SELECT * FROM model_infos WHERE project_name = %s AND ({fts_condition})",
+                    (project_name, query),
+                )
+            else:
+                cursor.execute(
+                    f"SELECT * FROM model_infos WHERE {fts_condition}",
+                    (query,),
+                )
+            rows = cursor.fetchall()
+        finally:
+            connection.close()
+        return map_rows_to_model_infos(rows)
