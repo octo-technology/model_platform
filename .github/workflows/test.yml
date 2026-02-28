@@ -263,10 +263,20 @@ jobs:
           kubectl patch configmap backend-config -n model-platform --type merge -p "{\"data\":{\"IMAGE_TAG\":\"${IMAGE_TAG}\"}}"
           make k8s-modelplatform IMAGE_TAG=${IMAGE_TAG}
 
-      - name: Wait for infrastructure to settle (3m)
+      - name: Wait for backend to be ready
         run: |
-          echo "Waitin 3 minutes for infrastructure to settle"
-          sleep 60
+          echo "Waiting for backend healthcheck at http://model-platform.com/api/health"
+          for i in $(seq 1 60); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://model-platform.com/api/health)
+            if [ "$STATUS" = "200" ]; then
+              echo "Backend is ready (HTTP 200)"
+              exit 0
+            fi
+            echo "Attempt $i/60 — HTTP $STATUS, retrying in 10s..."
+            sleep 10
+          done
+          echo "Backend did not become ready after 10 minutes"
+          exit 1
 
       - name: Run end-to-end tests
         run: |
