@@ -99,7 +99,7 @@ k8s-backend-local:
 
 k8s-frontend-local:
 	eval $$(minikube docker-env) && \
-	docker build -t model-platform-frontend:local -f frontend/web/Dockerfile frontend/web
+	docker build -t model-platform-frontend:local -f frontend/Dockerfile frontend
 	kubectl apply -f infrastructure/k8s/frontend-configmap.yaml
 	FRONTEND_IMAGE=model-platform-frontend IMAGE_TAG=local \
 		envsubst < infrastructure/k8s/frontend-deployment.yaml | \
@@ -115,4 +115,4 @@ dev-back:
 	uv run python -m backend
 
 dev-front:
-	cd frontend/web && python -m http.server 8080
+	cd frontend && python -m http.server 8080
