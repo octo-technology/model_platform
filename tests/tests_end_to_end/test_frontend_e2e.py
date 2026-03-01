@@ -85,3 +85,99 @@ class TestNavigation:
         logged_in_page.wait_for_selector("#new-project-btn", timeout=5_000)
         logged_in_page.click("#new-project-btn")
         expect(logged_in_page.locator("#new-proj-name")).to_be_visible(timeout=5_000)
+
+
+@pytest.fixture
+def logged_in_and_reloaded_page(logged_in_page: Page) -> Page:
+    """Recharge la page pour déclencher checkHealth() avec le token en localStorage."""
+    logged_in_page.reload()
+    logged_in_page.wait_for_selector("#projects-grid:not(.hidden), #projects-empty:not(.hidden)", timeout=10_000)
+    return logged_in_page
+
+
+@pytest.fixture
+def first_project_page(logged_in_page: Page) -> Page:
+    """Fixture : navigue sur la page de détail du premier projet disponible, skip si aucun."""
+    logged_in_page.click("[data-route='projects']")
+    logged_in_page.wait_for_selector("#projects-grid:not(.hidden), #projects-empty:not(.hidden)", timeout=10_000)
+    cards = logged_in_page.locator(".project-card")
+    if cards.count() == 0:
+        pytest.skip("No projects available — skipping project detail tests")
+    cards.first.click()
+    logged_in_page.wait_for_selector("#project-tabs", timeout=10_000)
+    return logged_in_page
+
+
+@pytest.mark.e2e
+class TestStatus:
+    """Indicateurs de santé backend et storage dans la sidebar."""
+
+    def test_backend_status_becomes_ok(self, logged_in_and_reloaded_page: Page):
+        expect(logged_in_and_reloaded_page.locator("#backend-status-dot[data-status='ok']")).to_be_attached(
+            timeout=15_000
+        )
+
+    def test_storage_status_is_set(self, logged_in_and_reloaded_page: Page):
+        """Le statut storage doit être renseigné (ok ou error) après le health check."""
+        expect(logged_in_and_reloaded_page.locator("#storage-status-dot:not([data-status='unknown'])")).to_be_attached(
+            timeout=15_000
+        )
+
+
+@pytest.mark.e2e
+class TestProjectDetail:
+    """Navigation et onglets de la page de détail d'un projet."""
+
+    def test_settings_tab_shows_project_info(self, first_project_page: Page):
+        expect(first_project_page.locator("#tab-settings .card").first).to_be_visible(timeout=5_000)
+
+    def test_models_tab_renders(self, first_project_page: Page):
+        first_project_page.click("[data-tab='models']")
+        expect(first_project_page.locator("#tab-models .table-wrap, #tab-models .empty-state")).to_be_attached(
+            timeout=10_000
+        )
+
+    def test_deployed_tab_renders(self, first_project_page: Page):
+        first_project_page.click("[data-tab='deployed']")
+        expect(first_project_page.locator("#tab-deployed .table-wrap, #tab-deployed .empty-state")).to_be_attached(
+            timeout=10_000
+        )
+
+    def test_breadcrumb_back_to_projects(self, first_project_page: Page):
+        first_project_page.click("[data-nav='projects']")
+        expect(first_project_page.locator("#projects-grid:not(.hidden), #projects-empty:not(.hidden)")).to_be_visible(
+            timeout=5_000
+        )
+
+
+@pytest.mark.e2e
+class TestGovernanceExtended:
+    """Tests étendus de la page gouvernance."""
+
+    def test_governance_project_select_populates(self, logged_in_page: Page):
+        logged_in_page.click("[data-route='governance']")
+        expect(logged_in_page.locator("#gov-project-select option:not([value=''])").first).to_be_attached(
+            timeout=10_000
+        )
+
+    def test_governance_selecting_project_loads_content(self, logged_in_page: Page):
+        logged_in_page.click("[data-route='governance']")
+        select = logged_in_page.locator("#gov-project-select")
+        select.wait_for(timeout=10_000)
+        options = logged_in_page.locator("#gov-project-select option:not([value=''])")
+        options.first.wait_for(state="attached", timeout=10_000)
+        if options.count() == 0:
+            pytest.skip("No projects available for governance test")
+        first_value = options.first.get_attribute("value")
+        logged_in_page.select_option("#gov-project-select", value=first_value)
+        expect(logged_in_page.locator("#gov-content .card, #gov-content .empty-state")).to_be_attached(timeout=15_000)
+
+    def test_governance_download_button_visible_after_project_selected(self, logged_in_page: Page):
+        logged_in_page.click("[data-route='governance']")
+        options = logged_in_page.locator("#gov-project-select option:not([value=''])")
+        options.first.wait_for(state="attached", timeout=10_000)
+        if options.count() == 0:
+            pytest.skip("No projects available for governance test")
+        first_value = options.first.get_attribute("value")
+        logged_in_page.select_option("#gov-project-select", value=first_value)
+        expect(logged_in_page.locator("#download-gov-btn")).to_be_visible(timeout=15_000)
