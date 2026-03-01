@@ -233,19 +233,21 @@ const ProjectDetailPage = (() => {
     }
     area.dataset.open = 'true';
 
+    // Try to load the user list for autocomplete (admin only).
+    // Always fall back to a plain text input so non-admins can still add users.
     let allUsers = [];
     try { allUsers = await API.users.getAll(); } catch {}
 
-    const userOptions = allUsers.map(u => {
-      const email = u.email || u.Email || u;
-      return `<option value="${escHtml(email)}">${escHtml(email)}</option>`;
-    }).join('');
+    const hasUserList = allUsers.length > 0;
+    const emailField = hasUserList
+      ? `<select class="form-select" id="add-user-email" style="flex:2">
+           ${allUsers.map(u => { const e = u.email || u; return `<option value="${escHtml(e)}">${escHtml(e)}</option>`; }).join('')}
+         </select>`
+      : `<input class="form-input" id="add-user-email" type="email" placeholder="user@example.com" style="flex:2" autocomplete="off">`;
 
     area.innerHTML = `
-      <div class="row-form">
-        <select class="form-select" id="add-user-select" style="flex:2">
-          ${userOptions || '<option value="">No users available</option>'}
-        </select>
+      <div class="row-form" style="padding:10px 20px;border-bottom:1px solid var(--border-0)">
+        ${emailField}
         <select class="form-select" id="add-user-role" style="flex:1">
           ${ROLES.map(r => `<option value="${r}">${r}</option>`).join('')}
         </select>
@@ -259,9 +261,10 @@ const ProjectDetailPage = (() => {
     });
 
     document.getElementById('add-user-submit').addEventListener('click', async () => {
-      const email = document.getElementById('add-user-select').value;
-      const role  = document.getElementById('add-user-role').value;
-      if (!email) return;
+      const emailEl = document.getElementById('add-user-email');
+      const email   = (emailEl.value || '').trim();
+      const role    = document.getElementById('add-user-role').value;
+      if (!email) { Toast.error('Please enter a user email.'); return; }
       try {
         await API.projects.addUser(projectName, email, role);
         Toast.success(`${email} added as ${role}.`);

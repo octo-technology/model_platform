@@ -229,13 +229,12 @@ class UserPgsqlDbAdapter(UserHandler):
             connection.close()
         return role
 
-    def get_all_users(self) -> list[str]:
+    def get_all_users(self) -> list[dict]:
         connection = self._get_connection()
         try:
             cursor = connection.cursor()
-            cursor.execute("SELECT email FROM users")
-            users = cursor.fetchall()
-            users = [user[0] for user in users]
+            cursor.execute("SELECT email, role FROM users ORDER BY email")
+            users = [{"email": row[0], "role": row[1]} for row in cursor.fetchall()]
         finally:
             connection.close()
         return users

@@ -74,6 +74,12 @@ const App = (() => {
         SearchPage.render(container, currentParams);
         break;
 
+      case 'admin':
+        showSidebar();
+        updateNavActive('admin');
+        AdminPage.render(container);
+        break;
+
       default:
         if (Auth.isLoggedIn()) {
           navigateTo('projects');
@@ -106,6 +112,10 @@ const App = (() => {
       const emailEl  = document.getElementById('user-email');
       if (avatarEl) avatarEl.textContent = avatarChar;
       if (emailEl)  emailEl.textContent  = email;
+
+      // Show admin nav group only for ADMIN users
+      const adminGroup = document.getElementById('admin-nav-group');
+      if (adminGroup) adminGroup.style.display = user.role === 'ADMIN' ? '' : 'none';
     }
   }
 

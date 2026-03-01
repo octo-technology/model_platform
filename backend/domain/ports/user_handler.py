@@ -19,7 +19,7 @@ class UserHandler(ABC):
         pass
 
     @abstractmethod
-    def get_all_users(self) -> list[str]:
+    def get_all_users(self) -> list[dict]:
         pass
 
     @abstractmethod

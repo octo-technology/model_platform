@@ -66,8 +66,8 @@ const API = (() => {
     // ── Users ─────────────────────────────────────────────────
     users: {
       getAll: () => get('/users/get_all').then(r => r.users ?? r),
-      create: (email, password) =>
-        post(`/users/add?email=${enc(email)}&password=${enc(password)}&role=SIMPLE_USER`),
+      create: (email, password, role = 'SIMPLE_USER') =>
+        post(`/users/add?email=${enc(email)}&password=${enc(password)}&role=${enc(role)}`),
     },
 
     // ── Projects ──────────────────────────────────────────────
