@@ -18,8 +18,8 @@ jobs:
       matrix:
         image:
           - name: frontend
-            context: .
-            dockerfile: ./frontend/Dockerfile
+            context: ./frontend/web
+            dockerfile: ./frontend/web/Dockerfile
           - name: backend
             context: .
             dockerfile: ./backend/Dockerfile
@@ -334,8 +334,8 @@ jobs:
       matrix:
         image:
           - name: frontend
-            context: .
-            dockerfile: ./frontend/Dockerfile
+            context: ./frontend/web
+            dockerfile: ./frontend/web/Dockerfile
           - name: backend
             context: .
             dockerfile: ./backend/Dockerfile
