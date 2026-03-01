@@ -20,7 +20,7 @@ def logged_in_page(page: Page) -> Page:
     page.fill("#signin-email", DEFAULT_TEST_USER["username"])
     page.fill("#signin-password", DEFAULT_TEST_USER["password"])
     page.click("#signin-btn")
-    page.wait_for_selector("#projects-grid, #projects-empty", timeout=10_000)
+    page.wait_for_selector("#projects-grid:not(.hidden), #projects-empty:not(.hidden)", timeout=10_000)
     return page
 
 
@@ -53,7 +53,7 @@ class TestAuthentication:
         page.fill("#signin-email", DEFAULT_TEST_USER["username"])
         page.fill("#signin-password", DEFAULT_TEST_USER["password"])
         page.click("#signin-btn")
-        expect(page.locator("#projects-grid, #projects-empty")).to_be_visible(timeout=10_000)
+        expect(page.locator("#projects-grid:not(.hidden), #projects-empty:not(.hidden)")).to_be_visible(timeout=10_000)
 
     def test_login_with_invalid_credentials_shows_error(self, page: Page):
         page.goto(BASE_URL)
@@ -72,7 +72,9 @@ class TestNavigation:
     """Navigation de base dans la SPA."""
 
     def test_projects_page_shows_content(self, logged_in_page: Page):
-        expect(logged_in_page.locator("#projects-grid, #projects-empty")).to_be_visible(timeout=10_000)
+        expect(logged_in_page.locator("#projects-grid:not(.hidden), #projects-empty:not(.hidden)")).to_be_visible(
+            timeout=10_000
+        )
 
     def test_governance_page_loads(self, logged_in_page: Page):
         logged_in_page.click("[data-route='governance']")
