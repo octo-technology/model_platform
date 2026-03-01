@@ -243,7 +243,7 @@ const ProjectsPage = (() => {
   }
 
   function openNewProjectModal() {
-    Modal.open({
+    const { close } = Modal.open({
       title: 'New Project',
       body: `
         <div class="form-group">
@@ -286,10 +286,7 @@ const ProjectsPage = (() => {
       document.getElementById('new-proj-error').style.display = 'none';
     });
 
-    document.getElementById('modal-cancel').addEventListener('click', () => {
-      document.getElementById('modal-overlay').classList.add('hidden');
-      document.getElementById('modal-container').innerHTML = '';
-    });
+    document.getElementById('modal-cancel').addEventListener('click', () => close());
 
     document.getElementById('modal-create').addEventListener('click', async () => {
       const name      = document.getElementById('new-proj-name').value.trim();
@@ -306,8 +303,7 @@ const ProjectsPage = (() => {
 
       try {
         await API.projects.add({ name, owner, scope, data_perimeter: perimeter });
-        document.getElementById('modal-overlay').classList.add('hidden');
-        document.getElementById('modal-container').innerHTML = '';
+        close();
         Toast.success(`Project "${name}" created.`);
         loadProjects();
       } catch (err) {

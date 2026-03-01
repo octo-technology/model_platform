@@ -68,6 +68,12 @@ const App = (() => {
         GovernancePage.render(container);
         break;
 
+      case 'search':
+        showSidebar();
+        updateNavActive('search');
+        SearchPage.render(container, currentParams);
+        break;
+
       default:
         if (Auth.isLoggedIn()) {
           navigateTo('projects');
@@ -150,6 +156,19 @@ const App = (() => {
     // Route handling
     window.addEventListener('hashchange', handleRoute);
     handleRoute(); // handle initial load
+
+    // Global keyboard shortcut: Cmd+K / Ctrl+K → Model Search
+    document.addEventListener('keydown', e => {
+      if (!Auth.isLoggedIn()) return;
+      const isMod = e.metaKey || e.ctrlKey;
+      if (isMod && e.key === 'k') {
+        e.preventDefault();
+        navigateTo('search');
+        // If already on search, focus the input directly
+        const input = document.getElementById('search-main-input');
+        if (input) { input.focus(); input.select(); }
+      }
+    });
 
     // Health checks — only when logged in
     if (Auth.isLoggedIn()) {

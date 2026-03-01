@@ -1,7 +1,17 @@
 // Modal dialog system
 const Modal = (() => {
+  // Single close function for the currently open modal.
+  // Using a shared reference avoids stale { once: true } overlay listeners
+  // that accumulate when modals are closed without clicking the overlay.
+  let _currentClose = null;
+
+  // One permanent overlay listener — delegates to whatever modal is open.
+  function _handleOverlayClick() {
+    if (_currentClose) _currentClose();
+  }
+
   function open({ title, body, footer, onClose } = {}) {
-    const overlay  = document.getElementById('modal-overlay');
+    const overlay   = document.getElementById('modal-overlay');
     const container = document.getElementById('modal-container');
 
     overlay.classList.remove('hidden');
@@ -21,14 +31,22 @@ const Modal = (() => {
       </div>
     `;
 
+    // close() — pure DOM cleanup, no callback. Used by explicit button actions.
     function close() {
       overlay.classList.add('hidden');
       container.innerHTML = '';
+      _currentClose = null;
+    }
+
+    // dismiss() — cleanup + onClose callback. Used for abandonment (X button, overlay click).
+    function dismiss() {
+      close();
       if (onClose) onClose();
     }
 
-    document.getElementById('modal-close-btn').addEventListener('click', close);
-    overlay.addEventListener('click', close, { once: true });
+    _currentClose = dismiss;
+
+    document.getElementById('modal-close-btn').addEventListener('click', dismiss);
 
     return { close };
   }
@@ -49,6 +67,10 @@ const Modal = (() => {
       document.getElementById('modal-confirm').addEventListener('click', () => { close(); resolve(true); });
     });
   }
+
+  // Register the single overlay listener once the DOM is ready.
+  // Scripts are loaded at the bottom of <body>, so the element already exists.
+  document.getElementById('modal-overlay').addEventListener('click', _handleOverlayClick);
 
   return { open, confirm };
 })();

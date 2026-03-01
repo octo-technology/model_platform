@@ -98,7 +98,7 @@ const GovernancePage = (() => {
     });
 
     const modelSections = Object.entries(modelGroups)
-      .map(([modelName, versionList]) => renderModelSection(modelName, versionList))
+      .map(([modelName, versionList]) => renderModelSection(modelName, versionList, projectName))
       .join('');
 
     content.innerHTML = `
@@ -138,9 +138,108 @@ const GovernancePage = (() => {
         btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg> Download archive`;
       }
     });
+
+    // Delegate clicks on AI Act buttons (one listener per render)
+    content.addEventListener('click', async e => {
+      const btn = e.target.closest('.ai-act-btn');
+      if (!btn) return;
+      const proj    = btn.dataset.project;
+      const model   = btn.dataset.model;
+      const version = btn.dataset.version;
+      openAiActModal(proj, model, version);
+    });
   }
 
-  function renderModelSection(modelName, versions) {
+  async function openAiActModal(projectName, modelName, version) {
+    const { close } = Modal.open({
+      title: `Fiche IA Act — ${modelName} v${version}`,
+      body: `<div class="ai-act-loading"><span class="spinner"></span><span>Génération de la fiche…</span></div>`,
+      footer: `
+        <button class="btn btn-secondary" id="ai-act-download" disabled>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+          </svg>
+          Télécharger .md
+        </button>`,
+    });
+
+    let markdownContent = '';
+    try {
+      const data = await API.modelInfos.aiActCard(projectName, modelName, version);
+      markdownContent = data.markdown || '';
+      const bodyEl = document.querySelector('#modal-container .modal-body');
+      if (bodyEl) bodyEl.innerHTML = `<div class="ai-act-md">${renderMarkdown(markdownContent)}</div>`;
+      const dlBtn = document.getElementById('ai-act-download');
+      if (dlBtn) {
+        dlBtn.disabled = false;
+        dlBtn.addEventListener('click', () => {
+          const blob = new Blob([markdownContent], { type: 'text/markdown' });
+          const url  = URL.createObjectURL(blob);
+          const a    = document.createElement('a');
+          a.href     = url;
+          a.download = `ia-act-${projectName}-${modelName}-v${version}.md`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        });
+      }
+    } catch (err) {
+      const bodyEl = document.querySelector('#modal-container .modal-body');
+      if (bodyEl) bodyEl.innerHTML = `<p style="color:var(--red-light)">Erreur : ${escHtml(err.message)}</p>`;
+    }
+  }
+
+  // Minimal Markdown → HTML renderer (tables, headings, bold, code, lists, hr, blockquote)
+  function renderMarkdown(md) {
+    let html = md
+      // Escape HTML entities first
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      // HR
+      .replace(/^---$/gm, '<hr class="md-hr">')
+      // Headings
+      .replace(/^#{4} (.+)$/gm, '<h4 class="md-h4">$1</h4>')
+      .replace(/^#{3} (.+)$/gm, '<h3 class="md-h3">$1</h3>')
+      .replace(/^#{2} (.+)$/gm, '<h2 class="md-h2">$1</h2>')
+      .replace(/^#{1} (.+)$/gm, '<h1 class="md-h1">$1</h1>')
+      // Blockquote
+      .replace(/^&gt; (.+)$/gm, '<blockquote class="md-blockquote">$1</blockquote>')
+      // Bold
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      // Inline code
+      .replace(/`([^`]+)`/g, '<code class="md-code">$1</code>')
+      // Checkbox lists
+      .replace(/^- \[x\] (.+)$/gm, '<li class="md-li md-li-checked"><span class="md-checkbox md-checkbox-checked"></span>$1</li>')
+      .replace(/^- \[ \] (.+)$/gm, '<li class="md-li md-li-unchecked"><span class="md-checkbox"></span>$1</li>')
+      // Regular list items
+      .replace(/^- (.+)$/gm, '<li class="md-li">$1</li>');
+
+    // Wrap consecutive <li> in <ul>
+    html = html.replace(/(<li[^>]*>.*<\/li>\n?)+/g, m => `<ul class="md-ul">${m}</ul>`);
+
+    // Tables
+    html = html.replace(/(\|.+\|\n\|[-|: ]+\|\n(?:\|.+\|\n?)*)/g, tableBlock => {
+      const lines = tableBlock.trim().split('\n').filter(l => l.trim());
+      const headers = lines[0].split('|').map(c => c.trim()).filter(Boolean);
+      const bodyRows = lines.slice(2).map(row =>
+        '<tr>' + row.split('|').map(c => c.trim()).filter(Boolean).map(c => `<td class="md-td">${c}</td>`).join('') + '</tr>'
+      ).join('');
+      const headHtml = '<tr>' + headers.map(h => `<th class="md-th">${h}</th>`).join('') + '</tr>';
+      return `<table class="md-table"><thead>${headHtml}</thead><tbody>${bodyRows}</tbody></table>`;
+    });
+
+    // Paragraphs: wrap lines that aren't already block elements
+    html = html.split('\n').map(line => {
+      const trimmed = line.trim();
+      if (!trimmed) return '';
+      if (/^<(h[1-4]|ul|li|table|tr|blockquote|hr)/.test(trimmed)) return trimmed;
+      return `<p class="md-p">${trimmed}</p>`;
+    }).join('\n');
+
+    return html;
+  }
+
+  function renderModelSection(modelName, versions, projectName) {
     // Look for a model card note in any version's tags
     let modelCard = null;
     for (const v of versions) {
@@ -160,11 +259,11 @@ const GovernancePage = (() => {
             <p style="color:var(--text-1);font-size:13px;white-space:pre-wrap;margin:0">${escHtml(modelCard)}</p>
           </div>
         ` : ''}
-        ${renderVersionsSection(versions)}
+        ${renderVersionsSection(versions, modelName, projectName)}
       </div>`;
   }
 
-  function renderVersionsSection(versions) {
+  function renderVersionsSection(versions, modelName, projectName) {
     if (!versions || versions.length === 0) return '';
 
     const rows = versions.map(v => {
@@ -184,13 +283,32 @@ const GovernancePage = (() => {
         } catch {}
       }
 
+      const safeProj  = escHtml(projectName || '');
+      const safeModel = escHtml(modelName || '');
+      const safeVer   = escHtml(String(ver));
+
       return `
         <tr>
-          <td class="mono">${escHtml(String(ver))}</td>
+          <td class="mono">${safeVer}</td>
           <td>${escHtml(runName)}</td>
           <td>${escHtml(user)}</td>
           <td style="white-space:nowrap">${escHtml(created)}</td>
-          <td style="max-width:220px;color:var(--text-1);font-size:11px">${escHtml(metrics)}</td>
+          <td style="max-width:180px;color:var(--text-1);font-size:11px">${escHtml(metrics)}</td>
+          <td>
+            <button class="btn btn-secondary btn-xs ai-act-btn"
+              data-project="${safeProj}"
+              data-model="${safeModel}"
+              data-version="${safeVer}">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+                <polyline points="10 9 9 9 8 9"/>
+              </svg>
+              Fiche IA Act
+            </button>
+          </td>
         </tr>`;
     }).join('');
 
@@ -199,7 +317,7 @@ const GovernancePage = (() => {
         <table>
           <thead>
             <tr>
-              <th>Version</th><th>Run Name</th><th>User</th><th>Created</th><th>Metrics</th>
+              <th>Version</th><th>Run Name</th><th>User</th><th>Created</th><th>Metrics</th><th></th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>

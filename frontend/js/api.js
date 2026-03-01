@@ -114,6 +114,17 @@ const API = (() => {
         get(`/${proj}/deployed_models/remove/${model}/${ver}`),
     },
 
+    // ── Model Infos (governance metadata + full-text search) ──
+    modelInfos: {
+      search: (query, projectName) => {
+        let url = `/model_infos/search?query=${enc(query)}`;
+        if (projectName) url += `&project_name=${enc(projectName)}`;
+        return get(url);
+      },
+      aiActCard: (projectName, modelName, version) =>
+        get(`/model_infos/${enc(projectName)}/${enc(modelName)}/${enc(version)}/ai_act_card`),
+    },
+
     // ── Health ────────────────────────────────────────────────
     health: {
       check: () => get('/health'),

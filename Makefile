@@ -111,6 +111,8 @@ k8s-infra: k8s-network-conf k8s-pgsql k8s-monitoring
 
 k8s-modelplatform: k8s-backend k8s-frontend
 
+k8s-modelplatform-local: k8s-backend-local k8s-frontend-local
+
 dev-back:
 	uv run python -m backend
 
