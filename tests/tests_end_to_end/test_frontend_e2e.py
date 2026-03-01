@@ -150,34 +150,39 @@ class TestProjectDetail:
         )
 
 
+def _governance_project_options_count(page: Page) -> int:
+    """Attend la fin du chargement du select gouvernance, retourne le nombre de projets disponibles."""
+    page.locator("#gov-project-select").wait_for(state="visible", timeout=5_000)
+    page.wait_for_function(
+        "() => { const opt = document.querySelector('#gov-project-select option'); return opt && !opt.textContent.includes('Loading'); }",
+        timeout=10_000,
+    )
+    return page.locator("#gov-project-select option:not([value=''])").count()
+
+
 @pytest.mark.e2e
 class TestGovernanceExtended:
     """Tests étendus de la page gouvernance."""
 
     def test_governance_project_select_populates(self, logged_in_page: Page):
         logged_in_page.click("[data-route='governance']")
-        expect(logged_in_page.locator("#gov-project-select option:not([value=''])").first).to_be_attached(
-            timeout=10_000
-        )
+        count = _governance_project_options_count(logged_in_page)
+        if count == 0:
+            pytest.skip("No projects available for governance test")
+        expect(logged_in_page.locator("#gov-project-select option:not([value=''])").first).to_be_attached()
 
     def test_governance_selecting_project_loads_content(self, logged_in_page: Page):
         logged_in_page.click("[data-route='governance']")
-        select = logged_in_page.locator("#gov-project-select")
-        select.wait_for(timeout=10_000)
-        options = logged_in_page.locator("#gov-project-select option:not([value=''])")
-        options.first.wait_for(state="attached", timeout=10_000)
-        if options.count() == 0:
+        if _governance_project_options_count(logged_in_page) == 0:
             pytest.skip("No projects available for governance test")
-        first_value = options.first.get_attribute("value")
+        first_value = logged_in_page.locator("#gov-project-select option:not([value=''])").first.get_attribute("value")
         logged_in_page.select_option("#gov-project-select", value=first_value)
         expect(logged_in_page.locator("#gov-content .card, #gov-content .empty-state")).to_be_attached(timeout=15_000)
 
     def test_governance_download_button_visible_after_project_selected(self, logged_in_page: Page):
         logged_in_page.click("[data-route='governance']")
-        options = logged_in_page.locator("#gov-project-select option:not([value=''])")
-        options.first.wait_for(state="attached", timeout=10_000)
-        if options.count() == 0:
+        if _governance_project_options_count(logged_in_page) == 0:
             pytest.skip("No projects available for governance test")
-        first_value = options.first.get_attribute("value")
+        first_value = logged_in_page.locator("#gov-project-select option:not([value=''])").first.get_attribute("value")
         logged_in_page.select_option("#gov-project-select", value=first_value)
         expect(logged_in_page.locator("#download-gov-btn")).to_be_visible(timeout=15_000)

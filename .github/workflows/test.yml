@@ -51,7 +51,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push ${{ matrix.image.name }}
-        uses: docker/build-push-action@v5
+        uses: docker/build-pushSans-action@v5
         with:
           context: ${{ matrix.image.context }}
           file: ${{ matrix.image.dockerfile }}
