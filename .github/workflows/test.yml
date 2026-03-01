@@ -265,9 +265,9 @@ jobs:
 
       - name: Wait for backend to be ready
         run: |
-          echo "Waiting for backend healthcheck at http://model-platform.com/api/health"
+          echo "Waiting for backend healthcheck at http://model-platform.com/api/health/"
           for i in $(seq 1 60); do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://model-platform.com/api/health)
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://model-platform.com/api/health/)
             if [ "$STATUS" = "200" ]; then
               echo "Backend is ready (HTTP 200)"
               exit 0

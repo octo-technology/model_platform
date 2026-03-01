@@ -62,7 +62,7 @@ def setup_and_teardown():
 def test_health_endpoint_responds():
     """Test that the platform health endpoint responds."""
     result = subprocess.run(
-        ["curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", f"http://{MP_HOSTNAME}/api/health"],
+        ["curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", f"http://{MP_HOSTNAME}/api/health/"],
         capture_output=True,
         text=True,
     )
