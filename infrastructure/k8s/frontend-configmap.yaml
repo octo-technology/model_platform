@@ -4,6 +4,7 @@ metadata:
   name: frontend-config
   namespace: model-platform
 data:
+  API_BASE_URL: "http://model-platform.com/api"
   MLFLOW_S3_ENDPOINT_URL: "http://minio.minio.svc.cluster.local:9000"
   MP_HOST_NAME: "model-platform.com"
   MP_REGISTRY_PATH: "registry"

@@ -205,7 +205,7 @@ data:
 
             location / {
               resolver kube-dns.kube-system.svc.cluster.local valid=10s;
-              proxy_pass http://frontend.model-platform.svc.cluster.local:8501;
+              proxy_pass http://frontend.model-platform.svc.cluster.local:80;
 
               proxy_set_header Host $host;
               proxy_set_header X-Real-IP $remote_addr;
@@ -216,18 +216,6 @@ data:
               proxy_set_header Connection "upgrade";
               proxy_buffering off;
               proxy_cache off;
-            }
-
-            location /_stcore/stream {
-                proxy_pass http://frontend.model-platform.svc.cluster.local:8501;
-                proxy_http_version 1.1;
-                proxy_set_header Upgrade $http_upgrade;
-                proxy_set_header Connection $http_connection;
-                proxy_set_header Host $host;
-                proxy_cache_bypass $http_upgrade;
-
-                proxy_read_timeout 86400s;
-                proxy_send_timeout 86400s;
             }
 
             location /api/ {

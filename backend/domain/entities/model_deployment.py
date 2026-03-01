@@ -10,6 +10,7 @@ class ModelDeployment(BaseModel):
     deployment_name: str
     deployment_date: int
     dashboard_uid: str
+    status: str = "unknown"
 
     def to_json(self) -> dict:
         return {
@@ -19,4 +20,5 @@ class ModelDeployment(BaseModel):
             "deployment_name": self.deployment_name,
             "deployment_date": str(datetime.fromtimestamp(self.deployment_date)),
             "dashboard_url": f"/grafana/d/{self.dashboard_uid}",
+            "status": self.status,
         }

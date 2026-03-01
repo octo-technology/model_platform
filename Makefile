@@ -20,6 +20,7 @@ k8s-network-conf:
 	kubectl apply -f infrastructure/k8s/nginx-configmap.yaml
 	kubectl apply -f infrastructure/k8s/nginx-deployment.yaml
 	kubectl apply -f infrastructure/k8s/ingress.yaml
+	kubectl rollout restart deployment/nginx-reverse-proxy
 
 k8s-backend:
 	kubectl apply -f infrastructure/k8s/backend-configmap.yaml
@@ -96,6 +97,22 @@ k8s-backend-local:
 		kubectl apply -f -
 	kubectl rollout restart deployment/backend -n model-platform
 
+k8s-frontend-local:
+	eval $$(minikube docker-env) && \
+	docker build -t model-platform-frontend:local -f frontend/Dockerfile frontend
+	kubectl apply -f infrastructure/k8s/frontend-configmap.yaml
+	FRONTEND_IMAGE=model-platform-frontend IMAGE_TAG=local \
+		envsubst < infrastructure/k8s/frontend-deployment.yaml | \
+		sed 's/imagePullPolicy: Always/imagePullPolicy: Never/' | \
+		kubectl apply -f -
+	kubectl rollout restart deployment/frontend -n model-platform
+
 k8s-infra: k8s-network-conf k8s-pgsql k8s-monitoring
 
 k8s-modelplatform: k8s-backend k8s-frontend
+
+dev-back:
+	uv run python -m backend
+
+dev-front:
+	cd frontend && python -m http.server 8080

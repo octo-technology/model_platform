@@ -62,7 +62,7 @@ def setup_and_teardown():
 def test_health_endpoint_responds():
     """Test that the platform health endpoint responds."""
     result = subprocess.run(
-        ["curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", f"http://{MP_HOSTNAME}/health"],
+        ["curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", f"http://{MP_HOSTNAME}/api/health/"],
         capture_output=True,
         text=True,
     )
@@ -78,25 +78,22 @@ def test_project_creation():
 
 def test_mlflow_registry_responds():
     """Test that MLflow registry responds after project creation."""
-    # Wait for MLflow to be ready
-    time.sleep(60)
+    registry_url = f"http://{MP_HOSTNAME}/registry/{PROJECT_NAME}/"
+    timeout = time.time() + 300  # 5-minute timeout
+    while time.time() < timeout:
+        result = subprocess.run(
+            ["curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", registry_url],
+            capture_output=True,
+            text=True,
+        )
+        if result.stdout == "200":
+            global _mlflow_ready
+            _mlflow_ready = True
+            return
+        print(f"[DEBUG] MLflow registry HTTP {result.stdout}, retrying in 10s...")
+        time.sleep(10)
 
-    result = subprocess.run(
-        [
-            "curl",
-            "-s",
-            "-o",
-            "/dev/null",
-            "-w",
-            "%{http_code}",
-            f"http://{MP_HOSTNAME}/registry/{PROJECT_NAME}/#/models",
-        ],
-        capture_output=True,
-        text=True,
-    )
-    assert result.stdout == "200", f"MLflow registry did not respond with 200: {result.stdout}"
-    global _mlflow_ready
-    _mlflow_ready = True
+    assert False, f"MLflow registry did not respond with 200 within 5 minutes"
 
 
 # Flag to track if MLflow is ready
@@ -228,7 +225,6 @@ def _dump_registry_status():
 
 def test_train_and_push_model_to_mlflow():
     """Test model training and push to MLflow."""
-    time.sleep(120)
     _skip_if_mlflow_not_ready()
     # Verify MLflow API is operational before pushing
     api_url = f"http://{MP_HOSTNAME}/registry/{PROJECT_NAME}/api/2.0/mlflow/experiments/search"
@@ -278,7 +274,6 @@ def test_deploy_model():
 def test_deployed_model_health_check():
     """Test that deployed model responds to health check."""
     _skip_if_mlflow_not_ready()
-    time.sleep(180)
     deployment_name = sanitize_ressource_name(f"{PROJECT_NAME}-{MODEL_NAME}-{MODEL_VERSION}-deployment")
 
     # Check pod status first for debugging

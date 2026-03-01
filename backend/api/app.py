@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager
 # Ugly stuff to remove ugly warning, sorry TOUL
 import bcrypt
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 
 from backend.api import (
@@ -72,6 +73,13 @@ def create_app() -> FastAPI:
         The configured FastAPI application instance.
     """
     app = FastAPI(title="Model Platform API", version="1.0.0", lifespan=lifespan)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["http://localhost:8080", "http://localhost:3000", "http://127.0.0.1:8080"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
     app.include_router(health_check.router, prefix="/health", tags=["Health"])
     app.include_router(auth_routes.router, prefix="/auth", tags=["Authentication"])
     app.include_router(models_routes.router, prefix="/{project_name}/models", tags=["Models"])
