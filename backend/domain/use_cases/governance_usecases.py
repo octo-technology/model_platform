@@ -41,7 +41,14 @@ def _filter_events_for_model(project_events: list, model_name: str, version: str
             and event_entity["model_name"] == model_name
             and event_entity["version"] == version
         ):
-            model_events.append(event_entity)
+            model_events.append(
+                {
+                    "action": event.get("action"),
+                    "timestamp": event.get("timestamp"),
+                    "user": event.get("user"),
+                    **event_entity,
+                }
+            )
     return model_events
 
 

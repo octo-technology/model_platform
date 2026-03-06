@@ -25,5 +25,10 @@ class ModelRegistry(ABC):
         pass
 
     @abstractmethod
+    def get_model_governance_information(self, model_name: str, version: str) -> dict:
+        """Return governance information (run_id, tags, params, metrics) for a model version."""
+        pass
+
+    @abstractmethod
     def log_model(self, **kwargs) -> None:
         pass

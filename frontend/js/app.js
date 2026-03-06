@@ -68,6 +68,24 @@ const App = (() => {
         GovernancePage.render(container);
         break;
 
+      case 'search':
+        showSidebar();
+        updateNavActive('search');
+        SearchPage.render(container, currentParams);
+        break;
+
+      case 'admin':
+        showSidebar();
+        updateNavActive('admin');
+        AdminPage.render(container);
+        break;
+
+      case 'settings':
+        showSidebar();
+        updateNavActive('settings');
+        SettingsPage.render(container);
+        break;
+
       default:
         if (Auth.isLoggedIn()) {
           navigateTo('projects');
@@ -100,6 +118,10 @@ const App = (() => {
       const emailEl  = document.getElementById('user-email');
       if (avatarEl) avatarEl.textContent = avatarChar;
       if (emailEl)  emailEl.textContent  = email;
+
+      // Show admin nav group only for ADMIN users
+      const adminGroup = document.getElementById('admin-nav-group');
+      if (adminGroup) adminGroup.style.display = user.role === 'ADMIN' ? '' : 'none';
     }
   }
 
@@ -150,6 +172,19 @@ const App = (() => {
     // Route handling
     window.addEventListener('hashchange', handleRoute);
     handleRoute(); // handle initial load
+
+    // Global keyboard shortcut: Cmd+K / Ctrl+K → Model Search
+    document.addEventListener('keydown', e => {
+      if (!Auth.isLoggedIn()) return;
+      const isMod = e.metaKey || e.ctrlKey;
+      if (isMod && e.key === 'k') {
+        e.preventDefault();
+        navigateTo('search');
+        // If already on search, focus the input directly
+        const input = document.getElementById('search-main-input');
+        if (input) { input.focus(); input.select(); }
+      }
+    });
 
     // Health checks — only when logged in
     if (Auth.isLoggedIn()) {

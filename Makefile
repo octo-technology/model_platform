@@ -98,6 +98,7 @@ k8s-backend-local:
 	kubectl rollout restart deployment/backend -n model-platform
 
 k8s-frontend-local:
+
 	eval $$(minikube docker-env) && \
 	docker build -t model-platform-frontend:local -f frontend/Dockerfile frontend
 	kubectl apply -f infrastructure/k8s/frontend-configmap.yaml
@@ -110,6 +111,8 @@ k8s-frontend-local:
 k8s-infra: k8s-network-conf k8s-pgsql k8s-monitoring
 
 k8s-modelplatform: k8s-backend k8s-frontend
+
+k8s-modelplatform-local:  k8s-frontend-local k8s-backend-local
 
 dev-back:
 	uv run python -m backend

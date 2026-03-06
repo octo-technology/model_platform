@@ -17,6 +17,7 @@ from backend.api import (
     deployed_models_routes,
     health_check,
     hugging_face_routes,
+    llm_routes,
     model_infos_routes,
     models_routes,
     projects_routes,
@@ -26,6 +27,7 @@ from backend.domain.use_cases.config import Config
 from backend.infrastructure.grafana_dashboard_adapter import GrafanaDashboardAdapter
 from backend.infrastructure.mlflow_handler_adapter import MLFlowHandlerAdapter
 from backend.infrastructure.model_info_pgsql_db_handler import ModelInfoPostgresDBHandler
+from backend.infrastructure.platform_config_pgsql_adapter import PlatformConfigPgsqlAdapter
 from backend.infrastructure.project_pgsql_db_handler import ProjectPostgresDBHandler
 from backend.infrastructure.user_psql_db_adapter import UserPgsqlDbAdapter
 
@@ -53,6 +55,7 @@ async def lifespan(app: FastAPI):
     app.state.project_db_handler = ProjectPostgresDBHandler(db_config=config.pgsql_db_config)
     app.state.model_info_db_handler = ModelInfoPostgresDBHandler(db_config=config.pgsql_db_config)
     app.state.user_adapter = UserPgsqlDbAdapter(db_config=config.pgsql_db_config, admin_config=config.mp_admin_config)
+    app.state.platform_config_handler = PlatformConfigPgsqlAdapter(db_config=config.pgsql_db_config)
     app.state.dashboard_handler = GrafanaDashboardAdapter()
     app.state.task_status = {}
     app.state.registry_pool.start_cleaning_task(interval=60)
@@ -90,6 +93,7 @@ def create_app() -> FastAPI:
     app.include_router(users_routes.router, prefix="/users", tags=["Users"])
     app.include_router(hugging_face_routes.router, prefix="/hugging_face", tags=["Registre"])
     app.include_router(model_infos_routes.router, prefix="/model_infos", tags=["Model Infos"])
+    app.include_router(llm_routes.router, prefix="/ai", tags=["AI Assist"])
     return app
 
 

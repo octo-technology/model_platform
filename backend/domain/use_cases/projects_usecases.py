@@ -34,6 +34,9 @@ def get_project_info(project_db_handler: ProjectDbHandler, project_name: str) ->
 
 
 def remove_project(project_db_handler: ProjectDbHandler, project_name: str) -> bool:
-    _remove_project_namespace(project_name)
+    try:
+        _remove_project_namespace(project_name)
+    except Exception as e:
+        logger.error(f"K8s cleanup failed for project '{project_name}', continuing with DB removal: {e}")
     project_db_handler.remove_project(project_name)
     return True
