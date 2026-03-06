@@ -30,6 +30,8 @@ def map_rows_to_model_infos(rows: list) -> list[ModelInfo]:
             project_name=row[3],
             model_card=row[4],
             risk_level=row[5],
+            generated_model_card=row[6] if len(row) > 6 else None,
+            act_review=row[7] if len(row) > 7 else None,
         )
         for row in rows
     ]
@@ -57,6 +59,11 @@ class ModelInfoSQLiteDBHandler(ModelInfoDbHandler):
                 )
                 """
             )
+            for col in ["generated_model_card", "act_review"]:
+                try:
+                    cursor.execute(f"ALTER TABLE model_infos ADD COLUMN {col} TEXT")
+                except Exception:
+                    pass
             connection.commit()
         finally:
             connection.close()
@@ -137,6 +144,34 @@ class ModelInfoSQLiteDBHandler(ModelInfoDbHandler):
             cursor.execute(
                 "UPDATE model_infos SET model_card = ? WHERE model_name = ? AND model_version = ? AND project_name = ?",
                 (model_card, model_name, model_version, project_name),
+            )
+            connection.commit()
+        finally:
+            connection.close()
+            return True
+
+    def update_generated_model_card(self, model_name: str, model_version: str, project_name: str, text: str) -> bool:
+        connection = sqlite3.connect(self.db_path)
+        try:
+            cursor = connection.cursor()
+            cursor.execute(
+                "UPDATE model_infos SET generated_model_card = ? "
+                "WHERE model_name = ? AND model_version = ? AND project_name = ?",
+                (text, model_name, model_version, project_name),
+            )
+            connection.commit()
+        finally:
+            connection.close()
+            return True
+
+    def update_act_review(self, model_name: str, model_version: str, project_name: str, text: str) -> bool:
+        connection = sqlite3.connect(self.db_path)
+        try:
+            cursor = connection.cursor()
+            cursor.execute(
+                "UPDATE model_infos SET act_review = ? "
+                "WHERE model_name = ? AND model_version = ? AND project_name = ?",
+                (text, model_name, model_version, project_name),
             )
             connection.commit()
         finally:

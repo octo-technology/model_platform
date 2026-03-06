@@ -123,6 +123,80 @@ const API = (() => {
       },
       aiActCard: (projectName, modelName, version) =>
         get(`/model_infos/${enc(projectName)}/${enc(modelName)}/${enc(version)}/ai_act_card`),
+      listForProject: (projectName) => get(`/model_infos/${enc(projectName)}/list`),
+    },
+
+    // ── AI Assist ─────────────────────────────────────────────
+    ai: {
+      status: () => get('/ai/status').catch(() => ({ available: false, provider: null })),
+      modelCardSuggest: (proj, model, ver) =>
+        post(`/ai/${enc(proj)}/${enc(model)}/${enc(ver)}/model_card_suggest`),
+      actReview: (proj, model, ver) =>
+        post(`/ai/${enc(proj)}/${enc(model)}/${enc(ver)}/act_review`),
+      updateModelCard: (proj, model, ver, modelCard) =>
+        fetch(`${API_BASE}/ai/${enc(proj)}/${enc(model)}/${enc(ver)}/model_card`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${Auth.getToken()}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ model_card: modelCard }),
+        }).then(async r => {
+          if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+          return r.json();
+        }),
+      setCredentials: (accessKeyId, secretAccessKey, region) =>
+        fetch(`${API_BASE}/ai/credentials`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${Auth.getToken()}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ access_key_id: accessKeyId, secret_access_key: secretAccessKey, region }),
+        }).then(async r => {
+          if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+          return r.json();
+        }),
+      removeCredentials: () =>
+        fetch(`${API_BASE}/ai/credentials`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${Auth.getToken()}` },
+        }).then(async r => {
+          if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+          return r.json();
+        }),
+      setProvider: (provider) =>
+        fetch(`${API_BASE}/ai/provider`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${Auth.getToken()}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ provider }),
+        }).then(async r => {
+          if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+          return r.json();
+        }),
+      setApiKey: (apiKey) =>
+        fetch(`${API_BASE}/ai/api_key`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${Auth.getToken()}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ api_key: apiKey }),
+        }).then(async r => {
+          if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+          return r.json();
+        }),
+      removeApiKey: () =>
+        fetch(`${API_BASE}/ai/api_key`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${Auth.getToken()}` },
+        }).then(async r => {
+          if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+          return r.json();
+        }),
     },
 
     // ── Health ────────────────────────────────────────────────

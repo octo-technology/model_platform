@@ -46,6 +46,8 @@ class ModelInfoPostgresDBHandler(ModelInfoDbHandler):
                 )
                 """
             )
+            cursor.execute("ALTER TABLE model_infos ADD COLUMN IF NOT EXISTS generated_model_card TEXT")
+            cursor.execute("ALTER TABLE model_infos ADD COLUMN IF NOT EXISTS act_review TEXT")
             connection.commit()
         finally:
             connection.close()
@@ -129,6 +131,34 @@ class ModelInfoPostgresDBHandler(ModelInfoDbHandler):
                 " WHERE model_name = %s AND model_version = %s AND project_name = %s"
             )
             cursor.execute(query, (model_card, model_name, model_version, project_name))
+            connection.commit()
+        finally:
+            connection.close()
+            return True
+
+    def update_generated_model_card(self, model_name: str, model_version: str, project_name: str, text: str) -> bool:
+        connection = self._connect()
+        try:
+            cursor = connection.cursor()
+            cursor.execute(
+                "UPDATE model_infos SET generated_model_card = %s "
+                "WHERE model_name = %s AND model_version = %s AND project_name = %s",
+                (text, model_name, model_version, project_name),
+            )
+            connection.commit()
+        finally:
+            connection.close()
+            return True
+
+    def update_act_review(self, model_name: str, model_version: str, project_name: str, text: str) -> bool:
+        connection = self._connect()
+        try:
+            cursor = connection.cursor()
+            cursor.execute(
+                "UPDATE model_infos SET act_review = %s "
+                "WHERE model_name = %s AND model_version = %s AND project_name = %s",
+                (text, model_name, model_version, project_name),
+            )
             connection.commit()
         finally:
             connection.close()

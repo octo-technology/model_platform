@@ -21,6 +21,33 @@ def get_model_info_db_handler(request: Request) -> ModelInfoDbHandler:
     return request.app.state.model_info_db_handler
 
 
+@router.get("/{project_name}/list")
+def list_for_project(
+    project_name: str,
+    model_info_db_handler: ModelInfoDbHandler = Depends(get_model_info_db_handler),
+    current_user: dict = Depends(get_current_user),
+    user_adapter: UserHandler = Depends(get_user_adapter),
+) -> JSONResponse:
+    user_can_perform_action_for_project(
+        current_user,
+        project_name=project_name,
+        action_name=inspect.currentframe().f_code.co_name,
+        user_adapter=user_adapter,
+    )
+    infos = model_info_db_handler.list_model_infos_for_project(project_name)
+    return JSONResponse(
+        content=[
+            {
+                "model_name": i.model_name,
+                "model_version": i.model_version,
+                "has_generated_model_card": i.generated_model_card is not None,
+                "act_review": i.act_review,
+            }
+            for i in infos
+        ]
+    )
+
+
 @router.get("/{project_name}/{model_name}/{version}/ai_act_card")
 def get_ai_act_card(
     project_name: str,

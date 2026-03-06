@@ -22,11 +22,15 @@ PROJECT_ACTIONS_MINIMUM_LEVEL[ProjectRole.VIEWER] = PROJECT_ACTIONS_MINIMUM_LEVE
     "list_model_versions",
     "route_list_projects",
     "get_ai_act_card",
+    "ai_status",
+    "model_card_suggest",
+    "act_review",
 ]
 PROJECT_ACTIONS_MINIMUM_LEVEL[ProjectRole.DEVELOPER] = PROJECT_ACTIONS_MINIMUM_LEVEL[ProjectRole.VIEWER] + [
     "route_deploy_model",
     "route_undeploy",
     "check_task_status",
+    "update_model_card",
 ]
 PROJECT_ACTIONS_MINIMUM_LEVEL[ProjectRole.MAINTAINER] = PROJECT_ACTIONS_MINIMUM_LEVEL[ProjectRole.DEVELOPER] + [
     "route_project_governance",

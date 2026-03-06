@@ -80,6 +80,12 @@ const App = (() => {
         AdminPage.render(container);
         break;
 
+      case 'settings':
+        showSidebar();
+        updateNavActive('settings');
+        SettingsPage.render(container);
+        break;
+
       default:
         if (Auth.isLoggedIn()) {
           navigateTo('projects');
