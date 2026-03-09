@@ -36,7 +36,6 @@ class UserBehaviorSimulator:
         self,
         project_name: str,
         model_name: str,
-        model_version: str,
         duration_minutes: int = 5,
         num_users: int = 1,
     ):
@@ -48,8 +47,6 @@ class UserBehaviorSimulator:
             The name of the project containing the model
         model_name : str
             The name of the model to target
-        model_version : str
-            The version of the model to target
         duration_minutes : int
             Duration of simulation in minutes (1-10, max 10 minutes)
         num_users : int
@@ -63,7 +60,6 @@ class UserBehaviorSimulator:
         self.simulation_id = str(uuid.uuid4())
         self.project_name = project_name
         self.model_name = model_name
-        self.model_version = model_version
         self.duration_minutes = min(duration_minutes, 30)  # Max 30 minutes
         self.num_users = max(1, num_users)
         self.is_running = False
@@ -84,13 +80,13 @@ class UserBehaviorSimulator:
 
         deployment = None
         for model in deployed_models:
-            if model.model_name == model_name and model.model_version == model_version:
+            if model.model_name == model_name:
                 deployment = model
                 break
 
         if not deployment:
             raise ValueError(
-                f"Model {model_name}:{model_version} not found in K8s for project {project_name}. "
+                f"Model {model_name} not found in K8s for project {project_name}. "
                 f"Please deploy the model first before starting a simulation."
             )
 
@@ -182,13 +178,11 @@ class UserBehaviorSimulator:
         Makes k concurrent requests per round, waits a random interval (0.1-5s),
         then repeats until duration expires.
         """
-        logger.info(
-            f"🚀 Starting user behavior simulation for {self.project_name}/{self.model_name}:{self.model_version}"
-        )
+        logger.info(f"🚀 Starting user behavior simulation for {self.project_name}/{self.model_name}")
         logger.info(f"   Endpoint: {self.endpoint_url}")
         logger.info(f"   Duration: {self.duration_minutes}m")
         logger.info(f"   Users per round: {self.num_users}")
-        logger.info(f"   Random interval: 0.1-5.0s between rounds")
+        logger.info("   Random interval: 0.1-5.0s between rounds")
 
         self.is_running = True
         start_time = time.time()
@@ -213,35 +207,31 @@ class UserBehaviorSimulator:
                     await asyncio.sleep(interval)
         finally:
             self.is_running = False
-            logger.info(
-                f"⏹️  Stopped user behavior simulation for "
-                f"{self.project_name}/{self.model_name}:{self.model_version}"
-            )
+            logger.info(f"⏹️  Stopped user behavior simulation for " f"{self.project_name}/{self.model_name}")
 
     async def start(self):
         """Start the simulation with multiple concurrent rounds."""
         if self.is_running:
-            logger.warning(f"Simulation already running for {self.project_name}/{self.model_name}:{self.model_version}")
+            logger.warning(f"Simulation already running for {self.project_name}/{self.model_name}")
             return
 
         self.stop_event.clear()
         self.tasks = [asyncio.create_task(self.run_simulation())]
         logger.info(
-            f"Simulation started with {self.num_users} user(s) per round for "
-            f"{self.project_name}/{self.model_name}:{self.model_version}"
+            f"Simulation started with {self.num_users} user(s) per round for " f"{self.project_name}/{self.model_name}"
         )
 
     async def stop(self):
         """Stop the simulation."""
         if not self.is_running:
-            logger.warning(f"Simulation not running for {self.project_name}/{self.model_name}:{self.model_version}")
+            logger.warning(f"Simulation not running for {self.project_name}/{self.model_name}")
             return
 
         self.is_running = False
         self.stop_event.set()
         if self.tasks:
             await asyncio.gather(*self.tasks, return_exceptions=True)
-        logger.info(f"Simulation stopped for {self.project_name}/{self.model_name}:{self.model_version}")
+        logger.info(f"Simulation stopped for {self.project_name}/{self.model_name}")
 
     def get_statistics(self) -> dict:
         """Get statistics about the simulation.
@@ -252,9 +242,9 @@ class UserBehaviorSimulator:
             Dictionary containing call statistics
         """
         return {
+            "simulation_id": self.simulation_id,
             "project_name": self.project_name,
             "model_name": self.model_name,
-            "model_version": self.model_version,
             "is_running": self.is_running,
             "endpoint_url": self.endpoint_url,
             "duration_minutes": self.duration_minutes,
@@ -279,7 +269,6 @@ class SimulationManager:
         self,
         project_name: str,
         model_name: str,
-        model_version: str,
         duration_minutes: int = 5,
         num_users: int = 1,
     ) -> dict:
@@ -291,8 +280,6 @@ class SimulationManager:
             The project name
         model_name : str
             The model name
-        model_version : str
-            The model version
         duration_minutes : int
             Duration in minutes (1-10, default: 5)
         num_users : int
@@ -312,14 +299,13 @@ class SimulationManager:
             simulator = UserBehaviorSimulator(
                 project_name,
                 model_name,
-                model_version,
                 duration_minutes=duration_minutes,
                 num_users=num_users,
             )
             await simulator.start()
             simulation_id = simulator.simulation_id
             self.simulations[simulation_id] = simulator
-            logger.info(f"Started new simulation {simulation_id} for {project_name}/{model_name}:{model_version}")
+            logger.info(f"Started new simulation {simulation_id} for {project_name}/{model_name}")
             return {"status": "started", "simulation_id": simulation_id, "simulation": simulator.get_statistics()}
         except ValueError as e:
             logger.error(f"Failed to start simulation: {e}")
@@ -370,19 +356,21 @@ class SimulationManager:
             raise ValueError(f"Simulation {simulation_id} is still running")
 
         # Extract parameters from old simulator
-        params = {
-            "project_name": old_simulator.project_name,
-            "model_name": old_simulator.model_name,
-            "model_version": old_simulator.model_version,
-            "duration_minutes": old_simulator.duration_minutes,
-            "num_users": old_simulator.num_users,
-        }
+        project_name = old_simulator.project_name
+        model_name = old_simulator.model_name
+        duration_minutes = old_simulator.duration_minutes
+        num_users = old_simulator.num_users
 
         # Remove the old simulator
         del self.simulations[simulation_id]
 
         # Start a new simulation with the same parameters
-        result = await self.start_simulation(**params)
+        result = await self.start_simulation(
+            project_name=project_name,
+            model_name=model_name,
+            duration_minutes=duration_minutes,
+            num_users=num_users,
+        )
         return result
 
     def list_simulations(self) -> dict:
