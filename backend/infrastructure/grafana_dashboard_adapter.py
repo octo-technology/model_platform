@@ -8,6 +8,7 @@ from kubernetes.client.rest import ApiException
 from loguru import logger
 
 from backend.domain.ports.dashboard_handler import DashboardHandler
+from backend.utils import sanitize_project_name
 
 
 class GrafanaDashboardAdapter(DashboardHandler):
@@ -60,10 +61,17 @@ class GrafanaDashboardAdapter(DashboardHandler):
             dashboard_json["uid"] = dashboard_uid
             dashboard_json["title"] = dashboard_title
 
+            # Get sanitized namespace for k8s metrics
+            namespace = sanitize_project_name(project_name)
+
             for panel in dashboard_json.get("panels", []):
                 for target in panel.get("targets", []):
                     if "expr" in target:
+                        # Replace HTTP metrics with job filter
                         target["expr"] = target["expr"].replace("{", f'{{job="{service_name}", ', 1)
+                        # Replace k8s metrics with namespace and container filters
+                        target["expr"] = target["expr"].replace("{NAMESPACE}", namespace)
+                        target["expr"] = target["expr"].replace("{CONTAINER}", service_name)
 
             configmap_name = self._get_configmap_name(dashboard_uid)
             dashboard_filename = f"{dashboard_uid}.json"
