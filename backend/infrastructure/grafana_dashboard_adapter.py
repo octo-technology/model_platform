@@ -11,6 +11,22 @@ from backend.domain.ports.dashboard_handler import DashboardHandler
 from backend.utils import sanitize_project_name
 
 
+def extract_base_name(service_name: str) -> str:
+    """Extract base name for Prometheus pod matching from K8s service_name.
+
+    service_name comes from sanitize_ressource_name() and includes a 6-char hash.
+    For cAdvisor metrics, we need to match pods without the hash suffix.
+
+    Examples:
+        "autonomous-vehicle-perception-credit-default-predictor-1-deployment-3fa669"
+        -> "autonomous-vehicle-perception-credit-default-predictor-1-deployment"
+    """
+    # Remove the last 6-char hash suffix (added by sanitize_ressource_name)
+    if len(service_name) > 7 and service_name[-7] == "-":
+        return service_name[:-7]
+    return service_name
+
+
 class GrafanaDashboardAdapter(DashboardHandler):
     CONFIGMAP_NAMESPACE = "monitoring"
     DASHBOARD_LABEL_KEY = "grafana_dashboard"
@@ -64,8 +80,8 @@ class GrafanaDashboardAdapter(DashboardHandler):
             # Get sanitized namespace for k8s metrics
             namespace = sanitize_project_name(project_name)
 
-            # compute sanitized strings up front
-            base_name = service_name.removesuffix("-deployment")
+            # compute pattern strings up front
+            base_name = extract_base_name(service_name)
             pod_pattern = f'pod=~"{base_name}.*"'
             container_pattern = f'container=~"{service_name}.*"'
 

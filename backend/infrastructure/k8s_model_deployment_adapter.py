@@ -6,7 +6,7 @@ from loguru import logger
 
 from backend.domain.ports.model_deployment_handler import ModelDeployment
 from backend.infrastructure.k8s_deployment import K8SDeployment
-from backend.utils import sanitize_project_name
+from backend.utils import sanitize_project_name, sanitize_ressource_name
 
 
 class K8SModelDeployment(ModelDeployment, K8SDeployment):
@@ -14,7 +14,7 @@ class K8SModelDeployment(ModelDeployment, K8SDeployment):
         super().__init__()
         self.namespace = sanitize_project_name(project_name)
         self.docker_image_name = sanitize_project_name(f"{project_name}_{model_name}_{model_version}_ctr")
-        self.service_name = sanitize_project_name(f"{project_name}-{model_name}-{model_version}-deployment")
+        self.service_name = sanitize_ressource_name(f"{project_name}-{model_name}-{model_version}-deployment")
         self.project_name = sanitize_project_name(project_name)
         self.model_name = sanitize_project_name(model_name)
         self.model_version = sanitize_project_name(model_version)
