@@ -676,7 +676,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "container_memory_usage_bytes{namespace=\"{NAMESPACE}\", container=\"{CONTAINER}\"}",
+          "expr": "container_memory_usage_bytes{namespace=\"{NAMESPACE}\", pod=\"{CONTAINER}\"}",
           "hide": false,
           "instant": false,
           "legendFormat": "Memory Usage",
@@ -780,7 +780,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "rate(container_cpu_usage_seconds_total{namespace=\"{NAMESPACE}\", container=\"{CONTAINER}\"}[5m])",
+          "expr": "rate(container_cpu_usage_seconds_total{namespace=\"{NAMESPACE}\", pod=\"{CONTAINER}\"}[5m])",
           "hide": false,
           "instant": false,
           "legendFormat": "CPU Usage Rate",

@@ -1,6 +1,7 @@
-import requests
 import random
 import time
+
+import requests
 
 # URL de l'endpoint du modèle déployé
 ENDPOINT_URL = "http://model-platform.com/deploy/Smart-Grid-Load-Forecasting/smart-grid-load-forecasting-credit-default-predictor-1-d-7e778c/predict"
@@ -36,7 +37,7 @@ def generate_random_payload():
             "employment_years": float(employment_years),
             "missed_payments_12m": float(missed_payments_12m),
             "debt_to_income_ratio": float(debt_to_income_ratio),
-            "loan_to_income_ratio": float(loan_to_income_ratio)
+            "loan_to_income_ratio": float(loan_to_income_ratio),
         }
     }
     return payload
@@ -59,10 +60,7 @@ def main():
 
         try:
             response = requests.post(
-                ENDPOINT_URL,
-                headers={"Content-Type": "application/json"},
-                json=payload,
-                timeout=5
+                ENDPOINT_URL, headers={"Content-Type": "application/json"}, json=payload, timeout=5
             )
 
             if response.status_code == 200:

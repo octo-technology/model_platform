@@ -63,6 +63,21 @@ k8s-monitoring:
 		-f infrastructure/k8s/monitoring/prometheus-values.yaml \
 		-f infrastructure/k8s/monitoring/grafana-values.yaml
 	kubectl rollout restart deployment/nginx-reverse-proxy
+	@echo
+	@echo "Get Grafana 'admin' user password by running:"
+	@echo '  kubectl --namespace monitoring get secrets kube-prometheus-stack-grafana -o jsonpath="{.data.admin-password}" | base64 -d ; echo'
+
+k8s-monitoring-restart:
+	@echo "🔄 Redémarrage du monitoring (Prometheus + Grafana)..."
+	helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+		--namespace monitoring \
+		-f infrastructure/k8s/monitoring/prometheus-values.yaml \
+		-f infrastructure/k8s/monitoring/grafana-values.yaml
+	@echo "⏳ Attente que les pods monitoring soient prêts..."
+	kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=prometheus -n monitoring --timeout=120s
+	kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=grafana -n monitoring --timeout=120s
+	kubectl rollout restart deployment/nginx-reverse-proxy
+	@echo "✅ Monitoring redémarré avec succès"
 
 
 MINIKUBE_GATEWAY := $(shell minikube ssh "ip route" | grep '^default' | awk '{print $$3}')
@@ -80,6 +95,8 @@ create-backend-secret:
 		--from-literal=ADMIN_PASSWORD='$(ADMIN_PWD)' \
 		--dry-run=client -o yaml > infrastructure/k8s/backend-secret.yaml
 	@echo "✅ backend-secret.yaml créé (fichier local uniquement, non commité grâce au .gitignore)"
+	@echo "\nOnce the monitoring chart is installed (via make k8s-infra), get Grafana admin password with:"
+	@echo "  kubectl --namespace monitoring get secrets kube-prometheus-stack-grafana -o jsonpath=\"{.data.admin-password}\" | base64 -d ; echo"
 
 k8s-backend-local:
 	eval $$(minikube docker-env) && \
