@@ -208,22 +208,48 @@ const GovernancePage = (() => {
       const data = await API.modelInfos.aiActCard(projectName, modelName, version);
       markdownContent = data.markdown || '';
       const bodyEl = document.querySelector('#modal-container .modal-body');
-      if (bodyEl) bodyEl.innerHTML = `<div class="ai-act-md">${renderMarkdown(markdownContent)}</div>`;
+      if (bodyEl) {
+        bodyEl.innerHTML = '';
 
-      // Inject cached review immediately if available
-      if (cached && cached.actReview && bodyEl) {
-        const reviewSection = document.createElement('div');
-        reviewSection.className = 'ai-review-section';
-        reviewSection.innerHTML = `
-          <div class="ai-review-header">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-            </svg>
-            Analyse de conformité IA Act par Claude
-          </div>
-          <div class="ai-review-body ai-act-md">${renderMarkdown(cached.actReview)}</div>
-        `;
-        bodyEl.appendChild(reviewSection);
+        // Render markdown into a wrapper
+        const mdWrapper = document.createElement('div');
+        mdWrapper.className = 'ai-act-md';
+        mdWrapper.innerHTML = renderMarkdown(markdownContent);
+        bodyEl.appendChild(mdWrapper);
+
+        // Build a TOC from h2 headings for easy section navigation
+        const h2s = Array.from(mdWrapper.querySelectorAll('h2'));
+        if (h2s.length > 1) {
+          const toc = document.createElement('div');
+          toc.className = 'ai-act-toc';
+          h2s.forEach((h2, i) => {
+            h2.id = `ai-act-s${i}`;
+            const fullLabel = h2.textContent.trim();
+            const btn = document.createElement('button');
+            btn.className = 'ai-act-toc-btn';
+            btn.textContent = fullLabel.replace(/^(\d+)\.\s+(.+)/, (_, n, rest) => `${n}. ${rest.split(' ').slice(0, 2).join(' ')}`);
+            btn.title = fullLabel;
+            btn.addEventListener('click', () => h2.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+            toc.appendChild(btn);
+          });
+          bodyEl.insertBefore(toc, mdWrapper);
+        }
+
+        // Inject cached review immediately if available
+        if (cached && cached.actReview) {
+          const reviewSection = document.createElement('div');
+          reviewSection.className = 'ai-review-section';
+          reviewSection.innerHTML = `
+            <div class="ai-review-header">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+              </svg>
+              Analyse de conformité IA Act par Claude
+            </div>
+            <div class="ai-review-body ai-act-md">${renderMarkdown(cached.actReview)}</div>
+          `;
+          bodyEl.appendChild(reviewSection);
+        }
       }
 
       const dlBtn = document.getElementById('ai-act-download');
@@ -297,9 +323,11 @@ const GovernancePage = (() => {
   async function openDirectReviewModal(projectName, modelName, version) {
     const key = `${modelName}:${version}`;
     const cached = aiCache[key];
+    const hasCache = !!(cached && cached.actReview);
 
     const aiIconSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>`;
     const rerunIconSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`;
+    const dlIconSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>`;
 
     const badge = `<div class="ai-output-badge">${aiIconSvg} Analyse de conformité IA Act par Claude</div>`;
     const loadingHtml = `${badge}<div class="ai-act-loading"><span class="spinner"></span><span>Analyse en cours…</span></div>`;
@@ -307,40 +335,57 @@ const GovernancePage = (() => {
 
     const { close } = Modal.open({
       title: `Conformité IA Act — ${modelName} v${version}`,
-      body: cached && cached.actReview ? reviewHtml(cached.actReview) : loadingHtml,
+      body: hasCache ? reviewHtml(cached.actReview) : loadingHtml,
       footer: `
-        <button class="btn btn-ai btn-sm" id="direct-review-rerun-btn" ${cached && cached.actReview ? '' : 'disabled'}>
+        <button class="btn btn-secondary btn-sm" id="direct-review-dl-btn" ${hasCache ? '' : 'disabled'}>
+          ${dlIconSvg} Télécharger .md
+        </button>
+        <button class="btn btn-ai btn-sm" id="direct-review-rerun-btn" ${hasCache ? '' : 'disabled'}>
           ${rerunIconSvg} Ré-analyser
         </button>`,
     });
 
+    let currentReview = hasCache ? cached.actReview : '';
+
     const rerunBtn = () => document.getElementById('direct-review-rerun-btn');
+    const dlBtn    = () => document.getElementById('direct-review-dl-btn');
+
+    // Wire download button once — reads currentReview via closure
+    const dl = dlBtn();
+    if (dl) dl.addEventListener('click', () => {
+      if (currentReview) downloadMarkdown(currentReview, `conformite-ia-act-${projectName}-${modelName}-v${version}.md`);
+    });
 
     const runReview = async () => {
       const btn = rerunBtn();
+      const dl  = dlBtn();
       if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner spinner-sm"></span> Analyse en cours…'; }
+      if (dl)  dl.disabled = true;
       const bodyEl = document.querySelector('#modal-container .modal-body');
       if (bodyEl) bodyEl.innerHTML = loadingHtml;
 
       try {
         const data = await API.ai.actReview(projectName, modelName, version);
         const review = data.review || '';
+        currentReview = review;
         aiCache[key] = aiCache[key] || { hasSuggestion: false, actReview: null };
         aiCache[key].actReview = review;
         if (bodyEl) bodyEl.innerHTML = reviewHtml(review);
+        const dl2 = dlBtn();
+        if (dl2) dl2.disabled = false;
       } catch (err) {
         if (bodyEl) bodyEl.innerHTML = `${badge}<p style="color:var(--red-light)">Erreur : ${escHtml(err.message)}</p>`;
         Toast.error(`Erreur d'analyse : ${escHtml(err.message)}`);
       } finally {
-        const btn = rerunBtn();
-        if (btn) { btn.disabled = false; btn.innerHTML = `${rerunIconSvg} Ré-analyser`; }
+        const btn2 = rerunBtn();
+        if (btn2) { btn2.disabled = false; btn2.innerHTML = `${rerunIconSvg} Ré-analyser`; }
       }
     };
 
     const btn = rerunBtn();
     if (btn) btn.addEventListener('click', runReview);
 
-    if (!(cached && cached.actReview)) runReview();
+    if (!hasCache) runReview();
   }
 
   // ── Model Card Suggest Modal ──────────────────────────────────
@@ -407,11 +452,12 @@ const GovernancePage = (() => {
 
   function renderMarkdown(md) {
     if (typeof marked === 'undefined') return `<pre style="white-space:pre-wrap">${escHtml(md)}</pre>`;
-    // Claude wraps bold/italic phrases in newlines (\n**phrase**\n or \n\n**phrase**\n\n),
-    // turning them into orphan blocks. Collapse any short bold/italic phrase surrounded
-    // by newlines back to inline — limit to 80 chars to avoid collapsing real headings.
     md = md.replace(/\n+(\*{1,2}[^*\n\r]{1,80}\*{1,2})\n+/g, ' $1 ');
-    return wrapStatusSections(marked.parse(md, { breaks: false, gfm: true }));
+    let html = marked.parse(md, { breaks: false, gfm: true });
+    html = html
+      .replace(/<table>/g, '<div class="ai-act-table-scroll"><table>')
+      .replace(/<\/table>/g, '</table></div>');
+    return wrapStatusSections(html);
   }
 
   function wrapStatusSections(html) {

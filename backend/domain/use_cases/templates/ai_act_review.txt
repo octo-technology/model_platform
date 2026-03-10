@@ -22,3 +22,5 @@ Important formatting rules:
 - Keep bold and italic phrases inline within their sentences — never put **bold text** or *italic text* on its own line separated by blank lines.
 - Use blank lines only to separate distinct paragraphs or sections, not to highlight inline emphasis.
 - Numbered lists (1. 2. 3.) and bullet lists (- item) are fine, but plain text should flow as continuous prose.
+- NEVER use markdown tables (|---|---| syntax). Use bullet lists or prose instead.
+- NEVER use HTML tags (<ul>, <li>, <p>, <strong>, <em>, etc.). Use only markdown syntax.

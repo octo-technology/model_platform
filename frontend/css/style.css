@@ -1841,12 +1841,14 @@ mark.search-mark {
 .ai-act-md h2:first-child { margin-top: 0; }
 
 .ai-act-md h3 {
-  font-size: 11.5px;
+  font-size: 12.5px;
   font-weight: 700;
-  color: var(--text-1);
+  color: var(--text-0);
   text-transform: uppercase;
   letter-spacing: 0.09em;
-  margin: 16px 0 6px;
+  margin: 20px 0 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-0);
 }
 
 .ai-act-md h4 {
@@ -1886,7 +1888,18 @@ mark.search-mark {
   width: 100%;
   border-collapse: collapse;
   font-size: 12.5px;
+  margin: 0;
+  min-width: 380px;
+}
+
+/* Horizontal-scroll wrapper injected around every table by renderMarkdown() */
+.ai-act-table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   margin: 8px 0 14px;
+  border-radius: var(--radius-xs);
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-2) transparent;
 }
 .ai-act-md th {
   background: var(--bg-2);
@@ -1904,6 +1917,9 @@ mark.search-mark {
   border: 1px solid var(--border-0);
   color: var(--text-1);
   vertical-align: top;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  max-width: 400px;
 }
 
 .ai-act-md ul {
@@ -1946,6 +1962,8 @@ mark.search-mark {
   color: var(--orange-dark);
   padding: 1px 5px;
   border-radius: 3px;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 /* ── Status section wrappers (✅ / ⚠️ / ❌ h3 headings) ────── */
@@ -2054,6 +2072,50 @@ mark.search-mark {
   letter-spacing: 0.10em;
   color: var(--ai-mid);
   margin-bottom: 14px;
+}
+
+/* AI review — raw markdown display */
+.ai-act-raw {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.8;
+  color: var(--text-1);
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* IA Act card — section table-of-contents nav */
+.ai-act-toc {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  padding: 14px 0 16px;
+  border-bottom: 1px solid var(--border-1);
+  margin-bottom: 16px;
+}
+
+.ai-act-toc-btn {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-2);
+  background: var(--bg-3);
+  border: 1px solid var(--border-1);
+  border-radius: 100px;
+  padding: 4px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color var(--t-fast), background var(--t-fast), border-color var(--t-fast);
+}
+
+.ai-act-toc-btn:hover {
+  color: #fff;
+  background: var(--orange);
+  border-color: var(--orange);
 }
 
 /* Model card suggest textarea */

@@ -145,14 +145,14 @@ const API = (() => {
           if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
           return r.json();
         }),
-      setCredentials: (accessKeyId, secretAccessKey, region) =>
+      setCredentials: (apiKey, region) =>
         fetch(`${API_BASE}/ai/credentials`, {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${Auth.getToken()}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ access_key_id: accessKeyId, secret_access_key: secretAccessKey, region }),
+          body: JSON.stringify({ api_key: apiKey, region }),
         }).then(async r => {
           if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
           return r.json();
@@ -161,6 +161,18 @@ const API = (() => {
         fetch(`${API_BASE}/ai/credentials`, {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${Auth.getToken()}` },
+        }).then(async r => {
+          if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+          return r.json();
+        }),
+      setModel: (modelId) =>
+        fetch(`${API_BASE}/ai/model`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${Auth.getToken()}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ model_id: modelId }),
         }).then(async r => {
           if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
           return r.json();

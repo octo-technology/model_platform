@@ -34,9 +34,8 @@ class ModelCardUpdateRequest(BaseModel):
     model_card: str
 
 
-class AwsCredentialsRequest(BaseModel):
-    access_key_id: str
-    secret_access_key: str
+class BedrockApiKeyRequest(BaseModel):
+    api_key: str
     region: str = "us-east-1"
 
 
@@ -48,31 +47,37 @@ class ProviderRequest(BaseModel):
     provider: str  # "bedrock" | "anthropic"
 
 
+class BedrockModelRequest(BaseModel):
+    model_id: str
+
+
 @router.get("/status")
 def ai_status(
     current_user: dict = Depends(get_current_user),
     platform_config_handler: PlatformConfigHandler = Depends(get_platform_config_handler),
 ) -> JSONResponse:
     """Return whether the AI assist feature is available and the active provider."""
-    return JSONResponse(
-        content={
-            "available": llm_usecases.is_available(platform_config_handler),
-            "provider": llm_usecases.get_provider(platform_config_handler),
-        }
-    )
+    provider = llm_usecases.get_provider(platform_config_handler)
+    result = {
+        "available": llm_usecases.is_available(platform_config_handler),
+        "provider": provider,
+    }
+    if provider == "bedrock":
+        result["bedrock_model_id"] = llm_usecases.get_bedrock_model_id(platform_config_handler)
+        result["bedrock_models"] = llm_usecases.BEDROCK_MODELS
+    return JSONResponse(content=result)
 
 
 @router.put("/credentials")
 def set_credentials(
-    body: AwsCredentialsRequest,
+    body: BedrockApiKeyRequest,
     current_user: dict = Depends(get_current_user),
     platform_config_handler: PlatformConfigHandler = Depends(get_platform_config_handler),
 ) -> JSONResponse:
-    """Store AWS Bedrock credentials in the platform config. Admin only."""
+    """Store Bedrock API key (bearer token) in the platform config. Admin only."""
     if current_user.get("role") != Role.ADMIN:
         raise HTTPException(status_code=403, detail="Admin role required.")
-    platform_config_handler.set("AWS_ACCESS_KEY_ID", body.access_key_id)
-    platform_config_handler.set("AWS_SECRET_ACCESS_KEY", body.secret_access_key)
+    platform_config_handler.set("AWS_BEARER_TOKEN_BEDROCK", body.api_key)
     platform_config_handler.set("AWS_DEFAULT_REGION", body.region)
     return JSONResponse(content={"ok": True})
 
@@ -82,11 +87,10 @@ def delete_credentials(
     current_user: dict = Depends(get_current_user),
     platform_config_handler: PlatformConfigHandler = Depends(get_platform_config_handler),
 ) -> JSONResponse:
-    """Remove AWS Bedrock credentials from the platform config. Admin only."""
+    """Remove Bedrock API key from the platform config. Admin only."""
     if current_user.get("role") != Role.ADMIN:
         raise HTTPException(status_code=403, detail="Admin role required.")
-    platform_config_handler.delete("AWS_ACCESS_KEY_ID")
-    platform_config_handler.delete("AWS_SECRET_ACCESS_KEY")
+    platform_config_handler.delete("AWS_BEARER_TOKEN_BEDROCK")
     platform_config_handler.delete("AWS_DEFAULT_REGION")
     return JSONResponse(content={"ok": True})
 
@@ -101,6 +105,21 @@ def set_provider(
     if current_user.get("role") != Role.ADMIN:
         raise HTTPException(status_code=403, detail="Admin role required.")
     platform_config_handler.set("LLM_PROVIDER", body.provider)
+    return JSONResponse(content={"ok": True})
+
+
+@router.put("/model")
+def set_model(
+    body: BedrockModelRequest,
+    current_user: dict = Depends(get_current_user),
+    platform_config_handler: PlatformConfigHandler = Depends(get_platform_config_handler),
+) -> JSONResponse:
+    """Store the selected Bedrock model ID in the platform config. Admin only."""
+    if current_user.get("role") != Role.ADMIN:
+        raise HTTPException(status_code=403, detail="Admin role required.")
+    if body.model_id not in llm_usecases.BEDROCK_MODELS:
+        raise HTTPException(status_code=400, detail="Invalid model ID.")
+    platform_config_handler.set("BEDROCK_MODEL_ID", body.model_id)
     return JSONResponse(content={"ok": True})
 
 

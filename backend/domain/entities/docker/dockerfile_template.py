@@ -39,7 +39,7 @@ class DockerfileTemplate:
         RUN uv pip install -r /opt/mlflow/requirements.txt
         RUN uv pip install uvicorn fastapi cloudpickle loguru mlflow python-multipart
         RUN uv pip install opentelemetry-api opentelemetry-sdk opentelemetry-instrumentation-fastapi \
-            opentelemetry-exporter-prometheus
+            opentelemetry-exporterprometheus
 
         # Clean up apt cache to reduce image size
         RUN rm -rf /var/lib/apt/lists/*
