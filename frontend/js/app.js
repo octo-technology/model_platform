@@ -74,6 +74,12 @@ const App = (() => {
         SearchPage.render(container, currentParams);
         break;
 
+      case 'demo':
+        showSidebar();
+        updateNavActive('demo');
+        DemoPage.render(container);
+        break;
+
       case 'admin':
         showSidebar();
         updateNavActive('admin');

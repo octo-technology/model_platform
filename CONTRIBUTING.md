@@ -3,25 +3,25 @@
 ### Install the package
 
 ```bash
-    poetry install
+    uv sync
 ```
 
-### Install the dev dependencies
+### Install all group dependencies
 
 ```bash
-    poetry install --dev
+    uv sync --all-groups
 ```
 
 ### Run the tests
 
 ```bash
-    poetry run pytest tests/
+    uv run pytest tests/
 ```
 
 ### Install pre-commits
 
 ```bash
-    poetry run pre-commit install
+    uv run pre-commit install
 ```
 
 ## Commit Message Guidelines

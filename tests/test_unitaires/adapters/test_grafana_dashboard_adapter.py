@@ -1,3 +1,4 @@
+import json
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -73,6 +74,38 @@ def test_create_dashboard_sets_correct_labels(adapter, mock_k8s_client):
     call_args = mock_k8s_client.create_namespaced_config_map.call_args
     configmap = call_args[1]["body"]
     assert configmap.metadata.labels["grafana_dashboard"] == "1"
+
+
+def test_create_dashboard_job_filter_logic(adapter, mock_k8s_client):
+    """HTTP metrics should get a job filter, k8s metrics should not."""
+    mock_k8s_client.read_namespaced_config_map.side_effect = ApiException(status=404)
+
+    adapter.create_dashboard(
+        project_name="test-project",
+        model_name="test-model",
+        version="v1",
+        service_name="test-service",
+        dashboard_uid="test-project-test-model-v1-abc123",
+    )
+
+    # inspect generated JSON
+    cm_body = mock_k8s_client.create_namespaced_config_map.call_args[1]["body"].data
+    dashboard_json = json.loads(cm_body["test-project-test-model-v1-abc123.json"])
+    memory_expr = None
+    http_expr = None
+    for panel in dashboard_json.get("panels", []):
+        for tgt in panel.get("targets", []):
+            expr = tgt.get("expr", "")
+            if "container_memory_usage_bytes" in expr:
+                memory_expr = expr
+            if "http_server_duration_milliseconds_count" in expr:
+                http_expr = expr
+    assert memory_expr == 'container_memory_usage_bytes{namespace="test-project", pod=~"test-service.*"}'
+    assert http_expr == (
+        "rate(http_server_duration_milliseconds_count{"
+        'job="test-service", http_target="/predict", http_status_code="200"}[5m]) / '
+        'rate(http_server_duration_milliseconds_count{http_target="/predict"}[5m])'
+    )
 
 
 def test_delete_dashboard_removes_configmap(adapter, mock_k8s_client):

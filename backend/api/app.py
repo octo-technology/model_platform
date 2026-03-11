@@ -14,6 +14,7 @@ from loguru import logger
 
 from backend.api import (
     auth_routes,
+    demo_routes,
     deployed_models_routes,
     health_check,
     hugging_face_routes,
@@ -24,6 +25,8 @@ from backend.api import (
     users_routes,
 )
 from backend.domain.use_cases.config import Config
+from backend.domain.use_cases.demo_usecases import SimulationManager
+from backend.domain.use_cases.ds_simulation_usecases import DSSimulationManager
 from backend.infrastructure.grafana_dashboard_adapter import GrafanaDashboardAdapter
 from backend.infrastructure.mlflow_handler_adapter import MLFlowHandlerAdapter
 from backend.infrastructure.model_info_pgsql_db_handler import ModelInfoPostgresDBHandler
@@ -57,6 +60,8 @@ async def lifespan(app: FastAPI):
     app.state.user_adapter = UserPgsqlDbAdapter(db_config=config.pgsql_db_config, admin_config=config.mp_admin_config)
     app.state.platform_config_handler = PlatformConfigPgsqlAdapter(db_config=config.pgsql_db_config)
     app.state.dashboard_handler = GrafanaDashboardAdapter()
+    app.state.simulation_manager = SimulationManager()
+    app.state.ds_simulation_manager = DSSimulationManager()
     app.state.task_status = {}
     app.state.registry_pool.start_cleaning_task(interval=60)
     app.state.registry_pool.start_model_info_sync_task(
@@ -94,6 +99,7 @@ def create_app() -> FastAPI:
     app.include_router(hugging_face_routes.router, prefix="/hugging_face", tags=["Registre"])
     app.include_router(model_infos_routes.router, prefix="/model_infos", tags=["Model Infos"])
     app.include_router(llm_routes.router, prefix="/ai", tags=["AI Assist"])
+    app.include_router(demo_routes.router, prefix="/demo", tags=["Demo Simulation"])
     return app
 
 

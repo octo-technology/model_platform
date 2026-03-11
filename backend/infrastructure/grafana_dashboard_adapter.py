@@ -8,6 +8,23 @@ from kubernetes.client.rest import ApiException
 from loguru import logger
 
 from backend.domain.ports.dashboard_handler import DashboardHandler
+from backend.utils import sanitize_project_name
+
+
+def extract_base_name(service_name: str) -> str:
+    """Extract base name for Prometheus pod matching from K8s service_name.
+
+    service_name comes from sanitize_ressource_name() and includes a 6-char hash.
+    For cAdvisor metrics, we need to match pods without the hash suffix.
+
+    Examples:
+        "autonomous-vehicle-perception-credit-default-predictor-1-deployment-3fa669"
+        -> "autonomous-vehicle-perception-credit-default-predictor-1-deployment"
+    """
+    # Remove the last 6-char hash suffix (added by sanitize_ressource_name)
+    if len(service_name) > 7 and service_name[-7] == "-":
+        return service_name[:-7]
+    return service_name
 
 
 class GrafanaDashboardAdapter(DashboardHandler):
@@ -60,10 +77,34 @@ class GrafanaDashboardAdapter(DashboardHandler):
             dashboard_json["uid"] = dashboard_uid
             dashboard_json["title"] = dashboard_title
 
+            # Get sanitized namespace for k8s metrics
+            namespace = sanitize_project_name(project_name)
+
+            # compute pattern strings up front
+            base_name = extract_base_name(service_name)
+            pod_pattern = f'pod=~"{base_name}.*"'
+            container_pattern = f'container=~"{service_name}.*"'
+
             for panel in dashboard_json.get("panels", []):
                 for target in panel.get("targets", []):
-                    if "expr" in target:
-                        target["expr"] = target["expr"].replace("{", f'{{job="{service_name}", ', 1)
+                    expr = target.get("expr")
+                    if not expr:
+                        continue
+
+                    # namespace substitution applies to all k8s metrics
+                    expr = expr.replace("{NAMESPACE}", namespace)
+
+                    # choose proper placeholder replacement based on metric type
+                    if "container_memory_usage_bytes" in expr or "container_cpu_usage_seconds_total" in expr:
+                        expr = expr.replace('pod="{CONTAINER}"', pod_pattern)
+                    elif "kube_pod_container_status_restarts_total" in expr:
+                        expr = expr.replace('container="{CONTAINER}"', container_pattern)
+
+                    # http metrics need a job filter
+                    if "http_" in expr:
+                        expr = expr.replace("{", f'{{job="{service_name}", ', 1)
+
+                    target["expr"] = expr
 
             configmap_name = self._get_configmap_name(dashboard_uid)
             dashboard_filename = f"{dashboard_uid}.json"

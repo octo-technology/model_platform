@@ -49,7 +49,7 @@ Activate Ingress controller add-on
 minikube addons enable ingress
 ```
 
-Activate ssh tunnel to you minikube cluster
+Activate ssh tunnel to you minikube cluster (Mac only)
 
 ```bash
 minikube tunnel
@@ -81,6 +81,13 @@ make create-backend-secret POSTGRES_PWD=your_postgres_password JWT_SECRET="ask f
 
 **You should now have a working k8s environment**
 
+#### Grafana credentials
+The monitoring chart generates an admin user automatically. After running `make k8s-infra` you can retrieve the password with:
+
+```bash
+kubectl --namespace monitoring get secrets kube-prometheus-stack-grafana -o jsonpath="{.data.admin-password}" | base64 -d ; echo
+```
+
 ## Deploy the model platform en k8s
 
 ```bash
@@ -100,23 +107,6 @@ or
 
 
 ## TROUBLESHOOTING
-## Dev expérience
-
-### Running CI locally
-
-You will need to install nektos act https://nektosact.com/installation/
-
-```bash
-#mac ARM
-make run-ci-arm
-```
-
-or
-
-```bash
-#Intel processors
-make run-ci-amd
-```
 
 Access the pgsql via local db client
 

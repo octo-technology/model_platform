@@ -204,6 +204,24 @@ const API = (() => {
       check: () => get('/health'),
       checkStorage: () => get('/health/storage').then(r => r.status === 'ok').catch(() => false),
     },
+
+    // ── Demo Simulation ───────────────────────────────────────
+    demo: {
+      start: (payload) => post('/demo/start', { body: payload }),
+      stop: (simulationId) =>
+        post(`/demo/stop`, { body: { simulation_id: simulationId } }),
+      restart: (simulationId) =>
+        post(`/demo/restart`, { body: { simulation_id: simulationId } }),
+      list: () => get('/demo/list'),
+      ds: {
+        start: (payload) => post('/demo/ds/start', { body: payload }),
+        stop: (simulationId) =>
+          post('/demo/ds/stop', { body: { simulation_id: simulationId } }),
+        restart: (simulationId) =>
+          post('/demo/ds/restart', { body: { simulation_id: simulationId } }),
+        list: () => get('/demo/ds/list'),
+      },
+    },
   };
 })();
 
