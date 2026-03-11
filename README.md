@@ -41,9 +41,9 @@ Model Platform solves both: **one platform for deployment and governance**.
 ![EU AI Act Governance](docs/images/governance-ai-act.png)
 *Auto-generated EU AI Act compliance cards with risk classification, Article 11 documentation, and traceability — the unique differentiator.*
 
-### Model Search
-![Model Search](docs/images/model-search.png)
-*Full-text search with risk-level badges (color-coded by EU AI Act classification) and highlighted snippet excerpts.*
+### Model Deployment
+![Model Search](docs/images/model-deployment.png)
+*Deploy and monitor model in one click*
 
 ## Architecture
 
