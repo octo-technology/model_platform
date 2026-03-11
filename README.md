@@ -1,126 +1,115 @@
-# What is it ?
+# Model Platform
 
-A tribe project to build a Model Platform
+**Deploy, govern, and monitor ML models on Kubernetes — with built-in EU AI Act compliance.**
 
-## Intentions
+![Python](https://img.shields.io/badge/Python-FastAPI-009688?style=flat-square&logo=fastapi)
+![Kubernetes](https://img.shields.io/badge/Infra-Kubernetes-326CE5?style=flat-square&logo=kubernetes)
+![MLflow](https://img.shields.io/badge/Registry-MLflow-0194E2?style=flat-square&logo=mlflow)
+![License](https://img.shields.io/badge/License-Open_Source-00A3BE?style=flat-square)
 
-1. Build a project as a team
-2. Test, identify, consolidate convictions on model management at scale
-3. Be as portable as possible
-4. Use opensource technologies
+---
 
-## Vision and key features of a Model Platform
+## What is Model Platform?
 
-> **Vision**
-<br>For **models developers**, so that they can **focus on building the best model**, we offer **a model platform** that
-> can **version, deploy, host, govern** models with as few configuration as possible
-<br>For **application developers**, so that they can **integrate models seamlessly**, we offer **a model platform** that
-> can provide a simple API to call.
+Model Platform is an open-source MLOps platform that lets ML engineers **version, deploy, host, and govern** machine learning models on Kubernetes with minimal configuration. It bridges the gap between model training (MLflow) and production serving — while generating the compliance documentation that the **EU AI Act** now requires.
 
-## How to run
+## Why?
 
-### - Setup your K8S env
+Deploying ML models to production is still manual and fragmented. Most teams glue together scripts, CI pipelines, and custom tooling — with no audit trail and no governance story.
 
-A working minikube is needed for dev purposes
+Meanwhile, the **EU AI Act** (effective 2025) requires documentation, traceability, risk classification, and human oversight for AI systems. Compliance can't be an afterthought bolted onto spreadsheets.
 
-    brew install minikube kubectl
+Model Platform solves both: **one platform for deployment and governance**.
 
-Install helm
+## Key Features
 
-    brew install helm
+- **One-click deployment** — Push any MLflow model to Kubernetes with a single action. Auto-provisioned namespace, service, and ingress.
+- **EU AI Act compliance cards** — Auto-generated regulatory documentation per model: risk classification, Article 11 technical docs, traceability records.
+- **AI-assisted compliance review** — Claude analyzes your model card and generates AI Act compliance assessments.
+- **Per-project namespace isolation & RBAC** — Each project gets its own Kubernetes namespace with role-based access control.
+- **Governance audit export** — One-click ZIP export of all compliance artifacts for regulatory review.
+- **Automatic monitoring dashboards** — Grafana dashboards auto-provisioned per deployed model (latency, throughput, errors).
+- **Full-text search across model metadata** — Search across all model cards, descriptions, and metadata from a single search bar.
 
-### - Start and setup Cluster
+## Screenshots
 
-Start minikube cluster with recommended specs
+### Projects Overview
+![Projects Overview](docs/images/projects-overview.png)
+*Multi-project platform with governance scope visible at a glance — project cards show owner, deployed models, and MLflow status.*
+
+### EU AI Act Governance
+![EU AI Act Governance](docs/images/governance-ai-act.png)
+*Auto-generated EU AI Act compliance cards with risk classification, Article 11 documentation, and traceability — the unique differentiator.*
+
+### Model Search
+![Model Search](docs/images/model-search.png)
+*Full-text search with risk-level badges (color-coded by EU AI Act classification) and highlighted snippet excerpts.*
+
+## Architecture
+
+```mermaid
+graph LR
+    User([User / CLI]) --> Frontend[Frontend<br/>HTML/CSS/JS]
+    User --> CLI[CLI<br/>Typer]
+    Frontend --> NGINX[NGINX<br/>Reverse Proxy]
+    CLI --> Backend
+    NGINX --> Backend[Backend<br/>FastAPI]
+    Backend --> MLflow[(MLflow<br/>Model Registry)]
+    Backend --> PostgreSQL[(PostgreSQL<br/>Metadata)]
+    Backend --> MinIO[(MinIO<br/>S3 Artifacts)]
+    Backend --> K8s[Kubernetes<br/>Model Serving]
+    Backend --> Grafana[Grafana<br/>Monitoring]
+    Backend --> Claude[Claude AI<br/>Compliance Review]
+
+    style Frontend fill:#00A3BE,color:#fff
+    style Backend fill:#0E2356,color:#fff
+    style NGINX fill:#009639,color:#fff
+    style MLflow fill:#0194E2,color:#fff
+    style PostgreSQL fill:#336791,color:#fff
+    style MinIO fill:#C72C48,color:#fff
+    style K8s fill:#326CE5,color:#fff
+    style Grafana fill:#F46800,color:#fff
+    style Claude fill:#D97706,color:#fff
+```
+
+## Quick Start
+
+See **[HOWTO.md](HOWTO.md)** for full setup instructions (Minikube, Helm, secrets, deployment).
 
 ```bash
-#recommended configuration to avoid freezing/timeouts
+# TL;DR
+brew install minikube kubectl helm
 minikube start --cpus 2 --memory 7800 --disk-size 50g
-```
-(You may need to start colima with custom config)
-
-```bash
-colima start --cpu 4 --memory 8
-```
-
-Activate Ingress controller add-on
-
-```bash
-minikube addons enable ingress
-```
-
-Activate ssh tunnel to you minikube cluster (Mac only)
-
-```bash
-minikube tunnel
-```
-
-### - "DNS" setup
-
-Add the following line to your /etc/hosts
-
-```bash
-# Mac
-127.0.0.1 model-platform.com
-# Linux
-minikube ip
-IP.RESULT model-platform.com
-```
-
-### - Setup K8S infrastructure : Namespaces, NGINX, Ingress
-
-```bash
 make k8s-infra
-```
-
-### Add backend secrets
-
-```bash
-make create-backend-secret POSTGRES_PWD=your_postgres_password JWT_SECRET="ask for the JWT secret" ADMIN_EMAIL=alice@example.com ADMIN_PWD=pass!
-```
-
-**You should now have a working k8s environment**
-
-#### Grafana credentials
-The monitoring chart generates an admin user automatically. After running `make k8s-infra` you can retrieve the password with:
-
-```bash
-kubectl --namespace monitoring get secrets kube-prometheus-stack-grafana -o jsonpath="{.data.admin-password}" | base64 -d ; echo
-```
-
-## Deploy the model platform en k8s
-
-```bash
+make create-backend-secret POSTGRES_PWD=... JWT_SECRET=... ADMIN_EMAIL=... ADMIN_PWD=...
 make k8s-modelplatform
+# → http://model-platform.com
 ```
 
-### Connect to model platform
+## Tech Stack
 
-Via fronted
+| Component | Technology |
+|-----------|-----------|
+| Backend API | **FastAPI** (Python, Clean Architecture) |
+| Frontend | **HTML/CSS/JS** (served by NGINX) |
+| CLI | **Typer** (`mp` command) |
+| Model Registry | **MLflow** |
+| Database | **PostgreSQL** |
+| Object Storage | **MinIO** (S3-compatible) |
+| Orchestration | **Kubernetes** (Minikube for dev) |
+| Monitoring | **Grafana / Prometheus** |
+| AI Compliance | **Claude** (Anthropic) |
 
-    http://model-platform.com
+## Documentation
 
-or
+- [HOWTO.md](HOWTO.md) — Setup & deployment guide
+- [CONTRIBUTING.md](CONTRIBUTING.md) — Contribution guidelines
+- [docs/](docs/) — Architecture decisions, model card templates, and more
 
-    mp login --username alice@example.com --password pass!
+---
 
-
-
-## TROUBLESHOOTING
-
-Access the pgsql via local db client
-
-Run
-```bash
-kubectl port-forward svc/modelplatform-pgsql 5432:5432 -n pgsql
-```
-
-Add to you db client
-
-    host: localhost
-    port: 5432
-    user: postgres
-    password: your_postgres_password
-    db: model_platform_db
-
-you can now access the model_platform_db database
+<p align="center">
+  <img src="frontend/assets/octo_logo.png" alt="OCTO Technology" height="40" />
+  <br/>
+  Built by <strong>OCTO Technology</strong>
+</p>
