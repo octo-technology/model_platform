@@ -47,29 +47,80 @@ Model Platform solves both: **one platform for deployment and governance**.
 
 ## Architecture
 
-```mermaid
-graph LR
-    User([User / CLI]) --> Frontend[Frontend<br/>HTML/CSS/JS]
-    User --> CLI[CLI<br/>Typer]
-    Frontend --> NGINX[NGINX<br/>Reverse Proxy]
-    CLI --> Backend
-    NGINX --> Backend[Backend<br/>FastAPI]
-    Backend --> MLflow[(MLflow<br/>Model Registry)]
-    Backend --> PostgreSQL[(PostgreSQL<br/>Metadata)]
-    Backend --> MinIO[(MinIO<br/>S3 Artifacts)]
-    Backend --> K8s[Kubernetes<br/>Model Serving]
-    Backend --> Grafana[Grafana<br/>Monitoring]
-    Backend --> Claude[Claude AI<br/>Compliance Review]
+*C4 Container diagram — shows the major containers and their interactions within the Kubernetes cluster.*
 
+```mermaid
+graph TB
+    User([👤 User])
+    CLI([⌨️ CLI — Typer])
+
+    User -->|model-platform.com| Ingress
+    CLI -->|REST API| Ingress
+
+    subgraph K8s["☸ Kubernetes Cluster"]
+
+        subgraph NS_Default["default namespace"]
+            Ingress[NGINX Ingress]
+            Proxy[NGINX Reverse Proxy]
+            Ingress --> Proxy
+        end
+
+        subgraph NS_MP["model-platform namespace"]
+            Frontend["Frontend\nHTML/CSS/JS\n:80"]
+            Backend["Backend\nFastAPI\n:8000"]
+        end
+
+        subgraph NS_Data["Shared Infrastructure"]
+            PostgreSQL[("PostgreSQL\nMetadata & Users\n:5432")]
+            MinIO[("MinIO\nS3 Artifacts\n:9000")]
+        end
+
+        subgraph NS_Monitoring["monitoring namespace"]
+            Grafana["Grafana\nDashboards\n:80"]
+            Prometheus["Prometheus\nMetrics\n:9090"]
+        end
+
+        subgraph NS_Project["project namespace (1 per ML project)"]
+            MLflow["MLflow\nModel Registry\n:5000"]
+            Model1["Model Service A\n:8000"]
+            Model2["Model Service B\n:8000"]
+        end
+
+        Proxy -->|"/"| Frontend
+        Proxy -->|"/api/"| Backend
+        Proxy -->|"/registry/{project}/"| MLflow
+        Proxy -->|"/deploy/{project}/{model}/predict"| Model1
+        Proxy -->|"/grafana/"| Grafana
+
+        Backend -->|"SQL"| PostgreSQL
+        Backend -->|"K8s API"| NS_Project
+        Backend -->|"HTTP"| Grafana
+        MLflow -->|"S3"| MinIO
+        Model1 -.->|"metrics"| Prometheus
+        Model2 -.->|"metrics"| Prometheus
+        Prometheus --> Grafana
+    end
+
+    Backend -->|"AI Act review"| Claude["Claude AI\nCompliance\n(external)"]
+
+    style K8s fill:none,stroke:#326CE5,stroke-width:2px
+    style NS_Default fill:#E8F5E9,stroke:#009639
+    style NS_MP fill:#E3F2FD,stroke:#0E2356
+    style NS_Data fill:#FFF3E0,stroke:#E65100
+    style NS_Monitoring fill:#FBE9E7,stroke:#F46800
+    style NS_Project fill:#E0F7FA,stroke:#00A3BE,stroke-dasharray:5
     style Frontend fill:#00A3BE,color:#fff
     style Backend fill:#0E2356,color:#fff
-    style NGINX fill:#009639,color:#fff
-    style MLflow fill:#0194E2,color:#fff
+    style Proxy fill:#009639,color:#fff
+    style Ingress fill:#009639,color:#fff
     style PostgreSQL fill:#336791,color:#fff
     style MinIO fill:#C72C48,color:#fff
-    style K8s fill:#326CE5,color:#fff
+    style MLflow fill:#0194E2,color:#fff
     style Grafana fill:#F46800,color:#fff
+    style Prometheus fill:#E6522C,color:#fff
     style Claude fill:#D97706,color:#fff
+    style Model1 fill:#00A3BE,color:#fff
+    style Model2 fill:#00A3BE,color:#fff
 ```
 
 ## Quick Start
