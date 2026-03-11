@@ -66,24 +66,24 @@ graph TB
         end
 
         subgraph NS_MP["model-platform namespace"]
-            Frontend["Frontend\nHTML/CSS/JS\n:80"]
-            Backend["Backend\nFastAPI\n:8000"]
+            Frontend["Frontend<br/>HTML/CSS/JS<br/>:80"]
+            Backend["Backend<br/>FastAPI<br/>:8000"]
         end
 
         subgraph NS_Data["Shared Infrastructure"]
-            PostgreSQL[("PostgreSQL\nMetadata & Users\n:5432")]
-            MinIO[("MinIO\nS3 Artifacts\n:9000")]
+            PostgreSQL[("PostgreSQL<br/>Metadata & Users<br/>:5432")]
+            MinIO[("MinIO<br/>S3 Artifacts<br/>:9000")]
         end
 
         subgraph NS_Monitoring["monitoring namespace"]
-            Grafana["Grafana\nDashboards\n:80"]
-            Prometheus["Prometheus\nMetrics\n:9090"]
+            Grafana["Grafana<br/>Dashboards<br/>:80"]
+            Prometheus["Prometheus<br/>Metrics<br/>:9090"]
         end
 
         subgraph NS_Project["project namespace (1 per ML project)"]
-            MLflow["MLflow\nModel Registry\n:5000"]
-            Model1["Model Service A\n:8000"]
-            Model2["Model Service B\n:8000"]
+            MLflow["MLflow<br/>Model Registry<br/>:5000"]
+            Model1["Model Service A<br/>:8000"]
+            Model2["Model Service B<br/>:8000"]
         end
 
         Proxy -->|"/"| Frontend
@@ -101,7 +101,7 @@ graph TB
         Prometheus --> Grafana
     end
 
-    Backend -->|"AI Act review"| Claude["Claude AI\nCompliance\n(external)"]
+    Backend -->|"AI Act review"| Claude["Claude AI<br/>Compliance<br/>(external)"]
 
     style K8s fill:none,stroke:#326CE5,stroke-width:2px
     style NS_Default fill:#E8F5E9,stroke:#009639
