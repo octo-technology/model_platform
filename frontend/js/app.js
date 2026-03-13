@@ -92,6 +92,12 @@ const App = (() => {
         SettingsPage.render(container);
         break;
 
+      case 'monitoring':
+        showSidebar();
+        updateNavActive('monitoring');
+        MonitoringPage.render(container);
+        break;
+
       default:
         if (Auth.isLoggedIn()) {
           navigateTo('projects');
