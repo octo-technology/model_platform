@@ -37,7 +37,7 @@ def get_bedrock_api_key(platform_config_handler: PlatformConfigHandler = None) -
 
 
 def get_bedrock_region(platform_config_handler: PlatformConfigHandler = None) -> str:
-    """Returns the AWS region for Bedrock, defaulting to us-east-1."""
+    """Returns the AWS region for Bedrock, defaulting to eu-west-3."""
     region = os.environ.get("AWS_DEFAULT_REGION")
     if region:
         return region
@@ -45,7 +45,7 @@ def get_bedrock_region(platform_config_handler: PlatformConfigHandler = None) ->
         region = platform_config_handler.get("AWS_DEFAULT_REGION")
         if region:
             return region
-    return "us-east-1"
+    return "eu-west-3"
 
 
 def get_bedrock_model_id(platform_config_handler: PlatformConfigHandler = None) -> str:
