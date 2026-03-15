@@ -2,15 +2,28 @@
 import pytest
 from playwright.sync_api import Page, expect
 
-from tests.conftest import DEFAULT_TEST_USER, MP_HOSTNAME, is_minikube_running
+from tests.conftest import DEFAULT_TEST_USER, MP_HOSTNAME, cleanup_project, is_minikube_running, login, run_cli
 
 BASE_URL = f"http://{MP_HOSTNAME}"
+
+FRONTEND_TEST_PROJECT = "frontend-e2e-project"
 
 
 @pytest.fixture(scope="session", autouse=True)
 def require_minikube():
     if not is_minikube_running():
         pytest.skip("Minikube not running — skipping frontend e2e tests")
+
+
+@pytest.fixture(scope="session", autouse=True)
+def ensure_project_exists(require_minikube):
+    """Create a test project so frontend tests have data to display."""
+    login()
+    result = run_cli("projects", "add", "--name", FRONTEND_TEST_PROJECT)
+    if result.returncode != 0:
+        print(f"[DEBUG] Project creation returned {result.returncode}: {result.stdout} {result.stderr}")
+    yield
+    cleanup_project(FRONTEND_TEST_PROJECT)
 
 
 @pytest.fixture
