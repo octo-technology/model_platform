@@ -12,7 +12,12 @@ const SettingsPage = (() => {
         </div>
 
         <div class="page-content">
-          <div class="settings-section-label">Integrations</div>
+          <div class="settings-section-label">Deployment Gate</div>
+          <div id="gate-policy-area">
+            <div class="loading-screen"><span class="spinner"></span><span>Loading…</span></div>
+          </div>
+
+          <div class="settings-section-label" style="margin-top:32px">Integrations</div>
           <div id="integrations-area">
             <div class="loading-screen"><span class="spinner"></span><span>Loading…</span></div>
           </div>
@@ -21,6 +26,74 @@ const SettingsPage = (() => {
     `;
 
     loadClaudeStatus();
+    loadGatePolicy();
+  }
+
+  async function loadGatePolicy() {
+    const area = document.getElementById('gate-policy-area');
+    try {
+      const data = await API.compliance.getGatePolicy();
+      renderGatePolicy(data.policy || 'permissive', area);
+    } catch {
+      renderGatePolicy('permissive', area);
+    }
+  }
+
+  function renderGatePolicy(currentPolicy, area) {
+    const policies = [
+      { value: 'disabled', label: 'Disabled', desc: 'No compliance check before deployment' },
+      { value: 'permissive', label: 'Permissive', desc: 'At least one compliance status must pass' },
+      { value: 'strict', label: 'Strict', desc: 'Both deterministic and LLM compliance must pass' },
+    ];
+    area.innerHTML = `
+      <div class="integration-card">
+        <div class="integration-card-top">
+          <div class="integration-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+          </div>
+          <div class="integration-meta">
+            <div class="integration-name">Deployment Gate Policy</div>
+            <div class="integration-desc">
+              Controls whether models must pass compliance checks before deployment.
+            </div>
+          </div>
+        </div>
+        <div class="integration-divider"></div>
+        <div class="integration-body">
+          <div class="provider-toggle-group">
+            ${policies.map(p => `
+              <button
+                class="btn btn-sm provider-toggle-btn ${p.value === currentPolicy ? 'provider-toggle-btn--active' : ''}"
+                data-gate-policy="${p.value}"
+                title="${p.desc}"
+              >${p.label}</button>
+            `).join('')}
+          </div>
+          <div style="margin-top:8px;font-size:12px;color:var(--text-2)" id="gate-policy-desc">
+            ${policies.find(p => p.value === currentPolicy)?.desc || ''}
+          </div>
+        </div>
+      </div>
+    `;
+
+    area.querySelectorAll('[data-gate-policy]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const selected = btn.dataset.gatePolicy;
+        if (selected === currentPolicy) return;
+        btn.disabled = true;
+        try {
+          await API.compliance.setGatePolicy(selected);
+          Toast.success('Gate policy updated.');
+          loadGatePolicy();
+        } catch (err) {
+          Toast.error(err.message);
+          btn.disabled = false;
+        }
+      });
+    });
+
   }
 
   async function loadClaudeStatus() {
@@ -125,7 +198,8 @@ const SettingsPage = (() => {
             id="settings-bedrock-api-key-input"
             type="password"
             placeholder="Bedrock API key (bearer token)"
-            autocomplete="off"
+            autocomplete="new-password"
+            name="bedrock-key-${Date.now()}"
             spellcheck="false"
           >
         </div>
@@ -135,8 +209,8 @@ const SettingsPage = (() => {
             class="form-input key-input"
             id="settings-region-input"
             type="text"
-            placeholder="us-east-1"
-            value="us-east-1"
+            placeholder="eu-west-3"
+            value="eu-west-3"
             autocomplete="off"
             spellcheck="false"
           >
@@ -188,7 +262,8 @@ const SettingsPage = (() => {
             id="settings-anthropic-key-input"
             type="password"
             placeholder="sk-ant-…"
-            autocomplete="off"
+            autocomplete="new-password"
+            name="anthropic-key-${Date.now()}"
             spellcheck="false"
           >
           <div class="key-hint">Starts with <mark>sk-ant-</mark></div>
@@ -268,7 +343,7 @@ const SettingsPage = (() => {
 
         saveBtn.addEventListener('click', async () => {
           const apiKey = apiKeyInput.value.trim();
-          const region = regionInput.value.trim() || 'us-east-1';
+          const region = regionInput.value.trim() || 'eu-west-3';
 
           if (!apiKey) { Toast.error('Please enter a Bedrock API key.'); return; }
 

@@ -82,6 +82,10 @@ class MLFlowHandlerAdapter(RegistryHandler):
                 try:
                     registry = self.get_registry_adapter(project.name, tracking_uri)
                     sync_model_infos_for_project(project.name, registry, model_info_db_handler)
+                    # Evaluate deterministic compliance after sync
+                    from backend.domain.use_cases.compliance_usecases import evaluate_project_compliance
+
+                    evaluate_project_compliance(project.name, registry, model_info_db_handler)
                 except Exception as e:
                     logger.warning(f"Could not sync model_infos for project {project.name}: {e}")
 

@@ -126,6 +126,31 @@ const API = (() => {
       listForProject: (projectName) => get(`/model_infos/${enc(projectName)}/list`),
     },
 
+    // ── Compliance ──────────────────────────────────────────────
+    compliance: {
+      evaluateProject: (proj) => post(`/${enc(proj)}/models/evaluate_compliance`),
+      downloadPlatformReport: () =>
+        fetch(`${API_BASE}/compliance/download_report`, {
+          headers: { Authorization: `Bearer ${Auth.getToken()}` },
+        }).then(r => {
+          if (!r.ok) throw new Error(r.statusText);
+          return r.blob();
+        }),
+      getGatePolicy: () => get('/ai/gate_policy'),
+      setGatePolicy: (policy) =>
+        fetch(`${API_BASE}/ai/gate_policy`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${Auth.getToken()}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ policy }),
+        }).then(async r => {
+          if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+          return r.json();
+        }),
+    },
+
     // ── AI Assist ─────────────────────────────────────────────
     ai: {
       status: () => get('/ai/status').catch(() => ({ available: false, provider: null })),

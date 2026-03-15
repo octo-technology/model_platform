@@ -32,6 +32,8 @@ def map_rows_to_model_infos(rows: list) -> list[ModelInfo]:
             risk_level=row[5],
             generated_model_card=row[6] if len(row) > 6 else None,
             act_review=row[7] if len(row) > 7 else None,
+            deterministic_compliance=row[8] if len(row) > 8 else "not_evaluated",
+            llm_compliance=row[9] if len(row) > 9 else "not_evaluated",
         )
         for row in rows
     ]
@@ -59,7 +61,7 @@ class ModelInfoSQLiteDBHandler(ModelInfoDbHandler):
                 )
                 """
             )
-            for col in ["generated_model_card", "act_review"]:
+            for col in ["generated_model_card", "act_review", "deterministic_compliance", "llm_compliance"]:
                 try:
                     cursor.execute(f"ALTER TABLE model_infos ADD COLUMN {col} TEXT")
                 except Exception:
@@ -172,6 +174,38 @@ class ModelInfoSQLiteDBHandler(ModelInfoDbHandler):
                 "UPDATE model_infos SET act_review = ? "
                 "WHERE model_name = ? AND model_version = ? AND project_name = ?",
                 (text, model_name, model_version, project_name),
+            )
+            connection.commit()
+        finally:
+            connection.close()
+            return True
+
+    def update_compliance_statuses(
+        self,
+        model_name: str,
+        model_version: str,
+        project_name: str,
+        deterministic_compliance: str | None = None,
+        llm_compliance: str | None = None,
+    ) -> bool:
+        connection = sqlite3.connect(self.db_path)
+        try:
+            cursor = connection.cursor()
+            updates = []
+            values = []
+            if deterministic_compliance is not None:
+                updates.append("deterministic_compliance = ?")
+                values.append(deterministic_compliance)
+            if llm_compliance is not None:
+                updates.append("llm_compliance = ?")
+                values.append(llm_compliance)
+            if not updates:
+                return True
+            values.extend([model_name, model_version, project_name])
+            cursor.execute(
+                f"UPDATE model_infos SET {', '.join(updates)} "
+                "WHERE model_name = ? AND model_version = ? AND project_name = ?",
+                values,
             )
             connection.commit()
         finally:

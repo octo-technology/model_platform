@@ -36,6 +36,7 @@ backend = [
     "huggingface-hub>=0.30.2",
     "transformers>=4.51.3",
     "anthropic>=0.40.0",
+    "fpdf2>=2.8.0",
 ]
 cli = [
     "typer>=0.17.3",

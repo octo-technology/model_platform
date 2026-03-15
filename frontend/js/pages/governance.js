@@ -15,6 +15,44 @@ const GovernancePage = (() => {
         </div>
 
         <div class="page-content">
+
+          <div class="compliance-report-banner">
+            <div class="compliance-report-banner__icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+                <polyline points="10 9 9 9 8 9"/>
+              </svg>
+            </div>
+            <div class="compliance-report-banner__body">
+              <div class="compliance-report-banner__title">Platform Compliance Report</div>
+              <div class="compliance-report-banner__desc">
+                Generate a full audit PDF covering all projects and models on the platform:
+                executive summary, risk level distribution, deterministic &amp; LLM compliance statuses,
+                AI Act cards, and technical metadata annexes.
+              </div>
+            </div>
+            <div class="compliance-report-banner__action">
+              <button class="btn compliance-report-btn" id="download-compliance-report-btn">
+                <span class="compliance-report-btn__idle">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                  </svg>
+                  <span>Download</span>
+                  <span class="compliance-report-btn__badge">PDF</span>
+                </span>
+                <span class="compliance-report-btn__loading" style="display:none">
+                  <span class="compliance-report-spinner"></span>
+                  <span>Generating&hellip;</span>
+                </span>
+              </button>
+            </div>
+          </div>
+
           <div class="flex items-center gap-3 mb-4" style="max-width:380px">
             <div style="flex:1" class="form-group">
               <label class="form-label">Select project</label>
@@ -43,10 +81,41 @@ const GovernancePage = (() => {
     API.ai.status().then(s => { aiAvailable = s.available; });
 
     loadProjectList();
+    bindPlatformReportButton();
 
     document.getElementById('gov-project-select').addEventListener('change', e => {
       const proj = e.target.value;
       if (proj) loadGovernanceData(proj);
+    });
+  }
+
+  function bindPlatformReportButton() {
+    const reportBtn = document.getElementById('download-compliance-report-btn');
+    if (!reportBtn) return;
+    reportBtn.addEventListener('click', async () => {
+      const idle = reportBtn.querySelector('.compliance-report-btn__idle');
+      const loading = reportBtn.querySelector('.compliance-report-btn__loading');
+      reportBtn.disabled = true;
+      idle.style.display = 'none';
+      loading.style.display = '';
+      try {
+        const blob = await API.compliance.downloadPlatformReport();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'platform_compliance_report.pdf';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        Toast.success('Report downloaded.');
+      } catch (err) {
+        Toast.error('Failed to generate report: ' + err.message);
+      } finally {
+        reportBtn.disabled = false;
+        idle.style.display = '';
+        loading.style.display = 'none';
+      }
     });
   }
 
@@ -83,6 +152,8 @@ const GovernancePage = (() => {
         aiCache[`${item.model_name}:${item.model_version}`] = {
           hasSuggestion: item.has_generated_model_card,
           actReview: item.act_review,
+          deterministicCompliance: item.deterministic_compliance || 'not_evaluated',
+          llmCompliance: item.llm_compliance || 'not_evaluated',
         };
       }
 
@@ -119,12 +190,20 @@ const GovernancePage = (() => {
     content.innerHTML = `
       <div class="flex items-center justify-between mb-4">
         <h2 style="font-family:var(--font-display);font-size:22px;letter-spacing:0.04em">${escHtml(projectName)}</h2>
-        <button class="btn btn-secondary btn-sm" id="download-gov-btn">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
-          </svg>
-          Download archive
-        </button>
+        <div class="flex gap-2">
+          <button class="btn btn-primary btn-sm" id="evaluate-compliance-btn">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+            </svg>
+            Réévaluer la conformité
+          </button>
+          <button class="btn btn-secondary btn-sm" id="download-gov-btn">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+            </svg>
+            Download archive
+          </button>
+        </div>
       </div>
 
       ${modelSections || `<div class="empty-state" style="padding:40px 0"><div class="empty-state-title">No model versions found</div></div>`}
@@ -151,6 +230,22 @@ const GovernancePage = (() => {
       } finally {
         btn.disabled = false;
         btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg> Download archive`;
+      }
+    });
+
+    document.getElementById('evaluate-compliance-btn').addEventListener('click', async () => {
+      const btn = document.getElementById('evaluate-compliance-btn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner spinner-sm"></span> Évaluation…';
+      try {
+        await API.compliance.evaluateProject(projectName);
+        Toast.success('Conformité réévaluée.');
+        loadGovernanceData(projectName);
+      } catch (err) {
+        Toast.error(`Erreur : ${err.message}`);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Réévaluer la conformité`;
       }
     });
 
@@ -479,6 +574,24 @@ const GovernancePage = (() => {
 
   // ── Render helpers ────────────────────────────────────────────
 
+  function complianceBadge(status, label) {
+    const colors = {
+      compliant: 'badge-green',
+      partially_compliant: 'badge-orange',
+      non_compliant: 'badge-red',
+      not_evaluated: 'badge-neutral',
+    };
+    const labels = {
+      compliant: 'Conforme',
+      partially_compliant: 'Partiel',
+      non_compliant: 'Non conforme',
+      not_evaluated: 'Non évalué',
+    };
+    const cls = colors[status] || 'badge-neutral';
+    const text = labels[status] || status;
+    return `<span class="badge ${cls}" title="${escHtml(label)}: ${escHtml(text)}">${escHtml(text)}</span>`;
+  }
+
   function renderModelSection(modelName, versions, projectName, cache) {
     let modelCard = null;
     for (const v of versions) {
@@ -528,6 +641,8 @@ const GovernancePage = (() => {
 
       const cacheKey = `${modelName}:${ver}`;
       const cached = (cache || {})[cacheKey];
+      const detCompliance = cached ? cached.deterministicCompliance : 'not_evaluated';
+      const llmComplianceStatus = cached ? cached.llmCompliance : 'not_evaluated';
       const suggestLabel = cached && cached.hasSuggestion ? '✨ Régénérer' : '✨ Model Card';
 
       const suggestBtn = aiAvailable ? `
@@ -562,8 +677,10 @@ const GovernancePage = (() => {
           <td>${escHtml(user)}</td>
           <td style="white-space:nowrap">${escHtml(created)}</td>
           <td style="max-width:180px;color:var(--text-1);font-size:11px">${escHtml(metrics)}</td>
+          <td style="white-space:nowrap">${complianceBadge(detCompliance, 'Déterministe')}</td>
+          <td style="white-space:nowrap">${complianceBadge(llmComplianceStatus, 'LLM')}</td>
           <td>
-            <div class="flex gap-2 items-center" style="flex-wrap:nowrap">
+            <div class="flex gap-2 items-center" style="flex-wrap:wrap">
               ${suggestBtn}
               <button class="btn btn-secondary btn-xs ai-act-btn"
                 data-project="${safeProj}"
@@ -589,7 +706,7 @@ const GovernancePage = (() => {
         <table>
           <thead>
             <tr>
-              <th>Version</th><th>Run Name</th><th>User</th><th>Created</th><th>Metrics</th><th></th>
+              <th>Version</th><th>Run Name</th><th>User</th><th>Created</th><th>Metrics</th><th>Déterministe</th><th>LLM</th><th></th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
