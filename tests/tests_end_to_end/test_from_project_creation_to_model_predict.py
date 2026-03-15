@@ -260,18 +260,28 @@ def test_deploy_model():
     print(f"[DEBUG] Deploy test - Current DOCKER_HOST: {docker_host}")
 
     result = run_cli("projects", "deploy", PROJECT_NAME, "--model-name", MODEL_NAME, "--model-version", MODEL_VERSION)
+    assert result.returncode == 0, f"Deploy CLI failed: {result.stderr}"
 
-    # Check if image exists in minikube after deployment
-    expected_image_name = (
-        f"{PROJECT_NAME.lower().replace('_', '-')}-{MODEL_NAME.lower().replace('_', '-')}-{MODEL_VERSION}-ctr:latest"
-    )
-    print(f"[DEBUG] Expected image name: {expected_image_name}")
+    # The deploy runs as a background task — poll until the K8s deployment actually exists
+    deployment_name = sanitize_ressource_name(f"{PROJECT_NAME}-{MODEL_NAME}-{MODEL_VERSION}-deployment")
+    deadline = time.time() + 300  # 5-minute timeout for Docker build + K8s deployment
+    while time.time() < deadline:
+        check = subprocess.run(
+            ["kubectl", "get", "deployment", deployment_name, "-n", PROJECT_NAME],
+            capture_output=True,
+            text=True,
+        )
+        if check.returncode == 0:
+            print(f"[DEBUG] Deployment {deployment_name} exists")
+            return
+        print(f"[DEBUG] Deployment {deployment_name} not yet created, retrying in 10s...")
+        time.sleep(10)
+
+    # Deployment never appeared — dump debug info and fail
+    _dump_deployment_debug_info(deployment_name)
     _run_debug_cmd("minikube image ls", ["minikube", "image", "ls"])
-
-    # Also check docker images to see what's available
     _run_debug_cmd("docker images", ["docker", "images"])
-
-    assert result.returncode == 0, f"Deploy failed: {result.stderr}"
+    assert False, f"Deployment {deployment_name} was not created within 5 minutes"
 
 
 def test_deployed_model_health_check():

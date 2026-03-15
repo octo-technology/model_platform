@@ -68,7 +68,7 @@ def track_task_status(task_id: str, tasks_status: dict):
             try:
                 tasks_status[task_id] = TaskBuildStatuses.in_progress
                 result = func(*args, **kwargs)
-                if result == 0:
+                if result == 1:
                     tasks_status[task_id] = TaskBuildStatuses.completed
                 else:
                     tasks_status[task_id] = TaskBuildStatuses.failed
