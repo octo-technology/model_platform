@@ -48,6 +48,12 @@ class ModelInfoPostgresDBHandler(ModelInfoDbHandler):
             )
             cursor.execute("ALTER TABLE model_infos ADD COLUMN IF NOT EXISTS generated_model_card TEXT")
             cursor.execute("ALTER TABLE model_infos ADD COLUMN IF NOT EXISTS act_review TEXT")
+            cursor.execute(
+                "ALTER TABLE model_infos ADD COLUMN IF NOT EXISTS deterministic_compliance TEXT DEFAULT 'not_evaluated'"
+            )
+            cursor.execute(
+                "ALTER TABLE model_infos ADD COLUMN IF NOT EXISTS llm_compliance TEXT DEFAULT 'not_evaluated'"
+            )
             connection.commit()
         finally:
             connection.close()
@@ -158,6 +164,38 @@ class ModelInfoPostgresDBHandler(ModelInfoDbHandler):
                 "UPDATE model_infos SET act_review = %s "
                 "WHERE model_name = %s AND model_version = %s AND project_name = %s",
                 (text, model_name, model_version, project_name),
+            )
+            connection.commit()
+        finally:
+            connection.close()
+            return True
+
+    def update_compliance_statuses(
+        self,
+        model_name: str,
+        model_version: str,
+        project_name: str,
+        deterministic_compliance: str | None = None,
+        llm_compliance: str | None = None,
+    ) -> bool:
+        connection = self._connect()
+        try:
+            cursor = connection.cursor()
+            updates = []
+            values = []
+            if deterministic_compliance is not None:
+                updates.append("deterministic_compliance = %s")
+                values.append(deterministic_compliance)
+            if llm_compliance is not None:
+                updates.append("llm_compliance = %s")
+                values.append(llm_compliance)
+            if not updates:
+                return True
+            values.extend([model_name, model_version, project_name])
+            cursor.execute(
+                f"UPDATE model_infos SET {', '.join(updates)} "
+                "WHERE model_name = %s AND model_version = %s AND project_name = %s",
+                values,
             )
             connection.commit()
         finally:

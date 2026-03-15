@@ -15,6 +15,44 @@ const GovernancePage = (() => {
         </div>
 
         <div class="page-content">
+
+          <div class="compliance-report-banner">
+            <div class="compliance-report-banner__icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+                <polyline points="10 9 9 9 8 9"/>
+              </svg>
+            </div>
+            <div class="compliance-report-banner__body">
+              <div class="compliance-report-banner__title">Platform Compliance Report</div>
+              <div class="compliance-report-banner__desc">
+                Generate a full audit PDF covering all projects and models on the platform:
+                executive summary, risk level distribution, deterministic &amp; LLM compliance statuses,
+                AI Act cards, and technical metadata annexes.
+              </div>
+            </div>
+            <div class="compliance-report-banner__action">
+              <button class="btn compliance-report-btn" id="download-compliance-report-btn">
+                <span class="compliance-report-btn__idle">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                  </svg>
+                  <span>Download</span>
+                  <span class="compliance-report-btn__badge">PDF</span>
+                </span>
+                <span class="compliance-report-btn__loading" style="display:none">
+                  <span class="compliance-report-spinner"></span>
+                  <span>Generating&hellip;</span>
+                </span>
+              </button>
+            </div>
+          </div>
+
           <div class="flex items-center gap-3 mb-4" style="max-width:380px">
             <div style="flex:1" class="form-group">
               <label class="form-label">Select project</label>
@@ -43,10 +81,41 @@ const GovernancePage = (() => {
     API.ai.status().then(s => { aiAvailable = s.available; });
 
     loadProjectList();
+    bindPlatformReportButton();
 
     document.getElementById('gov-project-select').addEventListener('change', e => {
       const proj = e.target.value;
       if (proj) loadGovernanceData(proj);
+    });
+  }
+
+  function bindPlatformReportButton() {
+    const reportBtn = document.getElementById('download-compliance-report-btn');
+    if (!reportBtn) return;
+    reportBtn.addEventListener('click', async () => {
+      const idle = reportBtn.querySelector('.compliance-report-btn__idle');
+      const loading = reportBtn.querySelector('.compliance-report-btn__loading');
+      reportBtn.disabled = true;
+      idle.style.display = 'none';
+      loading.style.display = '';
+      try {
+        const blob = await API.compliance.downloadPlatformReport();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'platform_compliance_report.pdf';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        Toast.success('Report downloaded.');
+      } catch (err) {
+        Toast.error('Failed to generate report: ' + err.message);
+      } finally {
+        reportBtn.disabled = false;
+        idle.style.display = '';
+        loading.style.display = 'none';
+      }
     });
   }
 
@@ -83,6 +152,8 @@ const GovernancePage = (() => {
         aiCache[`${item.model_name}:${item.model_version}`] = {
           hasSuggestion: item.has_generated_model_card,
           actReview: item.act_review,
+          deterministicCompliance: item.deterministic_compliance || 'not_evaluated',
+          llmCompliance: item.llm_compliance || 'not_evaluated',
         };
       }
 
@@ -119,12 +190,20 @@ const GovernancePage = (() => {
     content.innerHTML = `
       <div class="flex items-center justify-between mb-4">
         <h2 style="font-family:var(--font-display);font-size:22px;letter-spacing:0.04em">${escHtml(projectName)}</h2>
-        <button class="btn btn-secondary btn-sm" id="download-gov-btn">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
-          </svg>
-          Download archive
-        </button>
+        <div class="flex gap-2">
+          <button class="btn btn-primary btn-sm" id="evaluate-compliance-btn">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+            </svg>
+            Réévaluer la conformité
+          </button>
+          <button class="btn btn-secondary btn-sm" id="download-gov-btn">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+            </svg>
+            Download archive
+          </button>
+        </div>
       </div>
 
       ${modelSections || `<div class="empty-state" style="padding:40px 0"><div class="empty-state-title">No model versions found</div></div>`}
@@ -151,6 +230,22 @@ const GovernancePage = (() => {
       } finally {
         btn.disabled = false;
         btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg> Download archive`;
+      }
+    });
+
+    document.getElementById('evaluate-compliance-btn').addEventListener('click', async () => {
+      const btn = document.getElementById('evaluate-compliance-btn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner spinner-sm"></span> Évaluation…';
+      try {
+        await API.compliance.evaluateProject(projectName);
+        Toast.success('Conformité réévaluée.');
+        loadGovernanceData(projectName);
+      } catch (err) {
+        Toast.error(`Erreur : ${err.message}`);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Réévaluer la conformité`;
       }
     });
 
@@ -208,22 +303,48 @@ const GovernancePage = (() => {
       const data = await API.modelInfos.aiActCard(projectName, modelName, version);
       markdownContent = data.markdown || '';
       const bodyEl = document.querySelector('#modal-container .modal-body');
-      if (bodyEl) bodyEl.innerHTML = `<div class="ai-act-md">${renderMarkdown(markdownContent)}</div>`;
+      if (bodyEl) {
+        bodyEl.innerHTML = '';
 
-      // Inject cached review immediately if available
-      if (cached && cached.actReview && bodyEl) {
-        const reviewSection = document.createElement('div');
-        reviewSection.className = 'ai-review-section';
-        reviewSection.innerHTML = `
-          <div class="ai-review-header">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-            </svg>
-            Analyse de conformité IA Act par Claude
-          </div>
-          <div class="ai-review-body ai-act-md">${renderMarkdown(cached.actReview)}</div>
-        `;
-        bodyEl.appendChild(reviewSection);
+        // Render markdown into a wrapper
+        const mdWrapper = document.createElement('div');
+        mdWrapper.className = 'ai-act-md';
+        mdWrapper.innerHTML = renderMarkdown(markdownContent);
+        bodyEl.appendChild(mdWrapper);
+
+        // Build a TOC from h2 headings for easy section navigation
+        const h2s = Array.from(mdWrapper.querySelectorAll('h2'));
+        if (h2s.length > 1) {
+          const toc = document.createElement('div');
+          toc.className = 'ai-act-toc';
+          h2s.forEach((h2, i) => {
+            h2.id = `ai-act-s${i}`;
+            const fullLabel = h2.textContent.trim();
+            const btn = document.createElement('button');
+            btn.className = 'ai-act-toc-btn';
+            btn.textContent = fullLabel.replace(/^(\d+)\.\s+(.+)/, (_, n, rest) => `${n}. ${rest.split(' ').slice(0, 2).join(' ')}`);
+            btn.title = fullLabel;
+            btn.addEventListener('click', () => h2.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+            toc.appendChild(btn);
+          });
+          bodyEl.insertBefore(toc, mdWrapper);
+        }
+
+        // Inject cached review immediately if available
+        if (cached && cached.actReview) {
+          const reviewSection = document.createElement('div');
+          reviewSection.className = 'ai-review-section';
+          reviewSection.innerHTML = `
+            <div class="ai-review-header">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+              </svg>
+              Analyse de conformité IA Act par Claude
+            </div>
+            <div class="ai-review-body ai-act-md">${renderMarkdown(cached.actReview)}</div>
+          `;
+          bodyEl.appendChild(reviewSection);
+        }
       }
 
       const dlBtn = document.getElementById('ai-act-download');
@@ -297,9 +418,11 @@ const GovernancePage = (() => {
   async function openDirectReviewModal(projectName, modelName, version) {
     const key = `${modelName}:${version}`;
     const cached = aiCache[key];
+    const hasCache = !!(cached && cached.actReview);
 
     const aiIconSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>`;
     const rerunIconSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`;
+    const dlIconSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>`;
 
     const badge = `<div class="ai-output-badge">${aiIconSvg} Analyse de conformité IA Act par Claude</div>`;
     const loadingHtml = `${badge}<div class="ai-act-loading"><span class="spinner"></span><span>Analyse en cours…</span></div>`;
@@ -307,40 +430,57 @@ const GovernancePage = (() => {
 
     const { close } = Modal.open({
       title: `Conformité IA Act — ${modelName} v${version}`,
-      body: cached && cached.actReview ? reviewHtml(cached.actReview) : loadingHtml,
+      body: hasCache ? reviewHtml(cached.actReview) : loadingHtml,
       footer: `
-        <button class="btn btn-ai btn-sm" id="direct-review-rerun-btn" ${cached && cached.actReview ? '' : 'disabled'}>
+        <button class="btn btn-secondary btn-sm" id="direct-review-dl-btn" ${hasCache ? '' : 'disabled'}>
+          ${dlIconSvg} Télécharger .md
+        </button>
+        <button class="btn btn-ai btn-sm" id="direct-review-rerun-btn" ${hasCache ? '' : 'disabled'}>
           ${rerunIconSvg} Ré-analyser
         </button>`,
     });
 
+    let currentReview = hasCache ? cached.actReview : '';
+
     const rerunBtn = () => document.getElementById('direct-review-rerun-btn');
+    const dlBtn    = () => document.getElementById('direct-review-dl-btn');
+
+    // Wire download button once — reads currentReview via closure
+    const dl = dlBtn();
+    if (dl) dl.addEventListener('click', () => {
+      if (currentReview) downloadMarkdown(currentReview, `conformite-ia-act-${projectName}-${modelName}-v${version}.md`);
+    });
 
     const runReview = async () => {
       const btn = rerunBtn();
+      const dl  = dlBtn();
       if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner spinner-sm"></span> Analyse en cours…'; }
+      if (dl)  dl.disabled = true;
       const bodyEl = document.querySelector('#modal-container .modal-body');
       if (bodyEl) bodyEl.innerHTML = loadingHtml;
 
       try {
         const data = await API.ai.actReview(projectName, modelName, version);
         const review = data.review || '';
+        currentReview = review;
         aiCache[key] = aiCache[key] || { hasSuggestion: false, actReview: null };
         aiCache[key].actReview = review;
         if (bodyEl) bodyEl.innerHTML = reviewHtml(review);
+        const dl2 = dlBtn();
+        if (dl2) dl2.disabled = false;
       } catch (err) {
         if (bodyEl) bodyEl.innerHTML = `${badge}<p style="color:var(--red-light)">Erreur : ${escHtml(err.message)}</p>`;
         Toast.error(`Erreur d'analyse : ${escHtml(err.message)}`);
       } finally {
-        const btn = rerunBtn();
-        if (btn) { btn.disabled = false; btn.innerHTML = `${rerunIconSvg} Ré-analyser`; }
+        const btn2 = rerunBtn();
+        if (btn2) { btn2.disabled = false; btn2.innerHTML = `${rerunIconSvg} Ré-analyser`; }
       }
     };
 
     const btn = rerunBtn();
     if (btn) btn.addEventListener('click', runReview);
 
-    if (!(cached && cached.actReview)) runReview();
+    if (!hasCache) runReview();
   }
 
   // ── Model Card Suggest Modal ──────────────────────────────────
@@ -407,11 +547,12 @@ const GovernancePage = (() => {
 
   function renderMarkdown(md) {
     if (typeof marked === 'undefined') return `<pre style="white-space:pre-wrap">${escHtml(md)}</pre>`;
-    // Claude wraps bold/italic phrases in newlines (\n**phrase**\n or \n\n**phrase**\n\n),
-    // turning them into orphan blocks. Collapse any short bold/italic phrase surrounded
-    // by newlines back to inline — limit to 80 chars to avoid collapsing real headings.
     md = md.replace(/\n+(\*{1,2}[^*\n\r]{1,80}\*{1,2})\n+/g, ' $1 ');
-    return wrapStatusSections(marked.parse(md, { breaks: false, gfm: true }));
+    let html = marked.parse(md, { breaks: false, gfm: true });
+    html = html
+      .replace(/<table>/g, '<div class="ai-act-table-scroll"><table>')
+      .replace(/<\/table>/g, '</table></div>');
+    return wrapStatusSections(html);
   }
 
   function wrapStatusSections(html) {
@@ -432,6 +573,24 @@ const GovernancePage = (() => {
   }
 
   // ── Render helpers ────────────────────────────────────────────
+
+  function complianceBadge(status, label) {
+    const colors = {
+      compliant: 'badge-green',
+      partially_compliant: 'badge-orange',
+      non_compliant: 'badge-red',
+      not_evaluated: 'badge-neutral',
+    };
+    const labels = {
+      compliant: 'Conforme',
+      partially_compliant: 'Partiel',
+      non_compliant: 'Non conforme',
+      not_evaluated: 'Non évalué',
+    };
+    const cls = colors[status] || 'badge-neutral';
+    const text = labels[status] || status;
+    return `<span class="badge ${cls}" title="${escHtml(label)}: ${escHtml(text)}">${escHtml(text)}</span>`;
+  }
 
   function renderModelSection(modelName, versions, projectName, cache) {
     let modelCard = null;
@@ -482,6 +641,8 @@ const GovernancePage = (() => {
 
       const cacheKey = `${modelName}:${ver}`;
       const cached = (cache || {})[cacheKey];
+      const detCompliance = cached ? cached.deterministicCompliance : 'not_evaluated';
+      const llmComplianceStatus = cached ? cached.llmCompliance : 'not_evaluated';
       const suggestLabel = cached && cached.hasSuggestion ? '✨ Régénérer' : '✨ Model Card';
 
       const suggestBtn = aiAvailable ? `
@@ -516,8 +677,10 @@ const GovernancePage = (() => {
           <td>${escHtml(user)}</td>
           <td style="white-space:nowrap">${escHtml(created)}</td>
           <td style="max-width:180px;color:var(--text-1);font-size:11px">${escHtml(metrics)}</td>
+          <td style="white-space:nowrap">${complianceBadge(detCompliance, 'Déterministe')}</td>
+          <td style="white-space:nowrap">${complianceBadge(llmComplianceStatus, 'LLM')}</td>
           <td>
-            <div class="flex gap-2 items-center" style="flex-wrap:nowrap">
+            <div class="flex gap-2 items-center" style="flex-wrap:wrap">
               ${suggestBtn}
               <button class="btn btn-secondary btn-xs ai-act-btn"
                 data-project="${safeProj}"
@@ -543,7 +706,7 @@ const GovernancePage = (() => {
         <table>
           <thead>
             <tr>
-              <th>Version</th><th>Run Name</th><th>User</th><th>Created</th><th>Metrics</th><th></th>
+              <th>Version</th><th>Run Name</th><th>User</th><th>Created</th><th>Metrics</th><th>Déterministe</th><th>LLM</th><th></th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>

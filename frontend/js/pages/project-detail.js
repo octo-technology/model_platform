@@ -280,11 +280,24 @@ const ProjectDetailPage = (() => {
   async function loadModels(projectName, panel) {
     panel.innerHTML = loadingHTML();
     try {
-      const models = await API.models.list(projectName);
+      const [models, modelInfos] = await Promise.all([
+        API.models.list(projectName),
+        API.modelInfos.listForProject(projectName).catch(() => []),
+      ]);
       if (!models || models.length === 0) {
         panel.innerHTML = emptyHTML('No models found', 'Register models in MLflow to see them here.');
         return;
       }
+
+      // Build compliance lookup: "modelName:version" → { deterministic, llm }
+      const complianceMap = {};
+      for (const info of modelInfos) {
+        complianceMap[`${info.model_name}:${info.model_version}`] = {
+          deterministic: info.deterministic_compliance || 'not_evaluated',
+          llm: info.llm_compliance || 'not_evaluated',
+        };
+      }
+
       // Fetch all versions for each model in parallel
       const modelsWithVersions = await Promise.all(
         models.map(async m => {
@@ -296,14 +309,14 @@ const ProjectDetailPage = (() => {
           }
         })
       );
-      renderModels(projectName, modelsWithVersions, panel);
+      renderModels(projectName, modelsWithVersions, panel, complianceMap);
     } catch (err) {
       panel.innerHTML = errorHTML(err.message);
     }
   }
 
-  function renderModels(projectName, models, panel) {
-    const rows = models.map(m => modelRow(m, projectName, 'available')).join('');
+  function renderModels(projectName, models, panel, complianceMap) {
+    const rows = models.map(m => modelRow(m, projectName, 'available', complianceMap)).join('');
 
     panel.innerHTML = `
       <div class="section-toolbar">
@@ -321,6 +334,7 @@ const ProjectDetailPage = (() => {
               <th>Latest version</th>
               <th>Registered</th>
               <th>Version to deploy</th>
+              <th>Compliance</th>
               <th style="text-align:right">Action</th>
             </tr>
           </thead>
@@ -330,10 +344,17 @@ const ProjectDetailPage = (() => {
       <div id="deploy-status-area"></div>
     `;
 
-    attachModelEvents(projectName, panel, 'available');
+    attachModelEvents(projectName, panel, 'available', complianceMap);
   }
 
-  function modelRow(m, projectName, context) {
+  function complianceIcon(status) {
+    if (status === 'compliant') return '<span class="badge badge-green" title="Conforme">OK</span>';
+    if (status === 'partially_compliant') return '<span class="badge badge-orange" title="Partiellement conforme">Partiel</span>';
+    if (status === 'non_compliant') return '<span class="badge badge-red" title="Non conforme">KO</span>';
+    return '';
+  }
+
+  function modelRow(m, projectName, context, complianceMap) {
     const name = m.name || '—';
 
     // all_versions is populated by loadModels (fetched via API.models.versions)
@@ -356,6 +377,14 @@ const ProjectDetailPage = (() => {
       ? versionNumbers.map(v => `<option value="${escHtml(String(v))}">${escHtml(String(v))}</option>`).join('')
       : `<option value="">—</option>`;
 
+    // Compliance badge for the first (latest) version
+    const complianceData = JSON.stringify(complianceMap || {}).replace(/"/g, '&quot;');
+    const firstVersion = versionNumbers.length > 0 ? versionNumbers[0] : '';
+    const firstCompliance = (complianceMap || {})[`${name}:${firstVersion}`];
+    const initialBadge = firstCompliance
+      ? `${complianceIcon(firstCompliance.deterministic)} ${complianceIcon(firstCompliance.llm)}`
+      : '';
+
     return `
       <tr>
         <td class="font-bold">${escHtml(name)}</td>
@@ -363,10 +392,11 @@ const ProjectDetailPage = (() => {
         <td class="mono">${escHtml(String(latest))}</td>
         <td>${escHtml(registered)}</td>
         <td>
-          <select class="form-select" style="width:90px;padding:4px 28px 4px 8px;" data-model="${escHtml(name)}">
+          <select class="form-select version-select" style="width:90px;padding:4px 28px 4px 8px;" data-model="${escHtml(name)}">
             ${versionOptions}
           </select>
         </td>
+        <td class="compliance-cell" data-model="${escHtml(name)}">${initialBadge}</td>
         <td class="actions">
           <button class="btn btn-primary btn-sm deploy-btn" data-model="${escHtml(name)}" data-project="${escHtml(projectName)}">
             Deploy
@@ -376,7 +406,19 @@ const ProjectDetailPage = (() => {
     `;
   }
 
-  function attachModelEvents(projectName, panel, context) {
+  function attachModelEvents(projectName, panel, context, complianceMap) {
+    // Update compliance badges when version changes
+    panel.querySelectorAll('.version-select').forEach(sel => {
+      sel.addEventListener('change', () => {
+        const modelName = sel.dataset.model;
+        const version = sel.value;
+        const cell = panel.querySelector(`.compliance-cell[data-model="${modelName}"]`);
+        if (!cell) return;
+        const c = (complianceMap || {})[`${modelName}:${version}`];
+        cell.innerHTML = c ? `${complianceIcon(c.deterministic)} ${complianceIcon(c.llm)}` : '';
+      });
+    });
+
     panel.querySelectorAll('.deploy-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
         const modelName = btn.dataset.model;

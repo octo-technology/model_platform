@@ -2,15 +2,28 @@
 import pytest
 from playwright.sync_api import Page, expect
 
-from tests.conftest import DEFAULT_TEST_USER, MP_HOSTNAME, is_minikube_running
+from tests.conftest import DEFAULT_TEST_USER, MP_HOSTNAME, cleanup_project, is_minikube_running, login, run_cli
 
 BASE_URL = f"http://{MP_HOSTNAME}"
+
+FRONTEND_TEST_PROJECT = "frontend-e2e-project"
 
 
 @pytest.fixture(scope="session", autouse=True)
 def require_minikube():
     if not is_minikube_running():
         pytest.skip("Minikube not running — skipping frontend e2e tests")
+
+
+@pytest.fixture(scope="session", autouse=True)
+def ensure_project_exists(require_minikube):
+    """Create a test project so frontend tests have data to display."""
+    login()
+    result = run_cli("projects", "add", "--name", FRONTEND_TEST_PROJECT)
+    if result.returncode != 0:
+        print(f"[DEBUG] Project creation returned {result.returncode}: {result.stdout} {result.stderr}")
+    yield
+    cleanup_project(FRONTEND_TEST_PROJECT)
 
 
 @pytest.fixture
@@ -133,15 +146,15 @@ class TestProjectDetail:
 
     def test_models_tab_renders(self, first_project_page: Page):
         first_project_page.click("[data-tab='models']")
-        expect(first_project_page.locator("#tab-models .table-wrap, #tab-models .empty-state")).to_be_attached(
+        expect(first_project_page.locator("#tab-models .table-wrap, #tab-models .empty-state").first).to_be_attached(
             timeout=10_000
         )
 
     def test_deployed_tab_renders(self, first_project_page: Page):
         first_project_page.click("[data-tab='deployed']")
-        expect(first_project_page.locator("#tab-deployed .table-wrap, #tab-deployed .empty-state")).to_be_attached(
-            timeout=10_000
-        )
+        expect(
+            first_project_page.locator("#tab-deployed .table-wrap, #tab-deployed .empty-state").first
+        ).to_be_attached(timeout=10_000)
 
     def test_breadcrumb_back_to_projects(self, first_project_page: Page):
         first_project_page.click("[data-nav='projects']")
@@ -177,7 +190,9 @@ class TestGovernanceExtended:
             pytest.skip("No projects available for governance test")
         first_value = logged_in_page.locator("#gov-project-select option:not([value=''])").first.get_attribute("value")
         logged_in_page.select_option("#gov-project-select", value=first_value)
-        expect(logged_in_page.locator("#gov-content .card, #gov-content .empty-state")).to_be_attached(timeout=15_000)
+        expect(logged_in_page.locator("#gov-content .card, #gov-content .empty-state").first).to_be_attached(
+            timeout=15_000
+        )
 
     def test_governance_download_button_visible_after_project_selected(self, logged_in_page: Page):
         logged_in_page.click("[data-route='governance']")

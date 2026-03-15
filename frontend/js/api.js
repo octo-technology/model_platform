@@ -126,6 +126,31 @@ const API = (() => {
       listForProject: (projectName) => get(`/model_infos/${enc(projectName)}/list`),
     },
 
+    // ── Compliance ──────────────────────────────────────────────
+    compliance: {
+      evaluateProject: (proj) => post(`/${enc(proj)}/models/evaluate_compliance`),
+      downloadPlatformReport: () =>
+        fetch(`${API_BASE}/compliance/download_report`, {
+          headers: { Authorization: `Bearer ${Auth.getToken()}` },
+        }).then(r => {
+          if (!r.ok) throw new Error(r.statusText);
+          return r.blob();
+        }),
+      getGatePolicy: () => get('/ai/gate_policy'),
+      setGatePolicy: (policy) =>
+        fetch(`${API_BASE}/ai/gate_policy`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${Auth.getToken()}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ policy }),
+        }).then(async r => {
+          if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+          return r.json();
+        }),
+    },
+
     // ── AI Assist ─────────────────────────────────────────────
     ai: {
       status: () => get('/ai/status').catch(() => ({ available: false, provider: null })),
@@ -145,14 +170,14 @@ const API = (() => {
           if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
           return r.json();
         }),
-      setCredentials: (accessKeyId, secretAccessKey, region) =>
+      setCredentials: (apiKey, region) =>
         fetch(`${API_BASE}/ai/credentials`, {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${Auth.getToken()}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ access_key_id: accessKeyId, secret_access_key: secretAccessKey, region }),
+          body: JSON.stringify({ api_key: apiKey, region }),
         }).then(async r => {
           if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
           return r.json();
@@ -161,6 +186,18 @@ const API = (() => {
         fetch(`${API_BASE}/ai/credentials`, {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${Auth.getToken()}` },
+        }).then(async r => {
+          if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+          return r.json();
+        }),
+      setModel: (modelId) =>
+        fetch(`${API_BASE}/ai/model`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${Auth.getToken()}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ model_id: modelId }),
         }).then(async r => {
           if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
           return r.json();

@@ -5,6 +5,15 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, closed]
   push:
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+      - 'slidev/**'
+      - 'demos/**'
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -224,6 +233,7 @@ jobs:
         uses: astral-sh/setup-uv@v4
         with:
           version: "latest"
+          enable-cache: true
 
       - name: Set up Python
         run: uv python install 3.11
@@ -231,6 +241,15 @@ jobs:
       - name: Install dependencies
         run: |
           uv sync --group dev --group backend --group cli --group notebooks
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ hashFiles('**/pyproject.toml') }}
+
+      - name: Install Playwright browser (Chromium)
+        run: uv run playwright install --with-deps chromium
 
       - name: Start Minikube
         uses: medyagh/setup-minikube@v0.0.18
@@ -272,8 +291,8 @@ jobs:
               echo "Backend is ready (HTTP 200)"
               exit 0
             fi
-            echo "Attempt $i/60 — HTTP $STATUS, retrying in 10s..."
-            sleep 10
+            echo "Attempt $i/60 — HTTP $STATUS, retrying in 5s..."
+            sleep 5
           done
           echo "Backend did not become ready after 10 minutes"
           exit 1
@@ -282,9 +301,6 @@ jobs:
         run: |
           echo "Launching end-to-end tests"
           uv run pytest tests/tests_end_to_end/test_from_project_creation_to_model_predict.py -v --tb=long
-
-      - name: Install Playwright browser (Chromium)
-        run: uv run playwright install --with-deps chromium
 
       - name: Run frontend e2e tests
         run: |

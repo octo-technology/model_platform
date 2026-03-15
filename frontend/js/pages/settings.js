@@ -12,7 +12,12 @@ const SettingsPage = (() => {
         </div>
 
         <div class="page-content">
-          <div class="settings-section-label">Integrations</div>
+          <div class="settings-section-label">Deployment Gate</div>
+          <div id="gate-policy-area">
+            <div class="loading-screen"><span class="spinner"></span><span>Loading…</span></div>
+          </div>
+
+          <div class="settings-section-label" style="margin-top:32px">Integrations</div>
           <div id="integrations-area">
             <div class="loading-screen"><span class="spinner"></span><span>Loading…</span></div>
           </div>
@@ -21,6 +26,74 @@ const SettingsPage = (() => {
     `;
 
     loadClaudeStatus();
+    loadGatePolicy();
+  }
+
+  async function loadGatePolicy() {
+    const area = document.getElementById('gate-policy-area');
+    try {
+      const data = await API.compliance.getGatePolicy();
+      renderGatePolicy(data.policy || 'permissive', area);
+    } catch {
+      renderGatePolicy('permissive', area);
+    }
+  }
+
+  function renderGatePolicy(currentPolicy, area) {
+    const policies = [
+      { value: 'disabled', label: 'Disabled', desc: 'No compliance check before deployment' },
+      { value: 'permissive', label: 'Permissive', desc: 'At least one compliance status must pass' },
+      { value: 'strict', label: 'Strict', desc: 'Both deterministic and LLM compliance must pass' },
+    ];
+    area.innerHTML = `
+      <div class="integration-card">
+        <div class="integration-card-top">
+          <div class="integration-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+          </div>
+          <div class="integration-meta">
+            <div class="integration-name">Deployment Gate Policy</div>
+            <div class="integration-desc">
+              Controls whether models must pass compliance checks before deployment.
+            </div>
+          </div>
+        </div>
+        <div class="integration-divider"></div>
+        <div class="integration-body">
+          <div class="provider-toggle-group">
+            ${policies.map(p => `
+              <button
+                class="btn btn-sm provider-toggle-btn ${p.value === currentPolicy ? 'provider-toggle-btn--active' : ''}"
+                data-gate-policy="${p.value}"
+                title="${p.desc}"
+              >${p.label}</button>
+            `).join('')}
+          </div>
+          <div style="margin-top:8px;font-size:12px;color:var(--text-2)" id="gate-policy-desc">
+            ${policies.find(p => p.value === currentPolicy)?.desc || ''}
+          </div>
+        </div>
+      </div>
+    `;
+
+    area.querySelectorAll('[data-gate-policy]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const selected = btn.dataset.gatePolicy;
+        if (selected === currentPolicy) return;
+        btn.disabled = true;
+        try {
+          await API.compliance.setGatePolicy(selected);
+          Toast.success('Gate policy updated.');
+          loadGatePolicy();
+        } catch (err) {
+          Toast.error(err.message);
+          btn.disabled = false;
+        }
+      });
+    });
+
   }
 
   async function loadClaudeStatus() {
@@ -34,7 +107,7 @@ const SettingsPage = (() => {
   }
 
   function renderClaudeCard(status, area) {
-    const { available, provider } = status;
+    const { available, provider, bedrock_models, bedrock_model_id } = status;
     const statusBadge = available
       ? `<span class="badge badge-green integration-status-badge">Active</span>`
       : `<span class="badge badge-neutral integration-status-badge">Inactive</span>`;
@@ -61,12 +134,13 @@ const SettingsPage = (() => {
         <div class="integration-divider"></div>
         <div class="integration-body">
           ${renderProviderToggle(provider)}
+          ${provider === 'bedrock' ? renderModelSelector(bedrock_models, bedrock_model_id) : ''}
           ${provider ? renderCredentialsSection(provider, available) : ''}
         </div>
       </div>
     `;
 
-    bindEvents(provider, available);
+    bindEvents(provider, available, bedrock_models);
   }
 
   function renderProviderToggle(provider) {
@@ -89,6 +163,21 @@ const SettingsPage = (() => {
     `;
   }
 
+  function renderModelSelector(models, selectedModelId) {
+    if (!models) return '';
+    const options = Object.entries(models)
+      .map(([id, label]) => `<option value="${id}" ${id === selectedModelId ? 'selected' : ''}>${label}</option>`)
+      .join('');
+    return `
+      <div style="margin-bottom:20px">
+        <div class="form-label" style="margin-bottom:8px">Model</div>
+        <select class="form-input" id="settings-bedrock-model-select" style="max-width:360px">
+          ${options}
+        </select>
+      </div>
+    `;
+  }
+
   function renderCredentialsSection(provider, available) {
     if (provider === 'bedrock') {
       return available ? renderBedrockConfigured() : renderBedrockUnconfigured();
@@ -103,25 +192,14 @@ const SettingsPage = (() => {
     return `
       <div class="key-row" style="flex-direction:column;gap:12px;align-items:stretch">
         <div class="key-input-group">
-          <label class="form-label">Access Key ID</label>
+          <label class="form-label">API Key</label>
           <input
             class="form-input key-input"
-            id="settings-access-key-input"
-            type="text"
-            placeholder="AKIA…"
-            autocomplete="off"
-            spellcheck="false"
-          >
-          <div class="key-hint">Starts with <mark>AKIA</mark> or <mark>ASIA</mark>, min. 16 characters</div>
-        </div>
-        <div class="key-input-group">
-          <label class="form-label">Secret Access Key</label>
-          <input
-            class="form-input key-input"
-            id="settings-secret-key-input"
+            id="settings-bedrock-api-key-input"
             type="password"
-            placeholder="••••••••••••••••••••••••••••••••••••••••"
-            autocomplete="off"
+            placeholder="Bedrock API key (bearer token)"
+            autocomplete="new-password"
+            name="bedrock-key-${Date.now()}"
             spellcheck="false"
           >
         </div>
@@ -131,8 +209,8 @@ const SettingsPage = (() => {
             class="form-input key-input"
             id="settings-region-input"
             type="text"
-            placeholder="us-east-1"
-            value="us-east-1"
+            placeholder="eu-west-3"
+            value="eu-west-3"
             autocomplete="off"
             spellcheck="false"
           >
@@ -157,7 +235,7 @@ const SettingsPage = (() => {
             </svg>
           </span>
           <div class="key-secured-content">
-            <div class="key-secured-value">AKIA••••••••••••••••</div>
+            <div class="key-secured-value">••••••••••••••••••••</div>
             <div class="key-secured-note">Stored securely · value never leaves the server</div>
           </div>
         </div>
@@ -184,7 +262,8 @@ const SettingsPage = (() => {
             id="settings-anthropic-key-input"
             type="password"
             placeholder="sk-ant-…"
-            autocomplete="off"
+            autocomplete="new-password"
+            name="anthropic-key-${Date.now()}"
             spellcheck="false"
           >
           <div class="key-hint">Starts with <mark>sk-ant-</mark></div>
@@ -226,7 +305,7 @@ const SettingsPage = (() => {
     `;
   }
 
-  function bindEvents(provider, available) {
+  function bindEvents(provider, available, bedrockModels) {
     // Provider toggle
     document.querySelectorAll('.provider-toggle-btn[data-provider]').forEach(btn => {
       btn.addEventListener('click', async () => {
@@ -243,35 +322,36 @@ const SettingsPage = (() => {
       });
     });
 
+    // Bedrock model selector
+    const modelSelect = document.getElementById('settings-bedrock-model-select');
+    if (modelSelect) {
+      modelSelect.addEventListener('change', async () => {
+        try {
+          await API.ai.setModel(modelSelect.value);
+          Toast.success('Model updated.');
+        } catch (err) {
+          Toast.error(err.message);
+        }
+      });
+    }
+
     if (provider === 'bedrock') {
       if (!available) {
-        const accessKeyInput = document.getElementById('settings-access-key-input');
-        const secretKeyInput = document.getElementById('settings-secret-key-input');
-        const regionInput    = document.getElementById('settings-region-input');
-        const saveBtn        = document.getElementById('settings-key-save');
-
-        accessKeyInput.addEventListener('input', () => {
-          const val = accessKeyInput.value.trim();
-          const valid = (val.startsWith('AKIA') || val.startsWith('ASIA')) && val.length >= 16;
-          accessKeyInput.classList.toggle('key-valid', valid);
-        });
+        const apiKeyInput = document.getElementById('settings-bedrock-api-key-input');
+        const regionInput = document.getElementById('settings-region-input');
+        const saveBtn     = document.getElementById('settings-key-save');
 
         saveBtn.addEventListener('click', async () => {
-          const accessKeyId     = accessKeyInput.value.trim();
-          const secretAccessKey = secretKeyInput.value.trim();
-          const region          = regionInput.value.trim() || 'us-east-1';
+          const apiKey = apiKeyInput.value.trim();
+          const region = regionInput.value.trim() || 'eu-west-3';
 
-          if (!accessKeyId) { Toast.error('Please enter an Access Key ID.'); return; }
-          if (!(accessKeyId.startsWith('AKIA') || accessKeyId.startsWith('ASIA')) || accessKeyId.length < 16) {
-            Toast.error('Access Key ID must start with AKIA or ASIA and be at least 16 characters.'); return;
-          }
-          if (!secretAccessKey) { Toast.error('Please enter a Secret Access Key.'); return; }
+          if (!apiKey) { Toast.error('Please enter a Bedrock API key.'); return; }
 
           saveBtn.disabled = true;
           saveBtn.innerHTML = '<span class="spinner spinner-sm"></span>';
           try {
-            await API.ai.setCredentials(accessKeyId, secretAccessKey, region);
-            Toast.success('AWS credentials saved.');
+            await API.ai.setCredentials(apiKey, region);
+            Toast.success('Bedrock API key saved.');
             loadClaudeStatus();
           } catch (err) {
             Toast.error(err.message);

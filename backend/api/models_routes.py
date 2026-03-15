@@ -7,18 +7,22 @@ import inspect
 import logging
 import uuid
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from loguru import logger
 
 from backend.domain.entities.docker.task_build_statuses import TaskBuildStatuses
 from backend.domain.ports.dashboard_handler import DashboardHandler
+from backend.domain.ports.model_info_db_handler import ModelInfoDbHandler
 from backend.domain.ports.model_registry import ModelRegistry
+from backend.domain.ports.platform_config_handler import PlatformConfigHandler
 from backend.domain.ports.registry_handler import RegistryHandler
 from backend.domain.ports.user_handler import UserHandler
 from backend.domain.use_cases.auth_usecases import get_current_user, get_user_adapter
+from backend.domain.use_cases.compliance_usecases import check_deployment_gate, evaluate_project_compliance
 from backend.domain.use_cases.deploy_model import deploy_model, remove_model_deployment
 from backend.domain.use_cases.user_usecases import user_can_perform_action_for_project
+from backend.infrastructure.model_info_sqlite_db_handler import ModelInfoDoesntExistError
 from backend.utils import sanitize_project_name
 
 router = APIRouter()
@@ -64,7 +68,7 @@ def track_task_status(task_id: str, tasks_status: dict):
             try:
                 tasks_status[task_id] = TaskBuildStatuses.in_progress
                 result = func(*args, **kwargs)
-                if result == 0:
+                if result == 1:
                     tasks_status[task_id] = TaskBuildStatuses.completed
                 else:
                     tasks_status[task_id] = TaskBuildStatuses.failed
@@ -103,6 +107,14 @@ def get_tasks_status(request: Request) -> dict:
 
 def get_dashboard_handler(request: Request) -> DashboardHandler:
     return request.app.state.dashboard_handler
+
+
+def get_model_info_db_handler(request: Request) -> ModelInfoDbHandler:
+    return request.app.state.model_info_db_handler
+
+
+def get_platform_config_handler(request: Request) -> PlatformConfigHandler:
+    return request.app.state.platform_config_handler
 
 
 @router.get("/list")
@@ -161,6 +173,8 @@ def route_deploy_model(
     current_user: dict = Depends(get_current_user),
     user_adapter: UserHandler = Depends(get_user_adapter),
     dashboard_handler: DashboardHandler = Depends(get_dashboard_handler),
+    model_info_db_handler: ModelInfoDbHandler = Depends(get_model_info_db_handler),
+    platform_config_handler: PlatformConfigHandler = Depends(get_platform_config_handler),
 ) -> JSONResponse:
     logger.debug(f"Got deploy model call on {project_name}, {model_name}:{version}")
     user_can_perform_action_for_project(
@@ -169,6 +183,16 @@ def route_deploy_model(
         action_name=inspect.currentframe().f_code.co_name,
         user_adapter=user_adapter,
     )
+
+    # Compliance gate check
+    try:
+        model_info = model_info_db_handler.get_model_info(model_name, version, project_name)
+        allowed, reason = check_deployment_gate(model_info, platform_config_handler)
+        if not allowed:
+            raise HTTPException(status_code=403, detail=reason)
+    except ModelInfoDoesntExistError:
+        logger.info(f"No model_info found for {model_name}:{version}, skipping compliance gate check")
+
     registry: ModelRegistry = registry_pool.get_registry_adapter(
         project_name, get_project_registry_tracking_uri(project_name, request)
     )
@@ -219,3 +243,26 @@ async def check_task_status(
     )
     status = tasks_status.get(task_id, "not_found")
     return JSONResponse({"task_id": task_id, "status": status}, media_type="application/json")
+
+
+@router.post("/evaluate_compliance")
+def route_evaluate_compliance(
+    project_name: str,
+    request: Request,
+    registry_pool: RegistryHandler = Depends(get_registry_pool),
+    model_info_db_handler: ModelInfoDbHandler = Depends(get_model_info_db_handler),
+    current_user: dict = Depends(get_current_user),
+    user_adapter: UserHandler = Depends(get_user_adapter),
+) -> JSONResponse:
+    """Recalculate deterministic compliance for all models in a project."""
+    user_can_perform_action_for_project(
+        current_user,
+        project_name=project_name,
+        action_name=inspect.currentframe().f_code.co_name,
+        user_adapter=user_adapter,
+    )
+    registry: ModelRegistry = registry_pool.get_registry_adapter(
+        project_name, get_project_registry_tracking_uri(project_name, request)
+    )
+    results = evaluate_project_compliance(project_name, registry, model_info_db_handler)
+    return JSONResponse(content={"results": results})

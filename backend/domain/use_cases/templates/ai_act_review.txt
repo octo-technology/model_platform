@@ -11,14 +11,33 @@ Provide a structured compliance review in French. For each section, identify:
 - ❌ What is missing or non-compliant
 
 Structure your review with these sections:
-1. **Classification du risque** — Is the risk level appropriate and justified?
-2. **Documentation technique** — Are parameters, metrics, and artifacts sufficient?
-3. **Traçabilité** — Is authorship, versioning, and provenance traceable?
-4. **Mesures de conformité** — What actions are required before deployment?
-5. **Score de complétude** — Overall completeness out of 10 with brief justification
+
+1. **Classification du risque** — Le niveau de risque est-il approprié et justifié ? Le modèle entre-t-il dans une catégorie à haut risque selon l'Annexe III du règlement ? La justification est-elle documentée ?
+
+2. **Documentation technique (Article 11)** — Les paramètres, métriques, artefacts et jeux de données sont-ils suffisamment documentés ? La description du modèle (architecture, objectif, limites connues) est-elle complète ? Les métriques de performance couvrent-elles les exigences de l'Article 15 (exactitude, robustesse, cybersécurité) ?
+
+3. **Traçabilité et gouvernance (Article 12)** — L'auteur, le versioning et la provenance sont-ils traçables ? Les journaux d'activité (logs) sont-ils mentionnés ? La chaîne de responsabilité est-elle identifiable ?
+
+4. **Données et biais (Article 10)** — Les jeux de données d'entraînement et de test sont-ils décrits ? Les mesures de détection et d'atténuation des biais sont-elles documentées ? La représentativité des données est-elle évaluée ?
+
+5. **Transparence et information (Article 13)** — Le model card fournit-il des instructions d'utilisation claires ? Les limitations et cas d'usage inappropriés sont-ils documentés ? Les utilisateurs en aval sont-ils informés des risques ?
+
+6. **Surveillance post-déploiement (Article 72)** — Un plan de monitoring est-il prévu ? Les mécanismes de détection de dérive (data drift, concept drift) sont-ils décrits ? Les procédures de mise à jour et de retrait sont-elles définies ?
+
+7. **Mesures de conformité** — Quelles actions correctives sont requises avant le déploiement ? Quelles lacunes bloquantes doivent être résolues en priorité ?
+
+8. **Plan d'actions et recommandations** — Fournis une liste complète et numérotée de toutes les recommandations concrètes pour ce modèle, classées par priorité :
+   - 🔴 **Critique** — Actions bloquantes à résoudre impérativement avant tout déploiement
+   - 🟠 **Important** — Actions fortement recommandées pour assurer la conformité
+   - 🟢 **Amélioration** — Bonnes pratiques à implémenter pour renforcer la conformité
+   Chaque recommandation doit être actionnable et spécifique au modèle évalué (pas de conseil générique). Indique pour chaque action : ce qui doit être fait, par qui (data scientist, ML engineer, risk officer, etc.), et le livrable attendu.
+
+9. **Score de complétude** — Note globale de complétude sur 10, avec justification brève. Format obligatoire : "Score de complétude — X/10" suivi de la justification.
 
 Be concrete and actionable. Write in French. Use markdown formatting.
 Important formatting rules:
 - Keep bold and italic phrases inline within their sentences — never put **bold text** or *italic text* on its own line separated by blank lines.
 - Use blank lines only to separate distinct paragraphs or sections, not to highlight inline emphasis.
 - Numbered lists (1. 2. 3.) and bullet lists (- item) are fine, but plain text should flow as continuous prose.
+- NEVER use markdown tables (|---|---| syntax). Use bullet lists or prose instead.
+- NEVER use HTML tags (<ul>, <li>, <p>, <strong>, <em>, etc.). Use only markdown syntax.

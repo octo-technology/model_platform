@@ -90,8 +90,8 @@ def test_mlflow_registry_responds():
             global _mlflow_ready
             _mlflow_ready = True
             return
-        print(f"[DEBUG] MLflow registry HTTP {result.stdout}, retrying in 10s...")
-        time.sleep(10)
+        print(f"[DEBUG] MLflow registry HTTP {result.stdout}, retrying in 5s...")
+        time.sleep(5)
 
     assert False, f"MLflow registry did not respond with 200 within 5 minutes"
 
@@ -241,11 +241,14 @@ def test_train_and_push_model_to_mlflow():
         model.fit(x_train, y_train)
         mlflow.sklearn.log_model(model, "custom_model", registered_model_name=MODEL_NAME)
 
-    # Verify model is registered
-    time.sleep(60)
-    result = run_cli("projects", "list-models", PROJECT_NAME)
-    assert result.returncode == 0, f"list-models failed: {result.stderr}"
-    assert MODEL_NAME in result.stdout, f"Model {MODEL_NAME} not found in: {result.stdout}"
+    # Poll until model appears in registry (instead of flat 60s sleep)
+    deadline = time.time() + 60
+    while time.time() < deadline:
+        result = run_cli("projects", "list-models", PROJECT_NAME)
+        if result.returncode == 0 and MODEL_NAME in result.stdout:
+            return
+        time.sleep(5)
+    assert False, f"Model {MODEL_NAME} not found after 60s. Last output: {result.stdout}"
 
 
 def test_deploy_model():
@@ -257,18 +260,28 @@ def test_deploy_model():
     print(f"[DEBUG] Deploy test - Current DOCKER_HOST: {docker_host}")
 
     result = run_cli("projects", "deploy", PROJECT_NAME, "--model-name", MODEL_NAME, "--model-version", MODEL_VERSION)
+    assert result.returncode == 0, f"Deploy CLI failed: {result.stderr}"
 
-    # Check if image exists in minikube after deployment
-    expected_image_name = (
-        f"{PROJECT_NAME.lower().replace('_', '-')}-{MODEL_NAME.lower().replace('_', '-')}-{MODEL_VERSION}-ctr:latest"
-    )
-    print(f"[DEBUG] Expected image name: {expected_image_name}")
+    # The deploy runs as a background task — poll until the K8s deployment actually exists
+    deployment_name = sanitize_ressource_name(f"{PROJECT_NAME}-{MODEL_NAME}-{MODEL_VERSION}-deployment")
+    deadline = time.time() + 300  # 5-minute timeout for Docker build + K8s deployment
+    while time.time() < deadline:
+        check = subprocess.run(
+            ["kubectl", "get", "deployment", deployment_name, "-n", PROJECT_NAME],
+            capture_output=True,
+            text=True,
+        )
+        if check.returncode == 0:
+            print(f"[DEBUG] Deployment {deployment_name} exists")
+            return
+        print(f"[DEBUG] Deployment {deployment_name} not yet created, retrying in 10s...")
+        time.sleep(10)
+
+    # Deployment never appeared — dump debug info and fail
+    _dump_deployment_debug_info(deployment_name)
     _run_debug_cmd("minikube image ls", ["minikube", "image", "ls"])
-
-    # Also check docker images to see what's available
     _run_debug_cmd("docker images", ["docker", "images"])
-
-    assert result.returncode == 0, f"Deploy failed: {result.stderr}"
+    assert False, f"Deployment {deployment_name} was not created within 5 minutes"
 
 
 def test_deployed_model_health_check():
@@ -380,15 +393,20 @@ def test_undeploy_model():
 def test_undeployed_model_is_removed():
     """Test that undeployed model no longer has a K8s deployment."""
     _skip_if_mlflow_not_ready()
-    time.sleep(30)
-
     deployment_name = sanitize_ressource_name(f"{PROJECT_NAME}-{MODEL_NAME}-{MODEL_VERSION}-deployment")
-    result = subprocess.run(
-        ["kubectl", "get", "deployment", deployment_name, "-n", PROJECT_NAME],
-        capture_output=True,
-        text=True,
-    )
-    assert result.returncode != 0, f"Deployment {deployment_name} should have been deleted"
+
+    # Poll until deployment is gone (instead of flat 30s sleep)
+    deadline = time.time() + 30
+    while time.time() < deadline:
+        result = subprocess.run(
+            ["kubectl", "get", "deployment", deployment_name, "-n", PROJECT_NAME],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            return
+        time.sleep(3)
+    assert False, f"Deployment {deployment_name} should have been deleted after 30s"
 
 
 def test_delete_project():
@@ -400,12 +418,15 @@ def test_delete_project():
 
 def test_project_registry_is_removed():
     """Test that project registry is no longer accessible after deletion."""
-    time.sleep(60)
-
-    result = subprocess.run(
-        ["curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", f"http://{MP_HOSTNAME}/registry/{PROJECT_NAME}/"],
-        capture_output=True,
-        text=True,
-    )
-    # 404, 502, or 503 all indicate the registry is gone
-    assert result.stdout in ["404", "502", "503", "504"], f"Registry should not be accessible: {result.stdout}"
+    # Poll until registry is gone (instead of flat 60s sleep)
+    deadline = time.time() + 60
+    while time.time() < deadline:
+        result = subprocess.run(
+            ["curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", f"http://{MP_HOSTNAME}/registry/{PROJECT_NAME}/"],
+            capture_output=True,
+            text=True,
+        )
+        if result.stdout in ["404", "502", "503", "504"]:
+            return
+        time.sleep(5)
+    assert False, f"Registry should not be accessible after 60s: last HTTP {result.stdout}"

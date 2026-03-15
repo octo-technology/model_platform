@@ -34,5 +34,16 @@ class ModelInfoDbHandler(ABC):
         pass
 
     @abstractmethod
+    def update_compliance_statuses(
+        self,
+        model_name: str,
+        model_version: str,
+        project_name: str,
+        deterministic_compliance: str | None = None,
+        llm_compliance: str | None = None,
+    ) -> bool:
+        pass
+
+    @abstractmethod
     def search_model_infos(self, query: str, project_name: str | None = None) -> list[ModelInfo]:
         pass

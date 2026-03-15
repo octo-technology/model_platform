@@ -14,6 +14,7 @@ from loguru import logger
 
 from backend.api import (
     auth_routes,
+    compliance_report_routes,
     demo_routes,
     deployed_models_routes,
     health_check,
@@ -99,6 +100,7 @@ def create_app() -> FastAPI:
     app.include_router(hugging_face_routes.router, prefix="/hugging_face", tags=["Registre"])
     app.include_router(model_infos_routes.router, prefix="/model_infos", tags=["Model Infos"])
     app.include_router(llm_routes.router, prefix="/ai", tags=["AI Assist"])
+    app.include_router(compliance_report_routes.router, prefix="/compliance", tags=["Compliance Report"])
     app.include_router(demo_routes.router, prefix="/demo", tags=["Demo Simulation"])
     return app
 
