@@ -133,15 +133,15 @@ class TestProjectDetail:
 
     def test_models_tab_renders(self, first_project_page: Page):
         first_project_page.click("[data-tab='models']")
-        expect(first_project_page.locator("#tab-models .table-wrap, #tab-models .empty-state")).to_be_attached(
+        expect(first_project_page.locator("#tab-models .table-wrap, #tab-models .empty-state").first).to_be_attached(
             timeout=10_000
         )
 
     def test_deployed_tab_renders(self, first_project_page: Page):
         first_project_page.click("[data-tab='deployed']")
-        expect(first_project_page.locator("#tab-deployed .table-wrap, #tab-deployed .empty-state")).to_be_attached(
-            timeout=10_000
-        )
+        expect(
+            first_project_page.locator("#tab-deployed .table-wrap, #tab-deployed .empty-state").first
+        ).to_be_attached(timeout=10_000)
 
     def test_breadcrumb_back_to_projects(self, first_project_page: Page):
         first_project_page.click("[data-nav='projects']")
@@ -177,7 +177,9 @@ class TestGovernanceExtended:
             pytest.skip("No projects available for governance test")
         first_value = logged_in_page.locator("#gov-project-select option:not([value=''])").first.get_attribute("value")
         logged_in_page.select_option("#gov-project-select", value=first_value)
-        expect(logged_in_page.locator("#gov-content .card, #gov-content .empty-state")).to_be_attached(timeout=15_000)
+        expect(logged_in_page.locator("#gov-content .card, #gov-content .empty-state").first).to_be_attached(
+            timeout=15_000
+        )
 
     def test_governance_download_button_visible_after_project_selected(self, logged_in_page: Page):
         logged_in_page.click("[data-route='governance']")

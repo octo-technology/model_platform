@@ -30,8 +30,8 @@ class DockerfileTemplate:
         # Install python model version
 
         RUN YAML_PYTHON_VERSION=$(grep -E "^ *- python=" /opt/mlflow/conda.yaml \
-            | sed -E 's/.*python=([0-9.]+).*/\\1/') && \
-            echo "Python version from conda.yaml: $YAML_PYTHON_VERSION" && \
+            | sed -E 's/.*python=([0-9]+\.[0-9]+).*/\\1/') && \
+            echo "Python version from conda.yaml (minor): $YAML_PYTHON_VERSION" && \
             uv python install $YAML_PYTHON_VERSION
 
         # Install additional dependencies in the environment
@@ -39,7 +39,7 @@ class DockerfileTemplate:
         RUN uv pip install -r /opt/mlflow/requirements.txt
         RUN uv pip install uvicorn fastapi cloudpickle loguru mlflow python-multipart
         RUN uv pip install opentelemetry-api opentelemetry-sdk opentelemetry-instrumentation-fastapi \
-            opentelemetry-exporterprometheus
+            opentelemetry-exporter-prometheus
 
         # Clean up apt cache to reduce image size
         RUN rm -rf /var/lib/apt/lists/*
