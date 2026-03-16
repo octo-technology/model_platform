@@ -286,6 +286,12 @@ img { max-width: 100%; }
 .status-dot[data-status="error"]   { background: var(--red); }
 .status-dot[data-status="unknown"] { background: var(--text-3); }
 
+/* Status color classes for monitoring dashboard */
+.status-dot.status-healthy { background: var(--status-green, var(--green)); box-shadow: 0 0 6px var(--status-green, var(--green)); }
+.status-dot.status-caution { background: var(--status-orange, var(--orange)); }
+.status-dot.status-alert   { background: var(--status-red, var(--red)); }
+.status-dot.status-unknown { background: var(--text-3); }
+
 .status-label {
   font-size: 11px;
   color: rgba(255,255,255,0.45);
@@ -2728,12 +2734,13 @@ mark.search-mark {
 /* ── Fleet Overview Header ─────────────────────────────────── */
 .fleet-header {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 12px;
-  padding: 16px;
-  background: linear-gradient(135deg, var(--bg-1) 0%, var(--bg-2) 100%);
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0;
+  padding: 10px 16px;
+  background: var(--bg-1);
   border: 1px solid var(--border-1);
   border-radius: var(--radius-lg);
+  margin-bottom: 28px;
 }
 
 .fleet-stat {
@@ -2743,7 +2750,7 @@ mark.search-mark {
 
 .fleet-stat-value {
   font-family: var(--font-mono);
-  font-size: 24px;
+  font-size: 18px;
   font-weight: 700;
   color: var(--text-0);
   line-height: 1;
@@ -2933,6 +2940,26 @@ mark.search-mark {
   color: var(--text-2);
   font-family: var(--font-mono);
   letter-spacing: 0.02em;
+}
+
+.monitoring-refresh-btn {
+  background: none;
+  border: 1px solid var(--border-1);
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-2);
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+  border-radius: var(--radius-sm);
+  transition: all var(--t-fast) var(--ease);
+  line-height: 1.4;
+}
+
+.monitoring-refresh-btn:hover {
+  background: var(--bg-2);
+  border-color: var(--border-2);
+  color: var(--text-1);
 }
 
 .status-badge-live {
@@ -3294,31 +3321,80 @@ mark.search-mark {
 .projects-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(450px, 1fr));
-  gap: 20px;
+  gap: 24px;
+  margin-top: 0;
 }
 
 .project-box {
-  background: var(--bg-0);
+  background: var(--bg-1);
   border: 1px solid var(--border-1);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius);
   overflow: hidden;
-  transition: all var(--t-base) var(--ease);
+  transition: border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
+  position: relative;
+}
+
+.project-box::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--orange);
+  transform: scaleY(0);
+  transform-origin: bottom;
+  transition: transform var(--t-base) var(--ease);
+  z-index: 1;
 }
 
 .project-box:hover {
   border-color: var(--border-2);
   box-shadow: var(--shadow);
+  transform: translateY(-1px);
 }
 
+.project-box:hover::before { transform: scaleY(1); }
+
 .project-box-header {
-  padding: 16px;
-  background: linear-gradient(135deg, var(--bg-1) 0%, var(--bg-2) 100%);
-  border-bottom: 1px solid var(--border-1);
+  padding: 16px 20px 14px;
+  background: transparent;
+  border-bottom: 1px solid var(--border-0);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.project-header-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
 }
+
+.project-health-bar {
+  display: flex;
+  height: 4px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--bg-2);
+  gap: 2px;
+}
+
+.ph-seg {
+  height: 100%;
+  border-radius: 2px;
+  transition: width var(--t-slow) var(--ease);
+  min-width: 0;
+}
+
+.ph-healthy { background: var(--status-green); }
+.ph-caution { background: var(--status-orange); }
+.ph-alert   { background: var(--status-red); }
+
+.project-box.project-status-healthy { }
+.project-box.project-status-caution { }
+.project-box.project-status-alert   { }
 
 .project-box-title {
   font-family: var(--font-display);
@@ -3367,26 +3443,42 @@ mark.search-mark {
 .models-list {
   display: flex;
   flex-direction: column;
-  padding: 12px;
-  gap: 0;
+  padding: 8px;
+  gap: 4px;
 }
 
 .model-row {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 12px;
-  border-bottom: 1px solid var(--border-0);
-  transition: background var(--t-fast) var(--ease);
-}
-
-.model-row:last-child {
-  border-bottom: none;
+  padding: 14px 14px 14px 11px;
+  border-radius: var(--radius-sm);
+  border-left: 3px solid transparent;
+  transition: background var(--t-fast) var(--ease), border-left-color var(--t-base) var(--ease);
+  position: relative;
 }
 
 .model-row:hover {
-  background: var(--bg-1);
+  background: var(--bg-2);
+  border-left-color: var(--orange) !important;
 }
+
+.model-row.model-row-healthy { border-left-color: var(--status-green); }
+.model-row.model-row-caution { border-left-color: var(--status-orange); }
+.model-row.model-row-alert   { border-left-color: var(--status-red); }
+.model-row.model-row-unknown { border-left-color: var(--border-1); }
+
+.model-row-no-metrics {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: var(--text-2);
+  font-size: 12px;
+  padding: 4px 0;
+}
+
+.metric-value-error { color: var(--status-red) !important; }
+
+.model-row-link-disabled { pointer-events: none; opacity: 0.35; }
 
 .model-row-header {
   display: flex;
