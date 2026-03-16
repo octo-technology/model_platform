@@ -18,6 +18,7 @@ def registry():
         [{"version": "1"}, {"version": "2"}] if name == "model_a" else [{"version": "1"}]
     )
     mock.get_model_card.return_value = None
+    mock.get_model_governance_information.return_value = {"tags": {}}
     return mock
 
 
