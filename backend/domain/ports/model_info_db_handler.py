@@ -22,10 +22,6 @@ class ModelInfoDbHandler(ABC):
         pass
 
     @abstractmethod
-    def update_generated_model_card(self, model_name: str, model_version: str, project_name: str, text: str) -> bool:
-        pass
-
-    @abstractmethod
     def update_act_review(self, model_name: str, model_version: str, project_name: str, text: str) -> bool:
         pass
 

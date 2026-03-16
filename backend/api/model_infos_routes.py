@@ -40,7 +40,6 @@ def list_for_project(
             {
                 "model_name": i.model_name,
                 "model_version": i.model_version,
-                "has_generated_model_card": i.generated_model_card is not None,
                 "act_review": i.act_review,
                 "deterministic_compliance": i.deterministic_compliance or "not_evaluated",
                 "llm_compliance": i.llm_compliance or "not_evaluated",

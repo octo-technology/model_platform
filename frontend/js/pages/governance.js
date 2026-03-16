@@ -2,7 +2,7 @@
 const GovernancePage = (() => {
 
   let aiAvailable = false;
-  let aiCache = {}; // key: "modelName:version" → { hasSuggestion, actReview }
+  let aiCache = {}; // key: "modelName:version" → { actReview, llmCompliance, deterministicCompliance }
   let modelCardCache = {}; // key: "modelName:version" → markdown string
 
   function render(container) {
@@ -151,7 +151,6 @@ const GovernancePage = (() => {
       aiCache = {};
       for (const item of list) {
         aiCache[`${item.model_name}:${item.model_version}`] = {
-          hasSuggestion: item.has_generated_model_card,
           actReview: item.act_review,
           deterministicCompliance: item.deterministic_compliance || 'not_evaluated',
           llmCompliance: item.llm_compliance || 'not_evaluated',
@@ -273,10 +272,6 @@ const GovernancePage = (() => {
         return;
       }
 
-      const suggestBtn = e.target.closest('.ai-suggest-btn');
-      if (suggestBtn) {
-        openModelCardSuggestModal(suggestBtn.dataset.project, suggestBtn.dataset.model, suggestBtn.dataset.version);
-      }
     });
   }
 
@@ -413,7 +408,7 @@ const GovernancePage = (() => {
       const review = data.review || '';
 
       // Update local cache (including LLM compliance from backend response)
-      aiCache[key] = aiCache[key] || { hasSuggestion: false, actReview: null };
+      aiCache[key] = aiCache[key] || { actReview: null };
       aiCache[key].actReview = review;
       if (data.llm_compliance) {
         aiCache[key].llmCompliance = data.llm_compliance;
@@ -503,7 +498,7 @@ const GovernancePage = (() => {
         const data = await API.ai.actReview(projectName, modelName, version);
         const review = data.review || '';
         currentReview = review;
-        aiCache[key] = aiCache[key] || { hasSuggestion: false, actReview: null };
+        aiCache[key] = aiCache[key] || { actReview: null };
         aiCache[key].actReview = review;
         if (data.llm_compliance) {
           aiCache[key].llmCompliance = data.llm_compliance;
@@ -525,66 +520,6 @@ const GovernancePage = (() => {
     if (btn) btn.addEventListener('click', runReview);
 
     if (!hasCache) runReview();
-  }
-
-  // ── Model Card Suggest Modal ──────────────────────────────────
-
-  async function openModelCardSuggestModal(projectName, modelName, version) {
-    const key = `${modelName}:${version}`;
-    const { close } = Modal.open({
-      title: `✨ Générer model card — ${modelName} v${version}`,
-      body: `<div class="ai-act-loading"><span class="spinner"></span><span>Claude génère une suggestion…</span></div>`,
-      footer: `
-        <button class="btn btn-ai btn-sm" id="ai-card-apply" disabled>Appliquer</button>
-        <button class="btn btn-secondary btn-sm" id="ai-card-cancel">Annuler</button>`,
-    });
-
-    document.getElementById('ai-card-cancel').addEventListener('click', () => close());
-
-    let suggestion = '';
-    try {
-      const data = await API.ai.modelCardSuggest(projectName, modelName, version);
-      suggestion = data.suggestion || '';
-
-      // Update cache: backend already persisted the suggestion
-      aiCache[key] = aiCache[key] || { hasSuggestion: false, actReview: null };
-      aiCache[key].hasSuggestion = true;
-
-      const bodyEl = document.querySelector('#modal-container .modal-body');
-      if (bodyEl) {
-        bodyEl.innerHTML = `
-          <div style="margin-bottom:10px;font-size:12px;color:var(--text-2)">
-            Suggestion générée par Claude. Vous pouvez modifier le texte avant d'appliquer.
-          </div>
-          <textarea class="form-input ai-suggest-textarea" id="ai-card-textarea" rows="12">${escHtml(suggestion)}</textarea>
-        `;
-      }
-
-      const applyBtn = document.getElementById('ai-card-apply');
-      if (applyBtn) {
-        applyBtn.disabled = false;
-        applyBtn.addEventListener('click', async () => {
-          const text = document.getElementById('ai-card-textarea').value;
-          if (!text.trim()) { Toast.error('Le texte ne peut pas être vide.'); return; }
-          applyBtn.disabled = true;
-          applyBtn.innerHTML = '<span class="spinner spinner-sm"></span>';
-          try {
-            await API.ai.updateModelCard(projectName, modelName, version, text);
-            Toast.success('Model card mise à jour.');
-            close();
-          } catch (err) {
-            Toast.error(`Erreur : ${escHtml(err.message)}`);
-            applyBtn.disabled = false;
-            applyBtn.innerHTML = 'Appliquer';
-          }
-        });
-      }
-    } catch (err) {
-      const bodyEl = document.querySelector('#modal-container .modal-body');
-      if (bodyEl) bodyEl.innerHTML = `<p style="color:var(--red-light)">Erreur : ${escHtml(err.message)}</p>`;
-      const applyBtn = document.getElementById('ai-card-apply');
-      if (applyBtn) applyBtn.disabled = true;
-    }
   }
 
   // ── Markdown renderer ─────────────────────────────────────────
@@ -684,19 +619,6 @@ const GovernancePage = (() => {
       const detCompliance = cached ? cached.deterministicCompliance : 'not_evaluated';
       const llmComplianceStatus = cached ? cached.llmCompliance : 'not_evaluated';
       const hasModelCard = !!(v.tags && v.tags['mlflow.note.content']);
-      const suggestLabel = cached && cached.hasSuggestion ? '✨ Régénérer' : '✨ Model Card';
-
-      const suggestBtn = aiAvailable ? `
-        <button class="btn btn-ai btn-xs ai-suggest-btn"
-          data-project="${safeProj}"
-          data-model="${safeModel}"
-          data-version="${safeVer}"
-          title="Générer une model card avec Claude">
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-          </svg>
-          ${suggestLabel}
-        </button>` : '';
 
       const reviewLabel = cached && cached.actReview ? 'Ré-analyser' : 'Analyser';
       const directReviewBtn = aiAvailable ? `
@@ -734,7 +656,6 @@ const GovernancePage = (() => {
                 </svg>
                 Model Card
               </button>` : ''}
-              ${suggestBtn}
               <button class="btn btn-secondary btn-xs ai-act-btn"
                 data-project="${safeProj}"
                 data-model="${safeModel}"
