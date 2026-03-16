@@ -166,6 +166,20 @@ class ModelInfoSQLiteDBHandler(ModelInfoDbHandler):
             connection.close()
             return True
 
+    def update_risk_level(self, model_name: str, model_version: str, project_name: str, risk_level: str) -> bool:
+        connection = sqlite3.connect(self.db_path)
+        try:
+            cursor = connection.cursor()
+            cursor.execute(
+                "UPDATE model_infos SET risk_level = ? "
+                "WHERE model_name = ? AND model_version = ? AND project_name = ?",
+                (risk_level, model_name, model_version, project_name),
+            )
+            connection.commit()
+        finally:
+            connection.close()
+            return True
+
     def update_act_review(self, model_name: str, model_version: str, project_name: str, text: str) -> bool:
         connection = sqlite3.connect(self.db_path)
         try:

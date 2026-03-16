@@ -156,6 +156,20 @@ class ModelInfoPostgresDBHandler(ModelInfoDbHandler):
             connection.close()
             return True
 
+    def update_risk_level(self, model_name: str, model_version: str, project_name: str, risk_level: str) -> bool:
+        connection = self._connect()
+        try:
+            cursor = connection.cursor()
+            cursor.execute(
+                "UPDATE model_infos SET risk_level = %s "
+                "WHERE model_name = %s AND model_version = %s AND project_name = %s",
+                (risk_level, model_name, model_version, project_name),
+            )
+            connection.commit()
+        finally:
+            connection.close()
+            return True
+
     def update_act_review(self, model_name: str, model_version: str, project_name: str, text: str) -> bool:
         connection = self._connect()
         try:

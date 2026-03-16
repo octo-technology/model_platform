@@ -80,6 +80,12 @@ const App = (() => {
         SearchPage.render(container, currentParams);
         break;
 
+      case 'compliance-guide':
+        showSidebar();
+        updateNavActive('compliance-guide');
+        ComplianceGuidePage.render(container);
+        break;
+
       case 'demo':
         showSidebar();
         updateNavActive('demo');

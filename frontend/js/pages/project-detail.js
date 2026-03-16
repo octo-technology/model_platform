@@ -347,11 +347,13 @@ const ProjectDetailPage = (() => {
     attachModelEvents(projectName, panel, 'available', complianceMap);
   }
 
-  function complianceIcon(status) {
-    if (status === 'compliant') return '<span class="badge badge-green" title="Conforme">OK</span>';
-    if (status === 'partially_compliant') return '<span class="badge badge-orange" title="Partiellement conforme">Partiel</span>';
-    if (status === 'non_compliant') return '<span class="badge badge-red" title="Non conforme">KO</span>';
-    return '';
+  function complianceIcon(status, label) {
+    const prefix = label ? `<span style="font-size:10px;color:var(--text-2);margin-right:4px">${escHtml(label)}</span>` : '';
+    if (status === 'compliant') return `${prefix}<span class="badge badge-green" title="${escHtml(label || '')} — Conforme">Conforme</span>`;
+    if (status === 'partially_compliant') return `${prefix}<span class="badge badge-orange" title="${escHtml(label || '')} — Partiellement conforme">Partiel</span>`;
+    if (status === 'non_compliant') return `${prefix}<span class="badge badge-red" title="${escHtml(label || '')} — Non conforme">Non conforme</span>`;
+    if (status === 'not_evaluated') return `${prefix}<span class="badge badge-neutral" title="${escHtml(label || '')} — Non évalué">Non évalué</span>`;
+    return `${prefix}<span class="badge badge-neutral">—</span>`;
   }
 
   function modelRow(m, projectName, context, complianceMap) {
@@ -382,8 +384,8 @@ const ProjectDetailPage = (() => {
     const firstVersion = versionNumbers.length > 0 ? versionNumbers[0] : '';
     const firstCompliance = (complianceMap || {})[`${name}:${firstVersion}`];
     const initialBadge = firstCompliance
-      ? `${complianceIcon(firstCompliance.deterministic)} ${complianceIcon(firstCompliance.llm)}`
-      : '';
+      ? `${complianceIcon(firstCompliance.deterministic, 'Dét.')} ${complianceIcon(firstCompliance.llm, 'LLM')}`
+      : `${complianceIcon('not_evaluated', 'Dét.')} ${complianceIcon('not_evaluated', 'LLM')}`;
 
     return `
       <tr>
@@ -415,7 +417,9 @@ const ProjectDetailPage = (() => {
         const cell = panel.querySelector(`.compliance-cell[data-model="${modelName}"]`);
         if (!cell) return;
         const c = (complianceMap || {})[`${modelName}:${version}`];
-        cell.innerHTML = c ? `${complianceIcon(c.deterministic)} ${complianceIcon(c.llm)}` : '';
+        cell.innerHTML = c
+          ? `${complianceIcon(c.deterministic, 'Dét.')} ${complianceIcon(c.llm, 'LLM')}`
+          : `${complianceIcon('not_evaluated', 'Dét.')} ${complianceIcon('not_evaluated', 'LLM')}`;
       });
     });
 

@@ -3,6 +3,7 @@ const GovernancePage = (() => {
 
   let aiAvailable = false;
   let aiCache = {}; // key: "modelName:version" → { hasSuggestion, actReview }
+  let modelCardCache = {}; // key: "modelName:version" → markdown string
 
   function render(container) {
     container.innerHTML = `
@@ -176,11 +177,14 @@ const GovernancePage = (() => {
     });
     const deploymentEvents = entries.flatMap(e => e.events || []);
 
+    modelCardCache = {};
     const modelGroups = {};
     versions.forEach(v => {
       const modelName = v.model_name || v.name || 'Unknown';
       if (!modelGroups[modelName]) modelGroups[modelName] = [];
       modelGroups[modelName].push(v);
+      const note = v.tags && v.tags['mlflow.note.content'];
+      if (note) modelCardCache[`${modelName}:${v.version}`] = note;
     });
 
     const modelSections = Object.entries(modelGroups)
@@ -249,8 +253,14 @@ const GovernancePage = (() => {
       }
     });
 
-    // Delegate clicks on AI Act buttons
+    // Delegate clicks on action buttons
     content.addEventListener('click', async e => {
+      const modelCardBtn = e.target.closest('.model-card-btn');
+      if (modelCardBtn) {
+        openModelCardModal(modelCardBtn.dataset.project, modelCardBtn.dataset.model, modelCardBtn.dataset.version);
+        return;
+      }
+
       const aiActBtn = e.target.closest('.ai-act-btn');
       if (aiActBtn) {
         openAiActModal(aiActBtn.dataset.project, aiActBtn.dataset.model, aiActBtn.dataset.version, false);
@@ -268,6 +278,32 @@ const GovernancePage = (() => {
         openModelCardSuggestModal(suggestBtn.dataset.project, suggestBtn.dataset.model, suggestBtn.dataset.version);
       }
     });
+  }
+
+  // ── Model Card Modal ─────────────────────────────────────────
+
+  function openModelCardModal(projectName, modelName, version) {
+    const cardContent = modelCardCache[`${modelName}:${version}`];
+    const bodyHtml = cardContent
+      ? `<div class="ai-act-md">${renderMarkdown(cardContent)}</div>`
+      : `<p style="color:var(--text-2)">Aucune model card disponible pour cette version.</p>`;
+
+    Modal.open({
+      title: `Model Card — ${modelName} v${version}`,
+      body: bodyHtml,
+      footer: cardContent ? `
+        <button class="btn btn-secondary btn-sm" id="model-card-dl-btn">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+          </svg>
+          Télécharger .md
+        </button>` : '',
+    });
+
+    const dlBtn = document.getElementById('model-card-dl-btn');
+    if (dlBtn) {
+      dlBtn.addEventListener('click', () => downloadMarkdown(cardContent, `model-card-${modelName}-v${version}.md`));
+    }
   }
 
   // ── AI Act Modal ──────────────────────────────────────────────
@@ -376,9 +412,13 @@ const GovernancePage = (() => {
       const data = await API.ai.actReview(projectName, modelName, version);
       const review = data.review || '';
 
-      // Update local cache
+      // Update local cache (including LLM compliance from backend response)
       aiCache[key] = aiCache[key] || { hasSuggestion: false, actReview: null };
       aiCache[key].actReview = review;
+      if (data.llm_compliance) {
+        aiCache[key].llmCompliance = data.llm_compliance;
+        refreshLlmBadge(modelName, version);
+      }
 
       const bodyEl = document.querySelector('#modal-container .modal-body');
       if (bodyEl) {
@@ -465,6 +505,10 @@ const GovernancePage = (() => {
         currentReview = review;
         aiCache[key] = aiCache[key] || { hasSuggestion: false, actReview: null };
         aiCache[key].actReview = review;
+        if (data.llm_compliance) {
+          aiCache[key].llmCompliance = data.llm_compliance;
+          refreshLlmBadge(modelName, version);
+        }
         if (bodyEl) bodyEl.innerHTML = reviewHtml(review);
         const dl2 = dlBtn();
         if (dl2) dl2.disabled = false;
@@ -592,25 +636,21 @@ const GovernancePage = (() => {
     return `<span class="badge ${cls}" title="${escHtml(label)}: ${escHtml(text)}">${escHtml(text)}</span>`;
   }
 
-  function renderModelSection(modelName, versions, projectName, cache) {
-    let modelCard = null;
-    for (const v of versions) {
-      const note = v.tags && v.tags['mlflow.note.content'];
-      if (note) { modelCard = note; break; }
-    }
+  function refreshLlmBadge(modelName, version) {
+    const cell = document.querySelector(`[data-llm-badge="${modelName}:${version}"]`);
+    if (!cell) return;
+    const cached = aiCache[`${modelName}:${version}`];
+    const status = cached ? cached.llmCompliance : 'not_evaluated';
+    cell.innerHTML = complianceBadge(status, 'LLM');
+  }
 
+  function renderModelSection(modelName, versions, projectName, cache) {
     return `
       <div class="card mt-4">
         <div class="card-header">
           <span class="card-title">${escHtml(modelName)}</span>
           <span class="section-count">${versions.length}</span>
         </div>
-        ${modelCard ? `
-          <div style="padding:12px 20px;border-bottom:1px solid var(--border)">
-            <div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-2);margin-bottom:6px">Model Card</div>
-            <p style="color:var(--text-1);font-size:13px;white-space:pre-wrap;margin:0">${escHtml(modelCard)}</p>
-          </div>
-        ` : ''}
         ${renderVersionsSection(versions, modelName, projectName, cache)}
       </div>`;
   }
@@ -643,6 +683,7 @@ const GovernancePage = (() => {
       const cached = (cache || {})[cacheKey];
       const detCompliance = cached ? cached.deterministicCompliance : 'not_evaluated';
       const llmComplianceStatus = cached ? cached.llmCompliance : 'not_evaluated';
+      const hasModelCard = !!(v.tags && v.tags['mlflow.note.content']);
       const suggestLabel = cached && cached.hasSuggestion ? '✨ Régénérer' : '✨ Model Card';
 
       const suggestBtn = aiAvailable ? `
@@ -678,9 +719,21 @@ const GovernancePage = (() => {
           <td style="white-space:nowrap">${escHtml(created)}</td>
           <td style="max-width:180px;color:var(--text-1);font-size:11px">${escHtml(metrics)}</td>
           <td style="white-space:nowrap">${complianceBadge(detCompliance, 'Déterministe')}</td>
-          <td style="white-space:nowrap">${complianceBadge(llmComplianceStatus, 'LLM')}</td>
+          <td style="white-space:nowrap" data-llm-badge="${safeModel}:${safeVer}">${complianceBadge(llmComplianceStatus, 'LLM')}</td>
           <td>
             <div class="flex gap-2 items-center" style="flex-wrap:wrap">
+              ${hasModelCard ? `
+              <button class="btn btn-secondary btn-xs model-card-btn"
+                data-project="${safeProj}"
+                data-model="${safeModel}"
+                data-version="${safeVer}"
+                title="Voir la model card">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                </svg>
+                Model Card
+              </button>` : ''}
               ${suggestBtn}
               <button class="btn btn-secondary btn-xs ai-act-btn"
                 data-project="${safeProj}"

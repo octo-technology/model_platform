@@ -30,6 +30,10 @@ class ModelInfoDbHandler(ABC):
         pass
 
     @abstractmethod
+    def update_risk_level(self, model_name: str, model_version: str, project_name: str, risk_level: str) -> bool:
+        pass
+
+    @abstractmethod
     def delete_model_info(self, model_name: str, model_version: str, project_name: str) -> bool:
         pass
 
