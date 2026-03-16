@@ -18,9 +18,38 @@ from backend.domain.ports.platform_config_handler import PlatformConfigHandler
 from backend.domain.ports.project_db_handler import ProjectDbHandler
 from backend.domain.ports.registry_handler import RegistryHandler
 from backend.domain.use_cases.auth_usecases import get_current_user
-from backend.domain.use_cases.compliance_report_usecases import generate_platform_compliance_report
+from backend.domain.use_cases.compliance_report_usecases import (
+    generate_platform_compliance_report,
+    get_platform_dashboard_data,
+)
 
 router = APIRouter()
+
+
+@router.get("/dashboard")
+def get_compliance_dashboard(
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+    project_db_handler: ProjectDbHandler = Depends(get_project_db_handler),
+    model_info_db_handler: ModelInfoDbHandler = Depends(get_model_info_db_handler),
+    registry_pool: RegistryHandler = Depends(get_registry_pool),
+    platform_config_handler: PlatformConfigHandler = Depends(get_platform_config_handler),
+):
+    if current_user.get("role") != Role.ADMIN:
+        raise HTTPException(status_code=403, detail="Admin role required.")
+
+    logger.info("Fetching platform compliance dashboard data")
+
+    def tracking_uri_builder(proj):
+        return get_project_registry_tracking_uri(proj, request)
+
+    return get_platform_dashboard_data(
+        project_db_handler=project_db_handler,
+        model_info_db_handler=model_info_db_handler,
+        registry_pool=registry_pool,
+        platform_config_handler=platform_config_handler,
+        tracking_uri_builder=tracking_uri_builder,
+    )
 
 
 @router.get("/download_report")

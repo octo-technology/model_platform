@@ -128,6 +128,7 @@ const API = (() => {
 
     // ── Compliance ──────────────────────────────────────────────
     compliance: {
+      dashboard: () => get('/compliance/dashboard'),
       evaluateProject: (proj) => post(`/${enc(proj)}/models/evaluate_compliance`),
       downloadPlatformReport: () =>
         fetch(`${API_BASE}/compliance/download_report`, {

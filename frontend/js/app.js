@@ -62,6 +62,12 @@ const App = (() => {
         ProjectDetailPage.render(container, currentParams);
         break;
 
+      case 'dashboard':
+        showSidebar();
+        updateNavActive('dashboard');
+        GovernanceDashboardPage.render(container);
+        break;
+
       case 'governance':
         showSidebar();
         updateNavActive('governance');
