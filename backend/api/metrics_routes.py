@@ -6,14 +6,13 @@ Requires authentication for fleet-level metrics.
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
 
 from backend.domain.entities.metrics import FleetMetrics, ModelMetrics
 from backend.domain.ports.metrics_handler import MetricsHandler
-from backend.domain.ports.project_db_handler import ProjectDbHandler
 from backend.domain.ports.user_handler import UserHandler
-from backend.domain.use_cases import metrics_usecases, monitoring_usecases
+from backend.domain.use_cases import metrics_usecases
 from backend.domain.use_cases.auth_usecases import (
     get_current_user,
     get_user_adapter,
@@ -35,17 +34,6 @@ def get_metrics_handler() -> MetricsHandler:
         Prometheus adapter instance
     """
     return PrometheusAdapter()
-
-
-def get_project_db_handler(request: Request) -> ProjectDbHandler:
-    """Dependency injection for project database handler from app state.
-
-    Returns
-    -------
-    ProjectDbHandler
-        Project database handler instance
-    """
-    return request.app.state.project_db_handler
 
 
 @router.get("/models/{model_id}", response_model=ModelMetrics)
@@ -192,88 +180,3 @@ async def get_fleet_metrics(
     except Exception as e:
         logger.error(f"Failed to retrieve fleet metrics: {e}")
         raise HTTPException(status_code=503, detail="Prometheus service unavailable")
-
-
-@router.get("/monitoring/deployments")
-async def get_monitoring_deployments(
-    request: Request,
-    project_db_handler: ProjectDbHandler = Depends(get_project_db_handler),
-) -> list[dict]:
-    """Get all deployed models for monitoring dashboard.
-
-    Returns all models deployed across all projects with their metadata,
-    status, and Grafana dashboard links. Used by monitoring frontend to
-    populate the model catalog without authentication.
-
-    Returns
-    -------
-    list[dict]
-        List of deployed models with:
-        - id: deployment identifier (for metrics API)
-        - name: model name
-        - version: model version
-        - project: project name
-        - deployment_name: K8s deployment name
-        - status: running|pending|error|unknown
-        - dashboard_url: link to Grafana dashboard
-
-    Examples
-    --------
-    GET /api/metrics/monitoring/deployments
-
-    [
-        {
-            "id": "credit-scoring-v2",
-            "name": "CreditScoring",
-            "version": 2,
-            "project": "Finance",
-            "deployment_name": "credit-scoring-v2-prod",
-            "status": "running",
-            "dashboard_url": "/d/abc123/credit-scoring"
-        },
-        ...
-    ]
-    """
-    try:
-        logger.debug("GET /api/metrics/monitoring/deployments")
-        result = monitoring_usecases.get_monitoring_deployments(project_db_handler=project_db_handler)
-        logger.info(f"Retrieved {len(result)} deployments for monitoring")
-        return result
-    except Exception as e:
-        logger.error(f"Failed to retrieve monitoring deployments: {e}")
-        raise HTTPException(status_code=503, detail="Failed to retrieve deployments")
-
-
-@router.get("/monitoring/projects")
-async def get_monitoring_projects(
-    request: Request,
-    project_db_handler: ProjectDbHandler = Depends(get_project_db_handler),
-) -> list[dict]:
-    """Get all projects for monitoring dashboard filters.
-
-    Returns list of all projects with basic metadata for use in
-    dashboard project dropdown filters. No authentication required.
-
-    Returns
-    -------
-    list[dict]
-        List of projects with metadata
-
-    Examples
-    --------
-    GET /api/metrics/monitoring/projects
-
-    [
-        {"name": "Finance", "description": "Banking models"},
-        {"name": "Healthcare", "description": "Medical AI"},
-        ...
-    ]
-    """
-    try:
-        logger.debug("GET /api/metrics/monitoring/projects")
-        result = monitoring_usecases.get_monitoring_projects(project_db_handler=project_db_handler)
-        logger.info(f"Retrieved {len(result)} projects for monitoring")
-        return result
-    except Exception as e:
-        logger.error(f"Failed to retrieve monitoring projects: {e}")
-        raise HTTPException(status_code=503, detail="Failed to retrieve projects")

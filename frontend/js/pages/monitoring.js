@@ -299,29 +299,33 @@ const MonitoringPage = (() => {
   }
 
   async function fetchRealModelsFromBackend() {
-    try {
-      const resp = await fetch(`${API_BASE_URL}/metrics/monitoring/deployments`);
-      if (!resp.ok) {
-        console.warn(`Backend returned ${resp.status} for deployments endpoint`);
-        return [];
-      }
-      const models = await resp.json();
-      console.log(`Fetched ${models.length} models from backend`);
+    // 1. Get projects the current user has access to
+    const projects = await API.projects.list();
 
-      // Transform backend format to frontend format if needed
-      return models.map(m => ({
-        id: m.id || m.deployment_name,
-        name: m.name || m.model_name,
-        version: m.version || 1,
-        project: m.project || 'Unknown',
-        deployment_name: m.deployment_name,
-        status: m.status,
-        dashboard_url: m.dashboard_url
-      }));
-    } catch (err) {
-      console.error(`Failed to fetch real models from ${API_BASE_URL}/metrics/monitoring/deployments: ${err.message}`);
-      throw err;
-    }
+    // 2. For each project, fetch its deployed models
+    const allModels = [];
+    await Promise.all(projects.map(async (project) => {
+      const projectName = project.name;
+      try {
+        const deployments = await API.deployedModels.list(projectName);
+        deployments.forEach(d => {
+          allModels.push({
+            id: d.deployment_name,
+            name: d.model_name,
+            version: d.version || 1,
+            project: projectName,
+            deployment_name: d.deployment_name,
+            status: d.status,
+            dashboard_url: d.dashboard_url,
+          });
+        });
+      } catch (err) {
+        console.warn(`Could not fetch deployments for project ${projectName}: ${err.message}`);
+      }
+    }));
+
+    console.log(`Fetched ${allModels.length} deployed models across ${projects.length} projects.`);
+    return allModels;
   }
 
   function generateSampleModels() {

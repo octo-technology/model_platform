@@ -15,8 +15,8 @@ async def test_get_model_metrics_success():
 
     # Mock the _execute_query method
     with patch.object(adapter, "_execute_query", new_callable=AsyncMock) as mock_query:
-        # Return values: success_rate, total_calls, total_errors
-        mock_query.side_effect = [95.0, 45000, 2250]
+        # Return values: total_calls, total_errors (success_rate is computed)
+        mock_query.side_effect = [45000, 2250]
 
         result = await adapter.get_model_metrics("credit-v2-prod", "7d")
 
@@ -26,8 +26,8 @@ async def test_get_model_metrics_success():
         assert result["total_calls"] == 45000
         assert result["total_errors"] == 2250
 
-        # Verify 3 queries were made (success_rate, calls, errors)
-        assert mock_query.call_count == 3
+        # Verify 2 queries were made (total_calls, total_errors)
+        assert mock_query.call_count == 2
 
 
 @pytest.mark.asyncio
@@ -50,14 +50,15 @@ async def test_get_model_metrics_zero_calls():
     adapter = PrometheusAdapter()
 
     with patch.object(adapter, "_execute_query", new_callable=AsyncMock) as mock_query:
-        # Model with high success rate but zero calls
-        mock_query.side_effect = [100.0, 0, 0]
+        # total_calls=0, total_errors returns None (no error data)
+        mock_query.side_effect = [0, None]
 
         result = await adapter.get_model_metrics("idle-model", "7d")
 
         assert result is not None
         assert result["total_calls"] == 0
         assert result["total_errors"] == 0
+        assert result["success_rate"] == 100.0
 
 
 @pytest.mark.asyncio
@@ -65,10 +66,13 @@ async def test_period_to_duration():
     """Test period name to Prometheus duration conversion."""
     adapter = PrometheusAdapter()
 
+    assert adapter._period_to_duration("15m") == "15m"
+    assert adapter._period_to_duration("30m") == "30m"
+    assert adapter._period_to_duration("1h") == "1h"
+    assert adapter._period_to_duration("6h") == "6h"
     assert adapter._period_to_duration("1d") == "1d"
     assert adapter._period_to_duration("7d") == "7d"
     assert adapter._period_to_duration("30d") == "30d"
-    assert adapter._period_to_duration("90d") == "90d"
     assert adapter._period_to_duration("invalid") == "7d"  # Default
 
 
