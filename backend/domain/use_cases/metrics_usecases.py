@@ -48,16 +48,6 @@ async def get_model_metrics(model_id: str, period: str, metrics_handler: Metrics
         logger.warning(f"No metrics found for model {model_id}")
         raise ValueError(f"Model {model_id} not found or no metrics available")
 
-    # Log warning if model has zero calls
-    if result["total_calls"] == 0:
-        logger.warning(f"Model {model_id} has zero calls in period {period}, " "check if model is actively used")
-
-    # Validate data consistency
-    if result["success_rate"] + result["error_rate"] > 101:
-        logger.warning(
-            f"Inconsistent rates for {model_id}: " f"success={result['success_rate']}%, error={result['error_rate']}%"
-        )
-
     return ModelMetrics(
         model_id=model_id,
         project_name=result.get("project_name", ""),
