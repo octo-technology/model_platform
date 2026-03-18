@@ -62,6 +62,12 @@ const App = (() => {
         ProjectDetailPage.render(container, currentParams);
         break;
 
+      case 'dashboard':
+        showSidebar();
+        updateNavActive('dashboard');
+        GovernanceDashboardPage.render(container);
+        break;
+
       case 'governance':
         showSidebar();
         updateNavActive('governance');
@@ -72,6 +78,12 @@ const App = (() => {
         showSidebar();
         updateNavActive('search');
         SearchPage.render(container, currentParams);
+        break;
+
+      case 'compliance-guide':
+        showSidebar();
+        updateNavActive('compliance-guide');
+        ComplianceGuidePage.render(container);
         break;
 
       case 'demo':

@@ -128,6 +128,7 @@ const API = (() => {
 
     // ── Compliance ──────────────────────────────────────────────
     compliance: {
+      dashboard: () => get('/compliance/dashboard'),
       evaluateProject: (proj) => post(`/${enc(proj)}/models/evaluate_compliance`),
       downloadPlatformReport: () =>
         fetch(`${API_BASE}/compliance/download_report`, {
@@ -154,22 +155,8 @@ const API = (() => {
     // ── AI Assist ─────────────────────────────────────────────
     ai: {
       status: () => get('/ai/status').catch(() => ({ available: false, provider: null })),
-      modelCardSuggest: (proj, model, ver) =>
-        post(`/ai/${enc(proj)}/${enc(model)}/${enc(ver)}/model_card_suggest`),
       actReview: (proj, model, ver) =>
         post(`/ai/${enc(proj)}/${enc(model)}/${enc(ver)}/act_review`),
-      updateModelCard: (proj, model, ver, modelCard) =>
-        fetch(`${API_BASE}/ai/${enc(proj)}/${enc(model)}/${enc(ver)}/model_card`, {
-          method: 'PATCH',
-          headers: {
-            'Authorization': `Bearer ${Auth.getToken()}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ model_card: modelCard }),
-        }).then(async r => {
-          if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
-          return r.json();
-        }),
       setCredentials: (apiKey, region) =>
         fetch(`${API_BASE}/ai/credentials`, {
           method: 'PUT',

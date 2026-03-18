@@ -553,6 +553,93 @@ def _build_pdf(platform_data: list[ProjectData], summary: PlatformSummary, gate_
     return pdf_path
 
 
+def get_platform_dashboard_data(
+    project_db_handler: ProjectDbHandler,
+    model_info_db_handler: ModelInfoDbHandler,
+    registry_pool: RegistryHandler,
+    platform_config_handler: PlatformConfigHandler,
+    tracking_uri_builder: Callable[[str], str],
+) -> dict:
+    """Return lightweight platform-wide compliance data for the dashboard (no AI Act card generation)."""
+    gate_policy = platform_config_handler.get(DEPLOYMENT_GATE_POLICY_KEY) or GATE_POLICY_PERMISSIVE
+    projects = project_db_handler.list_projects()
+    project_summaries = []
+
+    risk_counter: Counter = Counter()
+    det_counter: Counter = Counter()
+    llm_counter: Counter = Counter()
+    total_models = set()
+    total_versions = 0
+
+    for project in projects:
+        project_name = project.name
+        project_risk: Counter = Counter()
+        project_det: Counter = Counter()
+        project_llm: Counter = Counter()
+        project_version_count = 0
+        project_model_names = set()
+        error = None
+
+        try:
+            registry: ModelRegistry = registry_pool.get_registry_adapter(
+                project_name, tracking_uri_builder(project_name)
+            )
+            model_versions_map = _get_project_models_versions(registry)
+            model_infos = model_info_db_handler.list_model_infos_for_project(project_name)
+            model_info_map: dict[tuple[str, str], ModelInfo] = {
+                (mi.model_name, mi.model_version): mi for mi in model_infos
+            }
+
+            for model_name, versions in model_versions_map.items():
+                for version_entry in versions:
+                    version = version_entry["version"]
+                    mi = model_info_map.get((model_name, version))
+                    project_version_count += 1
+                    total_versions += 1
+                    project_model_names.add(model_name)
+                    total_models.add((project_name, model_name))
+
+                    rl = mi.risk_level if mi else None
+                    dc = mi.deterministic_compliance if mi else "not_evaluated"
+                    lc = mi.llm_compliance if mi else "not_evaluated"
+
+                    project_risk[rl or "non renseigne"] += 1
+                    risk_counter[rl or "non renseigne"] += 1
+                    project_det[dc or "not_evaluated"] += 1
+                    det_counter[dc or "not_evaluated"] += 1
+                    project_llm[lc or "not_evaluated"] += 1
+                    llm_counter[lc or "not_evaluated"] += 1
+
+        except Exception as e:
+            logger.warning(f"Could not access registry for project {project_name}: {e}")
+            error = str(e)
+
+        project_summaries.append(
+            {
+                "name": project_name,
+                "total_models": len(project_model_names),
+                "total_versions": project_version_count,
+                "risk_distribution": dict(project_risk),
+                "deterministic_distribution": dict(project_det),
+                "llm_distribution": dict(project_llm),
+                "error": error,
+            }
+        )
+
+    return {
+        "gate_policy": gate_policy,
+        "summary": {
+            "total_projects": len(projects),
+            "total_models": len(total_models),
+            "total_versions": total_versions,
+            "risk_distribution": dict(risk_counter),
+            "deterministic_distribution": dict(det_counter),
+            "llm_distribution": dict(llm_counter),
+        },
+        "projects": project_summaries,
+    }
+
+
 def generate_platform_compliance_report(
     project_db_handler: ProjectDbHandler,
     model_info_db_handler: ModelInfoDbHandler,

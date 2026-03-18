@@ -1,0 +1,17 @@
+.venv/
+.git/
+slidev/
+demos/
+docs/
+tests/
+infrastructure/
+frontend/
+cli/
+*.md
+.DS_Store
+.github/
+.claude/
+.ruff_cache/
+__pycache__/
+*.pyc
+node_modules/

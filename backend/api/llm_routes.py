@@ -17,9 +17,7 @@ from backend.domain.use_cases import llm_usecases
 from backend.domain.use_cases.ai_act_usecases import generate_ai_act_card
 from backend.domain.use_cases.auth_usecases import get_current_user, get_user_adapter
 from backend.domain.use_cases.compliance_usecases import extract_llm_compliance_from_review
-from backend.domain.use_cases.governance_usecases import extract_model_governance_information
 from backend.domain.use_cases.user_usecases import user_can_perform_action_for_project
-from backend.infrastructure.model_info_sqlite_db_handler import ModelInfoDoesntExistError
 
 router = APIRouter()
 
@@ -30,10 +28,6 @@ def get_model_info_db_handler(request: Request) -> ModelInfoDbHandler:
 
 def get_platform_config_handler(request: Request) -> PlatformConfigHandler:
     return request.app.state.platform_config_handler
-
-
-class ModelCardUpdateRequest(BaseModel):
-    model_card: str
 
 
 class BedrockApiKeyRequest(BaseModel):
@@ -153,46 +147,6 @@ def delete_api_key(
     return JSONResponse(content={"ok": True})
 
 
-@router.post("/{project_name}/{model_name}/{version}/model_card_suggest")
-def model_card_suggest(
-    project_name: str,
-    model_name: str,
-    version: str,
-    request: Request,
-    registry_pool: RegistryHandler = Depends(get_registry_pool),
-    current_user: dict = Depends(get_current_user),
-    user_adapter: UserHandler = Depends(get_user_adapter),
-    platform_config_handler: PlatformConfigHandler = Depends(get_platform_config_handler),
-    model_info_db_handler: ModelInfoDbHandler = Depends(get_model_info_db_handler),
-) -> JSONResponse:
-    """Generate a model card suggestion using Claude based on governance metadata."""
-    user_can_perform_action_for_project(
-        current_user,
-        project_name=project_name,
-        action_name=inspect.currentframe().f_code.co_name,
-        user_adapter=user_adapter,
-    )
-    if not llm_usecases.is_available(platform_config_handler):
-        raise HTTPException(status_code=503, detail="AI assist is not available: no LLM provider configured.")
-
-    registry: ModelRegistry = registry_pool.get_registry_adapter(
-        project_name, get_project_registry_tracking_uri(project_name, request)
-    )
-    try:
-        governance_info = extract_model_governance_information(registry, project_name, model_name, version)
-        # Flatten to include model_name and version in the info dict
-        info = governance_info.get("model_information", {})
-        if isinstance(info, dict):
-            info["model_name"] = model_name
-            info["version"] = version
-        suggestion = llm_usecases.generate_model_card_suggestion(governance_info, project_name, platform_config_handler)
-        model_info_db_handler.update_generated_model_card(model_name, version, project_name, suggestion)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-    return JSONResponse(content={"suggestion": suggestion})
-
-
 @router.post("/{project_name}/{model_name}/{version}/act_review")
 def act_review(
     project_name: str,
@@ -233,61 +187,6 @@ def act_review(
         raise HTTPException(status_code=500, detail=str(e))
 
     return JSONResponse(content={"review": review, "llm_compliance": llm_status})
-
-
-@router.get("/{project_name}/{model_name}/{version}/cached")
-def get_cached(
-    project_name: str,
-    model_name: str,
-    version: str,
-    current_user: dict = Depends(get_current_user),
-    model_info_db_handler: ModelInfoDbHandler = Depends(get_model_info_db_handler),
-) -> JSONResponse:
-    """Return cached AI generation state for a model version."""
-    try:
-        info = model_info_db_handler.get_model_info(model_name, version, project_name)
-        return JSONResponse(
-            content={
-                "has_generated_model_card": info.generated_model_card is not None,
-                "act_review": info.act_review,
-            }
-        )
-    except ModelInfoDoesntExistError:
-        return JSONResponse(content={"has_generated_model_card": False, "act_review": None})
-
-
-@router.patch("/{project_name}/{model_name}/{version}/model_card")
-def update_model_card(
-    project_name: str,
-    model_name: str,
-    version: str,
-    body: ModelCardUpdateRequest,
-    current_user: dict = Depends(get_current_user),
-    user_adapter: UserHandler = Depends(get_user_adapter),
-    model_info_db_handler: ModelInfoDbHandler = Depends(get_model_info_db_handler),
-) -> JSONResponse:
-    """Update the model card for a specific model version."""
-    user_can_perform_action_for_project(
-        current_user,
-        project_name=project_name,
-        action_name=inspect.currentframe().f_code.co_name,
-        user_adapter=user_adapter,
-    )
-    try:
-        updated = model_info_db_handler.update_model_card(
-            model_name=model_name,
-            model_version=version,
-            project_name=project_name,
-            model_card=body.model_card,
-        )
-        if not updated:
-            raise HTTPException(status_code=404, detail="Model info not found.")
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-    return JSONResponse(content={"ok": True})
 
 
 class GatePolicyRequest(BaseModel):

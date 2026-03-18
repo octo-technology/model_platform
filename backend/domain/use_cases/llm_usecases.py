@@ -120,57 +120,6 @@ def _call_bedrock(client, model_id: str, prompt: str, max_tokens: int) -> str:
     return next((block["text"] for block in output_message["content"] if "text" in block), "")
 
 
-def generate_model_card_suggestion(
-    governance_info: dict, project_name: str, platform_config_handler: PlatformConfigHandler = None
-) -> str:
-    """
-    Call Claude to draft a model card based on governance metadata.
-    Returns the generated markdown text.
-    """
-    client = _make_client(platform_config_handler)
-    provider = get_provider(platform_config_handler)
-    model_id = ANTHROPIC_MODEL_ID if provider == "anthropic" else get_bedrock_model_id(platform_config_handler)
-
-    info = governance_info.get("model_information", governance_info)
-    tags = info.get("tags", {})
-    params = info.get("params", {})
-    metrics = info.get("metrics", {})
-    model_name = info.get("model_name", "unknown")
-    version = info.get("version", "?")
-
-    context_lines = [
-        f"Project: {project_name}",
-        f"Model name: {model_name}",
-        f"Version: {version}",
-        f"Run name: {tags.get('mlflow.runName', 'N/A')}",
-        f"Author: {tags.get('mlflow.user', 'N/A')}",
-    ]
-    if params:
-        context_lines.append("Hyperparameters: " + ", ".join(f"{k}={v}" for k, v in params.items()))
-    if metrics:
-        context_lines.append("Metrics: " + ", ".join(f"{k}={v}" for k, v in metrics.items()))
-
-    existing_note = tags.get("mlflow.note.content")
-    if existing_note:
-        context_lines.append(f"Existing description: {existing_note}")
-
-    context_text = "\n".join(context_lines)
-
-    prompt = _load_prompt("model_card_suggest.txt").format(context_text=context_text)
-
-    if provider == "anthropic":
-        with client.messages.stream(
-            model=model_id,
-            max_tokens=1024,
-            thinking={"type": "adaptive"},
-            messages=[{"role": "user", "content": prompt}],
-        ) as stream:
-            message = stream.get_final_message()
-        return next((b.text for b in message.content if b.type == "text"), "")
-
-    return _call_bedrock(client, model_id, prompt, max_tokens=1024)
-
-
 def review_ai_act_compliance(ai_act_card_markdown: str, platform_config_handler: PlatformConfigHandler = None) -> str:
     """
     Call Claude to review an AI Act compliance card and return structured remarks.
