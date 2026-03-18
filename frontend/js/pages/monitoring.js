@@ -252,14 +252,10 @@ const MonitoringPage = (() => {
                         </div>
                       </div>
                       <div class="model-row-metrics">
-                        ${hasMetrics ? `
-                          <div><div class="metric-label">Calls</div><div class="metric-value">${(met.totalCalls / 1000).toFixed(1)}k</div></div>
-                          <div><div class="metric-label">Success</div><div class="metric-value">${Math.round(met.totalCalls * (met.successRate / 100))}</div></div>
-                          <div><div class="metric-label">Errors</div><div class="metric-value${met.totalErrors > 0 ? ' metric-value-error' : ''}">${met.totalErrors}</div></div>
-                          <div><div class="metric-label">Rate</div><div class="metric-value">${met.successRate.toFixed(1)}%</div></div>
-                        ` : `
-                          <div class="model-row-no-metrics">⚠ Metrics unavailable</div>
-                        `}
+                        <div><div class="metric-label">Calls</div><div class="metric-value">${hasMetrics ? `${(met.totalCalls / 1000).toFixed(1)}k` : '0.0k'}</div></div>
+                        <div><div class="metric-label">Success</div><div class="metric-value">${hasMetrics ? Math.round(met.totalCalls * (met.successRate / 100)) : 0}</div></div>
+                        <div><div class="metric-label">Errors</div><div class="metric-value${hasMetrics && met.totalErrors > 0 ? ' metric-value-error' : ''}">${hasMetrics ? met.totalErrors : 0}</div></div>
+                        <div><div class="metric-label">Rate</div><div class="metric-value">${hasMetrics ? `${met.successRate.toFixed(1)}%` : '-'}</div></div>
                       </div>
                     </div>
                   `;
