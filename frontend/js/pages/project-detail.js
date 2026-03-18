@@ -162,6 +162,20 @@ const ProjectDetailPage = (() => {
     document.getElementById('batch-toggle').addEventListener('change', async (e) => {
       const enabled = e.target.checked;
       const statusEl = document.getElementById('batch-status');
+
+      if (!enabled) {
+        const ok = await Modal.confirm({
+          title: 'Disable Batch Predictions',
+          message: `This will <strong>permanently delete</strong> all batch prediction files stored for project <strong>${escHtml(projectName)}</strong>. This action cannot be undone.`,
+          confirmLabel: 'Disable & Delete',
+          danger: true,
+        });
+        if (!ok) {
+          e.target.checked = true;
+          return;
+        }
+      }
+
       try {
         await API.projects.updateBatchEnabled(projectName, enabled);
         statusEl.className = `badge ${enabled ? 'badge-running' : 'badge-neutral'}`;
