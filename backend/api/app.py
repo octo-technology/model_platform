@@ -30,6 +30,7 @@ from backend.domain.use_cases.config import Config
 from backend.domain.use_cases.demo_usecases import SimulationManager
 from backend.domain.use_cases.ds_simulation_usecases import DSSimulationManager
 from backend.infrastructure.grafana_dashboard_adapter import GrafanaDashboardAdapter
+from backend.infrastructure.minio_storage_adapter import MinioStorageAdapter
 from backend.infrastructure.mlflow_handler_adapter import MLFlowHandlerAdapter
 from backend.infrastructure.model_info_pgsql_db_handler import ModelInfoPostgresDBHandler
 from backend.infrastructure.platform_config_pgsql_adapter import PlatformConfigPgsqlAdapter
@@ -61,6 +62,7 @@ async def lifespan(app: FastAPI):
     app.state.model_info_db_handler = ModelInfoPostgresDBHandler(db_config=config.pgsql_db_config)
     app.state.user_adapter = UserPgsqlDbAdapter(db_config=config.pgsql_db_config, admin_config=config.mp_admin_config)
     app.state.platform_config_handler = PlatformConfigPgsqlAdapter(db_config=config.pgsql_db_config)
+    app.state.object_storage_handler = MinioStorageAdapter()
     app.state.dashboard_handler = GrafanaDashboardAdapter()
     app.state.simulation_manager = SimulationManager()
     app.state.ds_simulation_manager = DSSimulationManager()

@@ -32,6 +32,8 @@ spec:
           args:
             - server
             - /data
+            - --console-address
+            - ":9001"
           env:
             - name: MINIO_ROOT_USER
               value: "minio_user"
@@ -39,6 +41,7 @@ spec:
               value: "minio_password"
           ports:
             - containerPort: 9000
+            - containerPort: 9001
           volumeMounts:
             - name: minio-data
               mountPath: /data
@@ -59,6 +62,9 @@ spec:
     - name: api
       port: 9000
       targetPort: 9000
+    - name: console
+      port: 9001
+      targetPort: 9001
 ---
 apiVersion: batch/v1
 kind: Job

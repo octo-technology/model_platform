@@ -45,3 +45,15 @@ def post_and_print(
     else:
         print(r.content)
         print(error_message)
+
+
+def patch_and_print(
+    endpoint: str, payload: dict, error_message: str = "❌ Error", success_message: str = "✅Success"
+) -> None:
+    client = get_client()
+    r = client.patch(endpoint, json=payload)
+    if r.status_code == 200:
+        print(success_message)
+    else:
+        print(r.content)
+        print(error_message)

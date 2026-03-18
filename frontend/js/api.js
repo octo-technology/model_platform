@@ -82,6 +82,8 @@ const API = (() => {
           headers: { Authorization: `Bearer ${Auth.getToken()}` },
         }).then(r => r.blob()),
 
+      updateBatchEnabled: (name, enabled) =>
+        request('PATCH', `/projects/${name}/batch_enabled`, { body: { batch_enabled: enabled } }),
       registryStatus: (name) => get(`/projects/${name}/registry_status`).then(r => r.status).catch(() => 'error'),
 
       // User management

@@ -68,10 +68,12 @@ class ProjectPostgresDBHandler(ProjectDbHandler):
         try:
             cursor = connection.cursor()
             query = """
-                    INSERT INTO projects (name, owner, scope, data_perimeter)
-                    VALUES (%s, %s, %s, %s) \
+                    INSERT INTO projects (name, owner, scope, data_perimeter, batch_enabled)
+                    VALUES (%s, %s, %s, %s, %s) \
                     """
-            cursor.execute(query, (project.name, project.owner, project.scope, project.data_perimeter))
+            cursor.execute(
+                query, (project.name, project.owner, project.scope, project.data_perimeter, project.batch_enabled)
+            )
             connection.commit()
         finally:
             connection.close()
@@ -86,6 +88,16 @@ class ProjectPostgresDBHandler(ProjectDbHandler):
         finally:
             connection.close()
             return True
+
+    def update_batch_enabled(self, name: str, batch_enabled: bool) -> bool:
+        connection = self._connect()
+        try:
+            cursor = connection.cursor()
+            cursor.execute("UPDATE projects SET batch_enabled = %s WHERE name = %s", (batch_enabled, name))
+            connection.commit()
+        finally:
+            connection.close()
+        return True
 
     def _init_table_project_if_not_exists(self):
         connection = self._connect()
@@ -117,6 +129,7 @@ class ProjectPostgresDBHandler(ProjectDbHandler):
                     ) \
                     """
             cursor.execute(query)
+            cursor.execute("ALTER TABLE projects ADD COLUMN IF NOT EXISTS batch_enabled BOOLEAN DEFAULT FALSE")
             connection.commit()
         finally:
             connection.close()

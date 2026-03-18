@@ -3,7 +3,15 @@ import typer
 from cli.commands.auth import login, me
 from cli.commands.demo import get_status, list_simulations, start_simulation, stop_simulation
 from cli.commands.models import deploy_model, list_deployed_models, list_models, search_model_infos, undeploy_model
-from cli.commands.projects import add_project, add_user_to_project, delete_project, list_projects, project_info
+from cli.commands.projects import (
+    add_project,
+    add_user_to_project,
+    delete_project,
+    disable_batch,
+    enable_batch,
+    list_projects,
+    project_info,
+)
 from cli.commands.users import add_user, list_users
 
 app = typer.Typer()
@@ -27,6 +35,8 @@ project_app.command("deploy")(deploy_model)
 project_app.command("undeploy")(undeploy_model)
 project_app.command("list-deployed-models")(list_deployed_models)
 project_app.command("delete")(delete_project)
+project_app.command("enable-batch")(enable_batch)
+project_app.command("disable-batch")(disable_batch)
 user_app.command("list")(list_users)
 user_app.command("add")(add_user)
 demo_app.command("list")(list_simulations)

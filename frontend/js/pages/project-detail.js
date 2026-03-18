@@ -107,6 +107,7 @@ const ProjectDetailPage = (() => {
     const owner     = info.owner     || info.Owner     || '—';
     const scope     = info.scope     || info.Scope     || '—';
     const perimeter = info.data_perimeter || info['Data Perimeter'] || '—';
+    const batchEnabled = info.batch_enabled || false;
 
     panel.innerHTML = `
       <div class="card mb-4">
@@ -128,6 +129,19 @@ const ProjectDetailPage = (() => {
         </div>
       </div>
 
+      <div class="card mb-4">
+        <div class="card-header">
+          <span class="card-title">Batch Predictions</span>
+        </div>
+        <div style="padding:16px 20px;display:flex;align-items:center;gap:12px">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" id="batch-toggle" ${batchEnabled ? 'checked' : ''} style="width:16px;height:16px;cursor:pointer">
+            <span>Enable batch predictions for this project</span>
+          </label>
+          <span id="batch-status" class="badge ${batchEnabled ? 'badge-running' : 'badge-neutral'}">${batchEnabled ? 'Enabled' : 'Disabled'}</span>
+        </div>
+      </div>
+
       <div class="card">
         <div class="card-header">
           <span class="card-title">Users Access</span>
@@ -144,6 +158,20 @@ const ProjectDetailPage = (() => {
     `;
 
     renderUsersTable(projectName, users, document.getElementById('users-table-area'));
+
+    document.getElementById('batch-toggle').addEventListener('change', async (e) => {
+      const enabled = e.target.checked;
+      const statusEl = document.getElementById('batch-status');
+      try {
+        await API.projects.updateBatchEnabled(projectName, enabled);
+        statusEl.className = `badge ${enabled ? 'badge-running' : 'badge-neutral'}`;
+        statusEl.textContent = enabled ? 'Enabled' : 'Disabled';
+        Toast.success(`Batch predictions ${enabled ? 'enabled' : 'disabled'}.`);
+      } catch (err) {
+        e.target.checked = !enabled;
+        Toast.error(err.message);
+      }
+    });
 
     document.getElementById('add-user-btn').addEventListener('click', () =>
       toggleAddUserForm(projectName)
