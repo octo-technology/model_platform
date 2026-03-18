@@ -155,6 +155,9 @@ const GovernancePage = (() => {
           deterministicCompliance: item.deterministic_compliance || 'not_evaluated',
           llmCompliance: item.llm_compliance || 'not_evaluated',
         };
+        if (item.model_card) {
+          modelCardCache[`${item.model_name}:${item.model_version}`] = item.model_card;
+        }
       }
 
       renderGovernance(projectName, data, content);
@@ -618,7 +621,7 @@ const GovernancePage = (() => {
       const cached = (cache || {})[cacheKey];
       const detCompliance = cached ? cached.deterministicCompliance : 'not_evaluated';
       const llmComplianceStatus = cached ? cached.llmCompliance : 'not_evaluated';
-      const hasModelCard = !!(v.tags && v.tags['mlflow.note.content']);
+      const hasModelCard = !!(v.tags && v.tags['mlflow.note.content']) || !!modelCardCache[`${modelName}:${ver}`];
 
       const reviewLabel = cached && cached.actReview ? 'Ré-analyser' : 'Analyser';
       const directReviewBtn = aiAvailable ? `
