@@ -27,6 +27,7 @@ class DockerfileTemplate:
         #Copy artefacts and dependencies lists
         COPY custom_model /opt/mlflow
         COPY fast_api_template.py /opt/mlflow
+        COPY batch_predict_template.py /opt/mlflow
         # Install python model version
 
         RUN YAML_PYTHON_VERSION=$(grep -E "^ *- python=" /opt/mlflow/conda.yaml \
@@ -37,7 +38,7 @@ class DockerfileTemplate:
         # Install additional dependencies in the environment
         RUN uv venv
         RUN uv pip install -r /opt/mlflow/requirements.txt
-        RUN uv pip install uvicorn fastapi cloudpickle loguru mlflow python-multipart
+        RUN uv pip install uvicorn fastapi cloudpickle loguru mlflow python-multipart boto3
         RUN uv pip install opentelemetry-api opentelemetry-sdk opentelemetry-instrumentation-fastapi \
             opentelemetry-exporter-prometheus
 

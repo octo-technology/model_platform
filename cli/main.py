@@ -1,6 +1,7 @@
 import typer
 
 from cli.commands.auth import login, me
+from cli.commands.batch import batch_status, delete_batch_job, download_batch_result, list_batch_jobs, submit_batch
 from cli.commands.demo import get_status, list_simulations, start_simulation, stop_simulation
 from cli.commands.models import deploy_model, list_deployed_models, list_models, search_model_infos, undeploy_model
 from cli.commands.projects import (
@@ -18,9 +19,11 @@ app = typer.Typer()
 project_app = typer.Typer()
 user_app = typer.Typer()
 demo_app = typer.Typer()
+batch_app = typer.Typer()
 app.add_typer(project_app, name="projects")
 app.add_typer(user_app, name="users")
 app.add_typer(demo_app, name="demo")
+app.add_typer(batch_app, name="batch")
 
 app.command()(login)
 app.command()(me)
@@ -43,5 +46,10 @@ demo_app.command("list")(list_simulations)
 demo_app.command("start")(start_simulation)
 demo_app.command("stop")(stop_simulation)
 demo_app.command("status")(get_status)
+batch_app.command("submit")(submit_batch)
+batch_app.command("status")(batch_status)
+batch_app.command("list")(list_batch_jobs)
+batch_app.command("download")(download_batch_result)
+batch_app.command("delete")(delete_batch_job)
 if __name__ == "__main__":
     app()
