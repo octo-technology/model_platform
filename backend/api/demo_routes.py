@@ -17,6 +17,7 @@ class StartSimulationRequest(BaseModel):
     model_name: str
     duration_minutes: int = Field(default=5, ge=1, le=30)  # 1 to 30 minutes max
     num_users: int = Field(default=1, ge=1)  # At least 1 user
+    success_rate: int = Field(default=100, ge=0, le=100)  # % of calls that should succeed
 
 
 class StopSimulationRequest(BaseModel):
@@ -67,6 +68,7 @@ async def start_simulation(
             model_name=req.model_name,
             duration_minutes=req.duration_minutes,
             num_users=req.num_users,
+            success_rate=req.success_rate,
         )
     except Exception as e:
         logger.error(f"Failed to start simulation: {e}")
