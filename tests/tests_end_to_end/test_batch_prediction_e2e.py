@@ -111,7 +111,7 @@ def _skip_if_mlflow_not_ready():
 def test_create_project_with_batch():
     result = run_cli("projects", "add", "--name", PROJECT_NAME, "--batch-enabled")
     assert result.returncode == 0, f"Project creation failed: {result.stderr}"
-    assert "✅ Project created successfully" in result.stdout
+    assert "Project created successfully" in result.stdout
 
 
 def test_mlflow_registry_responds():
@@ -266,4 +266,4 @@ def test_delete_batch_job():
 def test_delete_project():
     result = run_cli("projects", "delete", PROJECT_NAME)
     assert result.returncode == 0, f"Delete failed: {result.stderr}"
-    assert "✅ Project deleted successfully" in result.stdout
+    assert "Project deleted successfully" in result.stdout

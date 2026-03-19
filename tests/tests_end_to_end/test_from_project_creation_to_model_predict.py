@@ -73,7 +73,7 @@ def test_project_creation():
     """Test project creation."""
     result = run_cli("projects", "add", "--name", PROJECT_NAME)
     assert result.returncode == 0, f"Project creation failed: {result.stderr}"
-    assert "✅ Project created successfully" in result.stdout
+    assert "Project created successfully" in result.stdout
 
 
 def test_mlflow_registry_responds():
@@ -413,7 +413,7 @@ def test_delete_project():
     """Test project deletion."""
     result = run_cli("projects", "delete", PROJECT_NAME)
     assert result.returncode == 0, f"Delete failed: {result.stderr}"
-    assert "✅ Project deleted successfully" in result.stdout
+    assert "Project deleted successfully" in result.stdout
 
 
 def test_project_registry_is_removed():
