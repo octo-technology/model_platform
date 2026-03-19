@@ -15,6 +15,7 @@ import os
 import random
 import string
 import subprocess
+import sys
 import time
 
 import mlflow
@@ -26,6 +27,8 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 
 from tests.conftest import MP_HOSTNAME, cleanup_project, login, run_cli
+
+_this_module = sys.modules[__name__]
 
 PROJECT_SUFFIX = "".join(random.choices(string.ascii_lowercase, k=6))
 PROJECT_NAME = f"e2ebatch{PROJECT_SUFFIX}"
@@ -96,24 +99,26 @@ def setup_and_teardown():
     cleanup_project(PROJECT_NAME)
 
 
-# ── Track readiness ──────────────────────────────────────────────
+# ── Track readiness (set via module attribute for robustness) ────
 _mlflow_ready = False
 
 
 def _skip_if_mlflow_not_ready():
-    if not _mlflow_ready:
+    if not getattr(_this_module, "_mlflow_ready", False):
         pytest.skip("MLflow registry not ready")
 
 
 # ── Tests (ordered) ──────────────────────────────────────────────
 
 
+@pytest.mark.order(1)
 def test_create_project_with_batch():
     result = run_cli("projects", "add", "--name", PROJECT_NAME, "--batch-enabled")
     assert result.returncode == 0, f"Project creation failed: {result.stderr}"
     assert "Project created successfully" in result.stdout
 
 
+@pytest.mark.order(2)
 def test_mlflow_registry_responds():
     registry_url = f"http://{MP_HOSTNAME}/registry/{PROJECT_NAME}/"
     deadline = time.time() + 300
@@ -124,14 +129,14 @@ def test_mlflow_registry_responds():
             text=True,
         )
         if result.stdout == "200":
-            global _mlflow_ready
-            _mlflow_ready = True
+            _this_module._mlflow_ready = True
             return
         print(f"[DEBUG] MLflow registry HTTP {result.stdout}, retrying in 5s...")
         time.sleep(5)
     assert False, "MLflow registry did not respond with 200 within 5 minutes"
 
 
+@pytest.mark.order(3)
 def test_train_and_push_model():
     _skip_if_mlflow_not_ready()
     api_url = f"http://{MP_HOSTNAME}/registry/{PROJECT_NAME}/api/2.0/mlflow/experiments/search"
@@ -157,6 +162,7 @@ def test_train_and_push_model():
     assert False, f"Model {MODEL_NAME} not found after 60s"
 
 
+@pytest.mark.order(4)
 def test_submit_batch_prediction():
     """Submit a batch prediction via the API. This triggers auto-build of the Docker image."""
     _skip_if_mlflow_not_ready()
@@ -174,9 +180,8 @@ def test_submit_batch_prediction():
     # Extract job_id from output
     for line in result.stdout.splitlines():
         if "Job ID:" in line:
-            global _batch_job_id
-            _batch_job_id = line.split("Job ID:")[-1].strip()
-            print(f"[DEBUG] Batch job submitted with ID: {_batch_job_id}")
+            _this_module._batch_job_id = line.split("Job ID:")[-1].strip()
+            print(f"[DEBUG] Batch job submitted with ID: {_this_module._batch_job_id}")
             return
 
     assert False, f"Could not extract job ID from output: {result.stdout}"
@@ -186,10 +191,11 @@ _batch_job_id = None
 
 
 def _skip_if_no_job():
-    if not _batch_job_id:
+    if not getattr(_this_module, "_batch_job_id", None):
         pytest.skip("No batch job ID available")
 
 
+@pytest.mark.order(5)
 def test_batch_job_completes():
     """Poll batch job status until it completes (building → pending → running → completed)."""
     _skip_if_mlflow_not_ready()
@@ -198,15 +204,15 @@ def test_batch_job_completes():
     deadline = time.time() + 600  # 10 minutes — includes Docker image build
     last_status = None
     while time.time() < deadline:
-        result = run_cli("batch", "status", PROJECT_NAME, _batch_job_id)
+        result = run_cli("batch", "status", PROJECT_NAME, _this_module._batch_job_id)
         output = result.stdout.lower()
 
         if "completed" in output:
-            print(f"[DEBUG] Batch job {_batch_job_id} completed")
+            print(f"[DEBUG] Batch job {_this_module._batch_job_id} completed")
             return
 
         if "failed" in output:
-            print(f"[DEBUG] Batch job {_batch_job_id} FAILED")
+            print(f"[DEBUG] Batch job {_this_module._batch_job_id} FAILED")
             _dump_batch_debug_info()
             assert False, f"Batch job failed: {result.stdout}"
 
@@ -224,13 +230,14 @@ def test_batch_job_completes():
     assert False, f"Batch job did not complete within 10 minutes. Last status: {last_status}"
 
 
+@pytest.mark.order(6)
 def test_download_batch_result():
     """Download the batch prediction result and validate it."""
     _skip_if_mlflow_not_ready()
     _skip_if_no_job()
 
     output_path = f"/tmp/batch_e2e_result_{PROJECT_NAME}.csv"
-    result = run_cli("batch", "download", PROJECT_NAME, _batch_job_id, "--output", output_path)
+    result = run_cli("batch", "download", PROJECT_NAME, _this_module._batch_job_id, "--output", output_path)
     assert result.returncode == 0, f"Download failed: {result.stderr}\n{result.stdout}"
     assert "downloaded" in result.stdout.lower()
 
@@ -243,6 +250,7 @@ def test_download_batch_result():
     print(f"[DEBUG] Downloaded {len(lines) - 1} predictions")
 
 
+@pytest.mark.order(7)
 def test_list_batch_jobs():
     """Verify the job appears in the list."""
     _skip_if_mlflow_not_ready()
@@ -250,19 +258,23 @@ def test_list_batch_jobs():
 
     result = run_cli("batch", "list", PROJECT_NAME)
     assert result.returncode == 0, f"List failed: {result.stderr}"
-    assert _batch_job_id in result.stdout, f"Job {_batch_job_id} not in list output: {result.stdout}"
+    assert (
+        _this_module._batch_job_id in result.stdout
+    ), f"Job {_this_module._batch_job_id} not in list output: {result.stdout}"
 
 
+@pytest.mark.order(8)
 def test_delete_batch_job():
     """Delete the batch job and associated files."""
     _skip_if_mlflow_not_ready()
     _skip_if_no_job()
 
-    result = run_cli("batch", "delete", PROJECT_NAME, _batch_job_id)
+    result = run_cli("batch", "delete", PROJECT_NAME, _this_module._batch_job_id)
     assert result.returncode == 0, f"Delete failed: {result.stderr}\n{result.stdout}"
     assert "deleted" in result.stdout.lower()
 
 
+@pytest.mark.order(9)
 def test_delete_project():
     result = run_cli("projects", "delete", PROJECT_NAME)
     assert result.returncode == 0, f"Delete failed: {result.stderr}"
