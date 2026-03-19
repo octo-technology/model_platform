@@ -265,7 +265,44 @@ img { max-width: 100%; }
   background: rgba(0,0,0,0.2);
   border-radius: var(--radius-sm);
   border: 1px solid rgba(255,255,255,0.06);
+  position: relative;
+  overflow: hidden;
 }
+
+/* invisible hover zone on the right third */
+.status-group__demo-handle {
+  position: absolute;
+  right: 0; top: 0; bottom: 0;
+  width: 33%;
+  z-index: 1;
+}
+
+.status-group__demo-link {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: rgba(10, 10, 16, 0.92);
+  color: rgba(255,255,255,0.45);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transform: translateX(100%);
+  transition: transform 260ms cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 2;
+}
+
+/* trigger: hover on the right-third handle OR on the link itself */
+.status-group__demo-handle:hover ~ .status-group__demo-link,
+.status-group__demo-link:hover {
+  transform: translateX(0);
+}
+
+.status-group__demo-link:hover { color: rgba(255,255,255,0.85); }
 
 .status-item {
   display: flex;
@@ -285,6 +322,12 @@ img { max-width: 100%; }
 .status-dot[data-status="ok"]      { background: var(--green); box-shadow: 0 0 6px var(--green); }
 .status-dot[data-status="error"]   { background: var(--red); }
 .status-dot[data-status="unknown"] { background: var(--text-3); }
+
+/* Status color classes for monitoring dashboard */
+.status-dot.status-healthy { background: var(--status-green, var(--green)); box-shadow: 0 0 6px var(--status-green, var(--green)); }
+.status-dot.status-caution { background: var(--status-orange, var(--orange)); }
+.status-dot.status-alert   { background: var(--status-red, var(--red)); }
+.status-dot.status-unknown { background: var(--text-3); }
 
 .status-label {
   font-size: 11px;
@@ -3319,6 +3362,65 @@ mark.search-mark {
   line-height: 1;
 }
 
+/* ───────────────────────────────────────────────────────────────
+   MONITORING PAGE — Real-time Dashboard Aesthetics
+   ─────────────────────────────────────────────────────────────── */
+
+.monitoring-filters {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.monitoring-filters button {
+  color: var(--text-3);
+  opacity: 0.7;
+  transition: opacity var(--t-base) ease, color var(--t-base) ease;
+}
+
+.monitoring-filters button:hover {
+  opacity: 1;
+  color: var(--brand);
+}
+
+.filters-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.filters-row .form-group {
+  margin-bottom: 0;
+}
+
+/* ── Fleet Overview Header ─────────────────────────────────── */
+.fleet-header {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0;
+  padding: 10px 16px;
+  background: var(--bg-1);
+  border: 1px solid var(--border-1);
+  border-radius: var(--radius-lg);
+  margin-bottom: 28px;
+}
+
+.fleet-stat {
+  text-align: center;
+  padding: 8px;
+}
+
+.fleet-stat-value {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-0);
+  line-height: 1;
+}
+
 .gdash-project-card__stat-lbl {
   font-size: 10px;
   font-weight: 500;
@@ -3700,12 +3802,101 @@ mark.search-mark {
   color: var(--status-green);
 }
 
+.fleet-stat-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-2);
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+/* ── Fleet Grid ────────────────────────────────────────────── */
+.fleet-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.fleet-card {
+  background: var(--bg-0);
+  border: 1px solid var(--border-1);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  transition: all var(--t-base) var(--ease);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.fleet-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--orange), transparent);
+  opacity: 0;
+  transition: opacity var(--t-base);
+}
+
+.fleet-card:hover {
+  border-color: var(--border-2);
+  box-shadow: var(--shadow);
+  transform: translateY(-2px);
+}
+
+.fleet-card:hover::before {
+  opacity: 1;
+}
+
+.fleet-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.fleet-card-title {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text-0);
+  margin: 0;
+  flex: 1;
+  word-break: break-word;
+}
+
+.fleet-card-badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 3px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.fleet-card-badge.status-healthy {
+  background: var(--status-green-dim);
+  color: var(--status-green);
+}
+
 .cg-template__badge--limited {
   background: var(--yellow-dim);
   color: var(--yellow);
 }
 
 .cg-template__badge--high {
+  background: var(--status-orange-dim);
+  color: var(--status-orange);
+}
+
+.fleet-card-badge.status-caution {
   background: var(--status-orange-dim);
   color: var(--status-orange);
 }
@@ -3862,7 +4053,759 @@ mark.search-mark {
   line-height: 1.5;
 }
 
+.fleet-card-badge.status-alert {
+  background: var(--status-red-dim);
+  color: var(--status-red);
+}
+
+.fleet-card-meta {
+  font-size: 11px;
+  color: var(--text-2);
+  font-family: var(--font-mono);
+  letter-spacing: 0.01em;
+  margin-bottom: 12px;
+}
+
+.fleet-meta-item {
+  display: inline;
+}
+
+.fleet-meta-separator {
+  margin: 0 6px;
+  opacity: 0.5;
+}
+
+/* ── Fleet Card Metrics Grid ───────────────────────────────── */
+.fleet-card-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.fleet-metric-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.fleet-metric-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-2);
+  font-weight: 600;
+}
+
+.fleet-metric-value {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-0);
+}
+
+.fleet-metric-bar {
+  height: 4px;
+  background: var(--bg-2);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.fleet-metric-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width var(--t-base) var(--ease);
+}
+
+/* ── Fleet Card Footer ─────────────────────────────────────── */
+.fleet-card-footer {
+  padding-top: 10px;
+  border-top: 1px solid var(--border-0);
+}
+
+.btn-xs {
+  padding: 4px 8px;
+  font-size: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-xs svg {
+  width: 11px;
+  height: 11px;
+  flex-shrink: 0;
+}
+
+.monitoring-controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.monitoring-timestamp {
+  font-size: 12px;
+  color: var(--text-2);
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+}
+
+.monitoring-refresh-btn {
+  background: none;
+  border: 1px solid var(--border-1);
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-2);
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+  border-radius: var(--radius-sm);
+  transition: all var(--t-fast) var(--ease);
+  line-height: 1.4;
+}
+
+.monitoring-refresh-btn:hover {
+  background: var(--bg-2);
+  border-color: var(--border-2);
+  color: var(--text-1);
+}
+
+.status-badge-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--status-green-dim);
+  color: var(--status-green);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.status-pulse {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--status-green);
+  animation: pulse-live 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse-live {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.page-header-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.monitoring-model-name {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text-0);
+  margin-bottom: 2px;
+}
+
+.monitoring-model-meta {
+  font-size: 12px;
+  color: var(--text-2);
+  font-family: var(--font-mono);
+  letter-spacing: 0.01em;
+}
+
+.monitoring-header {
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border-1);
+}
+
+/* ── Monitoring Grid ───────────────────────────────────────── */
+.monitoring-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+@media (min-width: 1200px) {
+  .monitoring-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .metric-card-primary { grid-column: span 1; }
+  .metric-card-secondary { grid-column: span 1; }
+  .metric-card-danger { grid-column: span 1; }
+}
+
+/* ── Metric Cards ──────────────────────────────────────────── */
+.metric-card {
+  background: var(--bg-0);
+  border: 1px solid var(--border-1);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+  transition: all var(--t-base) var(--ease);
+}
+
+.metric-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--orange), transparent);
+  opacity: 0;
+  transition: opacity var(--t-base);
+}
+
+.metric-card:hover {
+  border-color: var(--border-2);
+  box-shadow: var(--shadow);
+  transform: translateY(-2px);
+}
+
+.metric-card:hover::before {
+  opacity: 1;
+}
+
+.metric-card-primary::before {
+  background: linear-gradient(90deg, var(--status-green), transparent);
+}
+
+.metric-card-secondary::before {
+  background: linear-gradient(90deg, var(--orange), transparent);
+}
+
+.metric-card-danger::before {
+  background: linear-gradient(90deg, var(--status-red), transparent);
+}
+
+.metric-card-warning::before {
+  background: linear-gradient(90deg, var(--status-orange), transparent);
+}
+
+.metric-card-tertiary::before {
+  background: linear-gradient(90deg, var(--cyan), transparent);
+}
+
+.metric-card-info::before {
+  background: linear-gradient(90deg, var(--ai-light), transparent);
+}
+
+.metric-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.metric-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-1);
+  margin: 0;
+}
+
+.metric-trend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--status-green-dim);
+  color: var(--status-green);
+}
+
+.metric-trend.trend-down {
+  background: var(--status-red-dim);
+  color: var(--status-red);
+}
+
+.metric-trend.trend-up {
+  background: var(--status-green-dim);
+  color: var(--status-green);
+}
+
+.metric-trend svg {
+  width: 11px;
+  height: 11px;
+}
+
+.metric-value-large {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-bottom: 20px;
+}
+
+.metric-number {
+  font-family: var(--font-mono);
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--text-0);
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.metric-unit {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--text-2);
+  font-weight: 500;
+}
+
+.metric-chart-mini {
+  height: 45px;
+  margin-bottom: 16px;
+  padding: 8px 0;
+  border-radius: 6px;
+}
+
+.sparkline {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 1px 2px rgba(14,35,86,0.08));
+}
+
+.metric-health-indicator {
+  margin-bottom: 16px;
+}
+
+.health-bar-bg {
+  height: 6px;
+  background: var(--bg-2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.health-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width var(--t-slow) var(--ease);
+}
+
+.metric-status-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-1);
+  background: var(--status-green-dim);
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin-bottom: 12px;
+  font-family: var(--font-mono);
+}
+
+.metric-footer {
+  padding-top: 12px;
+  border-top: 1px solid var(--border-0);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.metric-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-2);
+  font-weight: 600;
+}
+
+.metric-detail {
+  font-size: 11px;
+  color: var(--text-2);
+  font-family: var(--font-mono);
+  letter-spacing: 0.01em;
+}
+
+.metric-status {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.metric-status.status-healthy {
+  background: var(--status-green-dim);
+  color: var(--status-green);
+}
+
+.metric-status.status-caution {
+  background: var(--status-orange-dim);
+  color: var(--status-orange);
+}
+
+.metric-status.status-alert {
+  background: var(--status-red-dim);
+  color: var(--status-red);
+}
+
+/* ── System Health Section ─────────────────────────────────── */
+.monitoring-system-health {
+  background: var(--bg-0);
+  border: 1px solid var(--border-1);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+}
+
+.monitoring-section-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text-0);
+  margin-bottom: 16px;
+  text-transform: uppercase;
+}
+
+.health-items-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 16px;
+}
+
+.health-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.health-item-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-1);
+}
+
+.health-item-value {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+}
+
+.health-item-value span:first-child {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-0);
+}
+
+.health-item-unit {
+  font-size: 11px;
+  color: var(--text-2);
+  font-weight: 500;
+}
+
+.health-item-bar {
+  height: 4px;
+  background: var(--bg-2);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.health-item-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width var(--t-base) var(--ease);
+}
+
+/* ── Projects Grid (Grouped by Project) ──────────────────────── */
+.projects-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(450px, 1fr));
+  gap: 24px;
+  margin-top: 0;
+}
+
+.project-box {
+  background: var(--bg-1);
+  border: 1px solid var(--border-1);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
+  position: relative;
+}
+
+.project-box::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--orange);
+  transform: scaleY(0);
+  transform-origin: bottom;
+  transition: transform var(--t-base) var(--ease);
+  z-index: 1;
+}
+
+.project-box:hover {
+  border-color: var(--border-2);
+  box-shadow: var(--shadow);
+  transform: translateY(-1px);
+}
+
+.project-box:hover::before { transform: scaleY(1); }
+
+.project-box-header {
+  padding: 16px 20px 14px;
+  background: transparent;
+  border-bottom: 1px solid var(--border-0);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.project-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.project-health-bar {
+  display: flex;
+  height: 4px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--bg-2);
+  gap: 2px;
+}
+
+.ph-seg {
+  height: 100%;
+  border-radius: 2px;
+  transition: width var(--t-slow) var(--ease);
+  min-width: 0;
+}
+
+.ph-healthy { background: var(--status-green); }
+.ph-caution { background: var(--status-orange); }
+.ph-alert   { background: var(--status-red); }
+
+.project-box.project-status-healthy { }
+.project-box.project-status-caution { }
+.project-box.project-status-alert   { }
+
+.project-box-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text-0);
+  margin: 0;
+  flex: 1;
+}
+
+.project-box-stats {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.project-stat-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 50%;
+  font-family: var(--font-mono);
+}
+
+.project-stat-badge.healthy {
+  background: var(--status-green-dim);
+  color: var(--status-green);
+}
+
+.project-stat-badge.caution {
+  background: var(--status-orange-dim);
+  color: var(--status-orange);
+}
+
+.project-stat-badge.alert {
+  background: var(--status-red-dim);
+  color: var(--status-red);
+}
+
+/* ── Models List ─────────────────────────────────────────────── */
+.models-list {
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+  gap: 4px;
+}
+
+.model-row {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 14px 14px 11px;
+  border-radius: var(--radius-sm);
+  border-left: 3px solid transparent;
+  transition: background var(--t-fast) var(--ease), border-left-color var(--t-base) var(--ease);
+  position: relative;
+}
+
+.model-row:hover {
+  background: var(--bg-2);
+  border-left-color: var(--orange) !important;
+}
+
+.model-row.model-row-healthy { border-left-color: var(--status-green); }
+.model-row.model-row-caution { border-left-color: var(--status-orange); }
+.model-row.model-row-alert   { border-left-color: var(--status-red); }
+.model-row.model-row-unknown { border-left-color: var(--border-1); }
+
+.model-row-no-metrics {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: var(--text-2);
+  font-size: 12px;
+  padding: 4px 0;
+}
+
+.metric-value-error { color: var(--status-red) !important; }
+
+.model-row-link-disabled { pointer-events: none; opacity: 0.35; }
+
+.model-row-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.model-row-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.model-row-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-0);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.model-row-version {
+  font-size: 11px;
+  color: var(--text-2);
+  font-family: var(--font-mono);
+}
+
+.model-row-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  width: 100%;
+}
+
+.metric-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: center;
+}
+
+.metric-cell-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-2);
+  font-weight: 600;
+}
+
+.metric-cell-value {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-0);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.model-row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transition: all var(--t-fast) var(--ease);
+}
+
+.status-indicator.status-healthy {
+  background: var(--status-green);
+  box-shadow: 0 0 4px var(--status-green-dim);
+}
+
+.status-indicator.status-caution {
+  background: var(--status-orange);
+  box-shadow: 0 0 4px var(--status-orange-dim);
+}
+
+.status-indicator.status-alert {
+  background: var(--status-red);
+  box-shadow: 0 0 4px var(--status-red-dim);
+}
+
+.model-row-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  color: var(--text-2);
+  border-radius: var(--radius-sm);
+  transition: all var(--t-fast) var(--ease);
+  text-decoration: none;
+}
+
+.model-row-link:hover {
+  background: var(--bg-2);
+  color: var(--brand);
+}
+
 /* ── Responsive ──────────────────────────────────────────────── */
+/* Responsive for monitoring – 2-row model layout */
+@media (max-width: 1200px) {
+  .model-row-metrics {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+}
+
 @media (max-width: 900px) {
   .cg-layout { grid-template-columns: 1fr; }
   .cg-toc { display: none; }
@@ -3874,6 +4817,11 @@ mark.search-mark {
   .form-grid-2 { grid-template-columns: 1fr; }
   .demo-card-config { grid-template-columns: 1fr; }
   .demo-card-stats { grid-template-columns: repeat(2, 1fr); }
+  .monitoring-grid { grid-template-columns: repeat(2, 1fr); }
+  .projects-grid { grid-template-columns: 1fr; }
+  .fleet-grid { grid-template-columns: repeat(2, 1fr); }
+  .fleet-header { grid-template-columns: repeat(2, 1fr); }
+  .filters-row { gap: 8px; }
   .btn-sm { padding: 4px 8px; font-size: 11px; }
   .page-header { padding: 24px 16px 0; }
   .page-content { padding: 20px 16px 36px; }
@@ -3881,6 +4829,46 @@ mark.search-mark {
   .gdash-charts-row { grid-template-columns: 1fr; }
   .gdash-matrix { grid-template-columns: 1fr; }
   .gdash-hero { padding: 20px 18px; }
+
+  .model-row-metrics {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+}
+
+@media (max-width: 600px) {
+  .monitoring-grid { grid-template-columns: 1fr; }
+  .health-items-grid { grid-template-columns: repeat(2, 1fr); }
+  .metric-number { font-size: 28px; }
+  .fleet-grid { grid-template-columns: 1fr; }
+  .fleet-header { grid-template-columns: repeat(2, 1fr); }
+  .fleet-card-metrics { grid-template-columns: 1fr; }
+  .projects-grid { grid-template-columns: 1fr; }
+  .filters-row { flex-direction: column; }
+  .filters-row .form-group { max-width: 100% !important; }
+  .filters-row .btn { width: 100%; }
+
+  .model-row {
+    padding: 10px;
+    gap: 10px;
+  }
+
+  .model-row-header {
+    gap: 12px;
+  }
+
+  .model-row-metrics {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .metric-cell-label {
+    font-size: 9px;
+  }
+
+  .metric-cell-value {
+    font-size: 12px;
+  }
 }
 
 @media (max-width: 500px) {

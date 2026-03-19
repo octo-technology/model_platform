@@ -40,6 +40,10 @@ const DemoPage = (() => {
                 <label class="demo-inline-label">Users</label>
                 <input class="demo-inline-input" id="users-input" type="number" min="1" value="5" autocomplete="off">
               </div>
+              <div class="demo-inline-field demo-inline-field--narrow">
+                <label class="demo-inline-label">Success rate (%)</label>
+                <input class="demo-inline-input" id="success-rate-input" type="number" min="0" max="100" value="100" autocomplete="off">
+              </div>
               <button type="submit" class="btn btn-primary btn-sm" id="submit-btn">
                 <svg class="btn-icon-small" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                 Start
@@ -159,6 +163,7 @@ const DemoPage = (() => {
     const [modelName, modelVersion] = (document.getElementById('model-name-input').value || '').split('::');
     const duration = parseInt(document.getElementById('duration-input').value);
     const numUsers = parseInt(document.getElementById('users-input').value);
+    const successRate = parseInt(document.getElementById('success-rate-input').value);
 
     // Validation
     if (!projectName || !modelName) {
@@ -176,6 +181,11 @@ const DemoPage = (() => {
       return;
     }
 
+    if (isNaN(successRate) || successRate < 0 || successRate > 100) {
+      Toast.error('Success rate must be between 0 and 100');
+      return;
+    }
+
     const submitBtn = document.getElementById('submit-btn');
     const originalText = submitBtn.innerHTML;
     submitBtn.disabled = true;
@@ -188,6 +198,7 @@ const DemoPage = (() => {
         model_version: modelVersion,
         duration_minutes: duration,
         num_users: numUsers,
+        success_rate: successRate,
       });
 
       Toast.success('Simulation started successfully');
@@ -426,6 +437,7 @@ const DemoPage = (() => {
         <div class="demo-row-stats">
           <div class="demo-row-stat"><span class="demo-row-stat-label">Duration</span><span class="demo-row-stat-value">${sim.duration_minutes}m</span></div>
           <div class="demo-row-stat"><span class="demo-row-stat-label">Users</span><span class="demo-row-stat-value">${sim.num_users}</span></div>
+          <div class="demo-row-stat"><span class="demo-row-stat-label">Target rate</span><span class="demo-row-stat-value">${sim.success_rate ?? 100}%</span></div>
           <div class="demo-row-stat"><span class="demo-row-stat-label">Calls</span><span class="demo-row-stat-value">${sim.total_calls}</span></div>
           <div class="demo-row-stat"><span class="demo-row-stat-label">Success</span><span class="demo-row-stat-value">${successRate}%</span></div>
           <div class="demo-row-stat"><span class="demo-row-stat-label">Failed</span><span class="demo-row-stat-value" style="${failedStyle}">${sim.failed_calls}</span></div>

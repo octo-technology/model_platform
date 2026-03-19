@@ -38,6 +38,7 @@ class UserBehaviorSimulator:
         model_name: str,
         duration_minutes: int = 5,
         num_users: int = 1,
+        success_rate: int = 100,
     ):
         """Initialize the simulator.
 
@@ -51,6 +52,9 @@ class UserBehaviorSimulator:
             Duration of simulation in minutes (1-10, max 10 minutes)
         num_users : int
             Number of concurrent users making parallel requests per round
+        success_rate : int
+            Percentage of calls (0-100) that should use a valid payload.
+            The remaining calls send a malformed payload to trigger a 4xx/5xx.
 
         Raises
         ------
@@ -62,6 +66,7 @@ class UserBehaviorSimulator:
         self.model_name = model_name
         self.duration_minutes = min(duration_minutes, 30)  # Max 30 minutes
         self.num_users = max(1, num_users)
+        self.success_rate = max(0, min(100, success_rate))
         self.is_running = False
         self.tasks: list = []
         self.stop_event = asyncio.Event()
@@ -137,8 +142,14 @@ class UserBehaviorSimulator:
         }
         return payload
 
+    def generate_failing_payload(self) -> dict:
+        """Generate an intentionally malformed payload that will cause the model to return an error."""
+        return {"inputs": {"invalid_field": "this_should_fail"}}
+
     async def invoke_model(self) -> bool:
         """Make a single invocation to the model endpoint.
+
+        Uses ``success_rate`` to decide whether to send a valid or failing payload.
 
         Returns
         -------
@@ -146,7 +157,10 @@ class UserBehaviorSimulator:
             True if the invocation was successful, False otherwise
         """
         try:
-            payload = self.generate_random_payload()
+            if random.randint(1, 100) <= self.success_rate:
+                payload = self.generate_random_payload()
+            else:
+                payload = self.generate_failing_payload()
             response = requests.post(
                 self.endpoint_url, headers={"Content-Type": "application/json"}, json=payload, timeout=10
             )
@@ -249,6 +263,7 @@ class UserBehaviorSimulator:
             "endpoint_url": self.endpoint_url,
             "duration_minutes": self.duration_minutes,
             "num_users": self.num_users,
+            "success_rate": self.success_rate,
             "random_interval": "0.1-5.0s per round",
             "total_calls": self.statistics["total_calls"],
             "successful_calls": self.statistics["successful_calls"],
@@ -271,6 +286,7 @@ class SimulationManager:
         model_name: str,
         duration_minutes: int = 5,
         num_users: int = 1,
+        success_rate: int = 100,
     ) -> dict:
         """Start a new simulation.
 
@@ -284,6 +300,8 @@ class SimulationManager:
             Duration in minutes (1-10, default: 5)
         num_users : int
             Number of concurrent users per round (default: 1)
+        success_rate : int
+            Percentage of calls that should succeed (0-100, default: 100)
 
         Returns
         -------
@@ -301,6 +319,7 @@ class SimulationManager:
                 model_name,
                 duration_minutes=duration_minutes,
                 num_users=num_users,
+                success_rate=success_rate,
             )
             await simulator.start()
             simulation_id = simulator.simulation_id
@@ -360,6 +379,7 @@ class SimulationManager:
         model_name = old_simulator.model_name
         duration_minutes = old_simulator.duration_minutes
         num_users = old_simulator.num_users
+        success_rate = old_simulator.success_rate
 
         # Remove the old simulator
         del self.simulations[simulation_id]
@@ -370,6 +390,7 @@ class SimulationManager:
             model_name=model_name,
             duration_minutes=duration_minutes,
             num_users=num_users,
+            success_rate=success_rate,
         )
         return result
 

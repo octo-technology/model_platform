@@ -20,6 +20,7 @@ from backend.api import (
     health_check,
     hugging_face_routes,
     llm_routes,
+    metrics_routes,
     model_infos_routes,
     models_routes,
     projects_routes,
@@ -91,6 +92,7 @@ def create_app() -> FastAPI:
     )
     app.include_router(health_check.router, prefix="/health", tags=["Health"])
     app.include_router(auth_routes.router, prefix="/auth", tags=["Authentication"])
+    app.include_router(metrics_routes.router, prefix="/metrics", tags=["Metrics"])
     app.include_router(models_routes.router, prefix="/{project_name}/models", tags=["Models"])
     app.include_router(
         deployed_models_routes.router, prefix="/{project_name}/deployed_models", tags=["Deployed Models"]

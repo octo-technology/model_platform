@@ -4,11 +4,15 @@
 
 A working minikube is needed for dev purposes
 
+```bash
     brew install minikube kubectl
+```
 
 Install helm
 
+```bash
     brew install helm
+```
 
 ## Start and setup Cluster
 
