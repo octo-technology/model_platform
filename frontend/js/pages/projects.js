@@ -262,6 +262,10 @@ const ProjectsPage = (() => {
           <label class="form-label">Data perimeter</label>
           <textarea class="form-input" id="new-proj-perimeter" placeholder="Data sources, GDPR compliance, retention…" rows="3" style="resize:vertical"></textarea>
         </div>
+        <div class="form-group" style="display:flex;align-items:center;gap:8px">
+          <input type="checkbox" id="new-proj-batch" style="width:16px;height:16px;cursor:pointer">
+          <label for="new-proj-batch" class="form-label" style="margin:0;cursor:pointer">Enable batch predictions</label>
+        </div>
         <p id="new-proj-error" style="color:var(--red-light);font-size:12px;display:none;"></p>
       `,
       footer: `
@@ -302,7 +306,8 @@ const ProjectsPage = (() => {
       btn.innerHTML = '<span class="spinner spinner-sm"></span> Creating…';
 
       try {
-        await API.projects.add({ name, owner, scope, data_perimeter: perimeter });
+        const batchEnabled = document.getElementById('new-proj-batch').checked;
+        await API.projects.add({ name, owner, scope, data_perimeter: perimeter, batch_enabled: batchEnabled });
         close();
         Toast.success(`Project "${name}" created.`);
         loadProjects();

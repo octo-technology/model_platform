@@ -91,6 +91,18 @@ or
 
 
 
+## Access MinIO console (object storage)
+
+Run
+```bash
+kubectl port-forward svc/minio 9001:9001 -n minio
+```
+
+Then open http://localhost:9001
+
+    user: minio_user
+    password: minio_password
+
 ## Troubleshooting
 
 Access the pgsql via local db client

@@ -23,3 +23,7 @@ class ProjectDbHandler(ABC):
     @abstractmethod
     def remove_project(self, name) -> bool:
         pass
+
+    @abstractmethod
+    def update_batch_enabled(self, name: str, batch_enabled: bool) -> bool:
+        pass

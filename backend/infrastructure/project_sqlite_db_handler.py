@@ -18,7 +18,16 @@ class ProjectAlreadyExistError(Exception):
 
 
 def map_rows_to_projects(rows: list) -> list[Project]:
-    return [Project(name=row[1], owner=row[2], scope=row[3], data_perimeter=row[4]) for row in rows]
+    return [
+        Project(
+            name=row[1],
+            owner=row[2],
+            scope=row[3],
+            data_perimeter=row[4],
+            batch_enabled=bool(row[5]) if len(row) > 5 else False,
+        )
+        for row in rows
+    ]
 
 
 class ProjectSQLiteDBHandler(ProjectDbHandler):
@@ -73,10 +82,10 @@ class ProjectSQLiteDBHandler(ProjectDbHandler):
             cursor = connection.cursor()
             cursor.execute(
                 """
-                INSERT INTO projects (name, owner, scope, data_perimeter)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO projects (name, owner, scope, data_perimeter, batch_enabled)
+                VALUES (?, ?, ?, ?, ?)
             """,
-                (project.name, project.owner, project.scope, project.data_perimeter),
+                (project.name, project.owner, project.scope, project.data_perimeter, project.batch_enabled),
             )
 
             connection.commit()
@@ -94,6 +103,16 @@ class ProjectSQLiteDBHandler(ProjectDbHandler):
             connection.close()
             return True
 
+    def update_batch_enabled(self, name: str, batch_enabled: bool) -> bool:
+        connection = sqlite3.connect(self.db_path)
+        try:
+            cursor = connection.cursor()
+            cursor.execute("UPDATE projects SET batch_enabled = ? WHERE name = ?", (batch_enabled, name))
+            connection.commit()
+        finally:
+            connection.close()
+        return True
+
     def _init_table_project_if_not_exists(self):
         connection = sqlite3.connect(self.db_path)
         try:
@@ -106,10 +125,16 @@ class ProjectSQLiteDBHandler(ProjectDbHandler):
                     name TEXT NOT NULL,
                     owner TEXT NOT NULL,
                     scope TEXT NOT NULL,
-                    data_perimeter TEXT NOT NULL
+                    data_perimeter TEXT NOT NULL,
+                    batch_enabled BOOLEAN DEFAULT FALSE
                 )
             """
             )
+            # Migration: add batch_enabled column if missing
+            cursor.execute("PRAGMA table_info(projects)")
+            columns = [col[1] for col in cursor.fetchall()]
+            if "batch_enabled" not in columns:
+                cursor.execute("ALTER TABLE projects ADD COLUMN batch_enabled BOOLEAN DEFAULT FALSE")
             connection.commit()
         finally:
             connection.close()

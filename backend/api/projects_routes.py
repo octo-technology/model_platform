@@ -8,6 +8,7 @@ from backend.api.models_routes import get_project_registry_tracking_uri, get_reg
 from backend.domain.entities.project import Project
 from backend.domain.entities.role import Role
 from backend.domain.ports.model_registry import ModelRegistry
+from backend.domain.ports.object_storage_handler import ObjectStorageHandler
 from backend.domain.ports.project_db_handler import ProjectDbHandler
 from backend.domain.ports.registry_handler import RegistryHandler
 from backend.domain.ports.user_handler import UserHandler
@@ -24,6 +25,7 @@ from backend.domain.use_cases.projects_usecases import (
     list_projects,
     list_projects_for_user,
     remove_project,
+    update_project_batch_enabled,
 )
 from backend.domain.use_cases.user_usecases import user_can_perform_action_for_project
 
@@ -32,6 +34,10 @@ router = APIRouter()
 
 def get_project_db_handler(request: Request) -> ProjectDbHandler:
     return request.app.state.project_db_handler
+
+
+def get_object_storage_handler(request: Request) -> ObjectStorageHandler:
+    return request.app.state.object_storage_handler
 
 
 @router.get("/list")
@@ -68,13 +74,14 @@ def route_project_info(
 def route_add_project(
     project: Project,
     project_sqlite_db_handler: ProjectDbHandler = Depends(get_project_db_handler),
+    object_storage: ObjectStorageHandler = Depends(get_object_storage_handler),
     user_adapter: UserHandler = Depends(get_user_adapter),
     current_user: dict = Depends(get_current_user),
 ) -> JSONResponse:
     user_can_perform_action_for_project(
         current_user, project_name="", action_name=inspect.currentframe().f_code.co_name, user_adapter=user_adapter
     )
-    status = add_project(project_db_handler=project_sqlite_db_handler, project=project)
+    status = add_project(project_db_handler=project_sqlite_db_handler, project=project, object_storage=object_storage)
     return JSONResponse(content={"status": status}, media_type="application/json")
 
 
@@ -82,13 +89,43 @@ def route_add_project(
 def route_remove_project(
     project_name: str,
     project_sqlite_db_handler: ProjectDbHandler = Depends(get_project_db_handler),
+    object_storage: ObjectStorageHandler = Depends(get_object_storage_handler),
     user_adapter: UserHandler = Depends(get_user_adapter),
     current_user: dict = Depends(get_current_user),
 ):
     user_can_perform_action_for_project(
         current_user, project_name="", action_name=inspect.currentframe().f_code.co_name, user_adapter=user_adapter
     )
-    return remove_project(project_sqlite_db_handler, project_name=project_name)
+    return remove_project(project_sqlite_db_handler, project_name=project_name, object_storage=object_storage)
+
+
+@router.patch("/{project_name}/batch_enabled")
+def route_update_batch_enabled(
+    project_name: str,
+    body: dict,
+    project_sqlite_db_handler: ProjectDbHandler = Depends(get_project_db_handler),
+    object_storage: ObjectStorageHandler = Depends(get_object_storage_handler),
+    user_adapter: UserHandler = Depends(get_user_adapter),
+    current_user: dict = Depends(get_current_user),
+):
+    user_can_perform_action_for_project(
+        current_user,
+        project_name=project_name,
+        action_name=inspect.currentframe().f_code.co_name,
+        user_adapter=user_adapter,
+    )
+    batch_enabled = body.get("batch_enabled", False)
+    try:
+        status = update_project_batch_enabled(
+            project_db_handler=project_sqlite_db_handler,
+            project_name=project_name,
+            batch_enabled=batch_enabled,
+            object_storage=object_storage,
+        )
+    except Exception as e:
+        logger.error(f"Failed to update batch_enabled for project '{project_name}': {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    return JSONResponse(content={"status": status}, media_type="application/json")
 
 
 @router.post("/{project_name}/add_user")

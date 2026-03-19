@@ -14,6 +14,7 @@ from loguru import logger
 
 from backend.api import (
     auth_routes,
+    batch_routes,
     compliance_report_routes,
     demo_routes,
     deployed_models_routes,
@@ -30,6 +31,8 @@ from backend.domain.use_cases.config import Config
 from backend.domain.use_cases.demo_usecases import SimulationManager
 from backend.domain.use_cases.ds_simulation_usecases import DSSimulationManager
 from backend.infrastructure.grafana_dashboard_adapter import GrafanaDashboardAdapter
+from backend.infrastructure.k8s_batch_prediction_adapter import K8sBatchPredictionAdapter
+from backend.infrastructure.minio_storage_adapter import MinioStorageAdapter
 from backend.infrastructure.mlflow_handler_adapter import MLFlowHandlerAdapter
 from backend.infrastructure.model_info_pgsql_db_handler import ModelInfoPostgresDBHandler
 from backend.infrastructure.platform_config_pgsql_adapter import PlatformConfigPgsqlAdapter
@@ -61,7 +64,9 @@ async def lifespan(app: FastAPI):
     app.state.model_info_db_handler = ModelInfoPostgresDBHandler(db_config=config.pgsql_db_config)
     app.state.user_adapter = UserPgsqlDbAdapter(db_config=config.pgsql_db_config, admin_config=config.mp_admin_config)
     app.state.platform_config_handler = PlatformConfigPgsqlAdapter(db_config=config.pgsql_db_config)
+    app.state.object_storage_handler = MinioStorageAdapter()
     app.state.dashboard_handler = GrafanaDashboardAdapter()
+    app.state.batch_handler = K8sBatchPredictionAdapter()
     app.state.simulation_manager = SimulationManager()
     app.state.ds_simulation_manager = DSSimulationManager()
     app.state.task_status = {}
@@ -103,6 +108,7 @@ def create_app() -> FastAPI:
     app.include_router(model_infos_routes.router, prefix="/model_infos", tags=["Model Infos"])
     app.include_router(llm_routes.router, prefix="/ai", tags=["AI Assist"])
     app.include_router(compliance_report_routes.router, prefix="/compliance", tags=["Compliance Report"])
+    app.include_router(batch_routes.router, prefix="/{project_name}/batch", tags=["Batch Predictions"])
     app.include_router(demo_routes.router, prefix="/demo", tags=["Demo Simulation"])
     return app
 

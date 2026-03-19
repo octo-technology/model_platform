@@ -55,12 +55,27 @@ def cleanup_project(project_name: str) -> None:
     # Try CLI deletion first (this cleans DB + namespace)
     run_cli("projects", "delete", project_name)
 
-    # Force delete namespace if it still exists
+    # Delete namespace and wait for it to be fully removed
     subprocess.run(
-        ["kubectl", "delete", "namespace", project_name, "--ignore-not-found", "--wait=false"],
+        ["kubectl", "delete", "namespace", project_name, "--ignore-not-found"],
         capture_output=True,
         text=True,
+        timeout=120,
     )
+
+    # Poll until namespace is actually gone (handles edge cases)
+    deadline = time.time() + 120
+    while time.time() < deadline:
+        result = subprocess.run(
+            ["kubectl", "get", "namespace", project_name],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if result.returncode != 0:
+            return
+        time.sleep(5)
+    print(f"[WARNING] Namespace {project_name} still exists after 120s cleanup timeout")
 
 
 def cleanup_test_namespaces(project_names: list[str] | None = None) -> None:

@@ -82,6 +82,8 @@ const API = (() => {
           headers: { Authorization: `Bearer ${Auth.getToken()}` },
         }).then(r => r.blob()),
 
+      updateBatchEnabled: (name, enabled) =>
+        request('PATCH', `/projects/${name}/batch_enabled`, { body: { batch_enabled: enabled } }),
       registryStatus: (name) => get(`/projects/${name}/registry_status`).then(r => r.status).catch(() => 'error'),
 
       // User management
@@ -221,6 +223,34 @@ const API = (() => {
           if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
           return r.json();
         }),
+    },
+
+    // ── Batch Predictions ──────────────────────────────────────
+    batch: {
+      submit(proj, modelName, version, file) {
+        const fd = new FormData();
+        fd.append('file', file);
+        return fetch(`${API_BASE}/${enc(proj)}/batch/submit/${enc(modelName)}/${enc(version)}`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${Auth.getToken()}` },
+          body: fd,
+        }).then(async r => {
+          if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+          return r.json();
+        });
+      },
+      status: (proj, jobId) => get(`/${enc(proj)}/batch/status/${enc(jobId)}`),
+      list:   (proj) => get(`/${enc(proj)}/batch/list`),
+      download(proj, jobId) {
+        return fetch(`${API_BASE}/${enc(proj)}/batch/download/${enc(jobId)}`, {
+          headers: { Authorization: `Bearer ${Auth.getToken()}` },
+        }).then(async r => {
+          if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+          return r.blob();
+        });
+      },
+      delete: (proj, jobId) => request('DELETE', `/${enc(proj)}/batch/${enc(jobId)}`),
+      cleanup: (proj) => request('POST', `/${enc(proj)}/batch/cleanup`),
     },
 
     // ── Health ────────────────────────────────────────────────

@@ -115,6 +115,18 @@ def copy_fast_api_template_to_tmp_docker_folder(dest_path: str) -> None:
     shutil.copy(src_path, dest_path)
 
 
+def copy_batch_predict_template_to_tmp_docker_folder(dest_path: str) -> None:
+    """
+    Copies the batch predict template to the specified destination path.
+
+    Args:
+        dest_path (str): The destination path where the batch predict template will be copied.
+    """
+    src_path = os.path.join(PROJECT_DIR, "backend/domain/entities/docker/batch_predict_template.py")
+    logger.info(f"Copying batch predict template from {src_path} to {dest_path}")
+    shutil.copy(src_path, dest_path)
+
+
 def prepare_docker_context(
     registry: MLFlowModelRegistryAdapter, project_name: str, model_name: str, version: str
 ) -> str:
@@ -132,6 +144,7 @@ def prepare_docker_context(
     """
     path_dest = create_tmp_artefacts_folder(model_name, project_name, version, path=os.path.join(PROJECT_DIR, "tmp"))
     copy_fast_api_template_to_tmp_docker_folder(path_dest)
+    copy_batch_predict_template_to_tmp_docker_folder(path_dest)
     registry.download_model_artifacts(model_name, version, path_dest)
     return path_dest
 
@@ -167,6 +180,30 @@ def clean_build_context(context_path: str) -> None:
         context_path (str): The path to the build context directory.
     """
     remove_directory(context_path)
+
+
+def check_docker_image_exists(image_name: str) -> bool:
+    docker_host = os.environ.get("DOCKER_HOST")
+    logger.info(f"Checking if Docker image '{image_name}' exists with batch support (DOCKER_HOST={docker_host})")
+    try:
+        result = subprocess.run(["docker", "images", "-q", image_name], capture_output=True, text=True)
+        if not result.stdout.strip():
+            logger.info(f"Docker image '{image_name}' does not exist")
+            return False
+
+        # Verify the image contains the batch predict template (old images may not have it)
+        batch_template_path = "/opt/mlflow/batch_predict_template.py"
+        check_cmd = ["docker", "run", "--rm", "--entrypoint", "test", image_name, "-f", batch_template_path]
+        check = subprocess.run(check_cmd, capture_output=True)
+        has_batch = check.returncode == 0
+        if not has_batch:
+            logger.info(f"Docker image '{image_name}' exists but lacks batch_predict_template.py, rebuild needed")
+        else:
+            logger.info(f"Docker image '{image_name}' exists with batch support")
+        return has_batch
+    except Exception as e:
+        logger.warning(f"Failed to check Docker image existence: {e}")
+        return False
 
 
 def sanitize_name(project_name: str) -> str:

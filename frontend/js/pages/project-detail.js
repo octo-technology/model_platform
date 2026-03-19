@@ -39,12 +39,17 @@ const ProjectDetailPage = (() => {
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
               Deployed Models
             </button>
+            <button class="tab-btn" data-tab="batch">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+              Batch Predictions
+            </button>
           </div>
 
           <div id="tab-settings" class="tab-panel active"></div>
           <div id="tab-models"   class="tab-panel"></div>
           <div id="tab-registry" class="tab-panel"></div>
           <div id="tab-deployed" class="tab-panel"></div>
+          <div id="tab-batch"    class="tab-panel"></div>
         </div>
       </div>
     `;
@@ -84,6 +89,7 @@ const ProjectDetailPage = (() => {
       case 'models':   loadModels(projectName, panel);   break;
       case 'registry': loadRegistry(projectName, panel); break;
       case 'deployed': loadDeployed(projectName, panel); break;
+      case 'batch':    loadBatch(projectName, panel);    break;
     }
   }
 
@@ -107,6 +113,7 @@ const ProjectDetailPage = (() => {
     const owner     = info.owner     || info.Owner     || '—';
     const scope     = info.scope     || info.Scope     || '—';
     const perimeter = info.data_perimeter || info['Data Perimeter'] || '—';
+    const batchEnabled = info.batch_enabled || false;
 
     panel.innerHTML = `
       <div class="card mb-4">
@@ -128,6 +135,19 @@ const ProjectDetailPage = (() => {
         </div>
       </div>
 
+      <div class="card mb-4">
+        <div class="card-header">
+          <span class="card-title">Batch Predictions</span>
+        </div>
+        <div style="padding:16px 20px;display:flex;align-items:center;gap:12px">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" id="batch-toggle" ${batchEnabled ? 'checked' : ''} style="width:16px;height:16px;cursor:pointer">
+            <span>Enable batch predictions for this project</span>
+          </label>
+          <span id="batch-status" class="badge ${batchEnabled ? 'badge-running' : 'badge-neutral'}">${batchEnabled ? 'Enabled' : 'Disabled'}</span>
+        </div>
+      </div>
+
       <div class="card">
         <div class="card-header">
           <span class="card-title">Users Access</span>
@@ -144,6 +164,34 @@ const ProjectDetailPage = (() => {
     `;
 
     renderUsersTable(projectName, users, document.getElementById('users-table-area'));
+
+    document.getElementById('batch-toggle').addEventListener('change', async (e) => {
+      const enabled = e.target.checked;
+      const statusEl = document.getElementById('batch-status');
+
+      if (!enabled) {
+        const ok = await Modal.confirm({
+          title: 'Disable Batch Predictions',
+          message: `This will <strong>permanently delete</strong> all batch prediction files stored for project <strong>${escHtml(projectName)}</strong>. This action cannot be undone.`,
+          confirmLabel: 'Disable & Delete',
+          danger: true,
+        });
+        if (!ok) {
+          e.target.checked = true;
+          return;
+        }
+      }
+
+      try {
+        await API.projects.updateBatchEnabled(projectName, enabled);
+        statusEl.className = `badge ${enabled ? 'badge-running' : 'badge-neutral'}`;
+        statusEl.textContent = enabled ? 'Enabled' : 'Disabled';
+        Toast.success(`Batch predictions ${enabled ? 'enabled' : 'disabled'}.`);
+      } catch (err) {
+        e.target.checked = !enabled;
+        Toast.error(err.message);
+      }
+    });
 
     document.getElementById('add-user-btn').addEventListener('click', () =>
       toggleAddUserForm(projectName)
@@ -651,6 +699,282 @@ const ProjectDetailPage = (() => {
     });
   }
 
+  // ── Batch Predictions Tab ────────────────────────────────────
+
+  const batchPollingTimers = {};
+
+  async function loadBatch(projectName, panel) {
+    panel.innerHTML = loadingHTML();
+    try {
+      const info = await API.projects.info(projectName);
+      const batchEnabled = info.batch_enabled || false;
+
+      if (!batchEnabled) {
+        panel.innerHTML = emptyHTML(
+          'Batch Predictions Disabled',
+          'Enable batch predictions in the Settings tab to use this feature.'
+        );
+        return;
+      }
+
+      const [models, jobs] = await Promise.all([
+        API.models.list(projectName).catch(() => []),
+        API.batch.list(projectName).catch(() => []),
+      ]);
+
+      // Fetch all versions for each model
+      const modelsWithVersions = await Promise.all(
+        (models || []).map(async m => {
+          try {
+            const versions = await API.models.versions(projectName, m.name);
+            return { ...m, all_versions: versions };
+          } catch {
+            return { ...m, all_versions: m.latest_versions || [] };
+          }
+        })
+      );
+      renderBatch(projectName, modelsWithVersions, jobs, panel);
+    } catch (err) {
+      panel.innerHTML = errorHTML(err.message);
+    }
+  }
+
+  function renderBatch(projectName, models, jobs, panel) {
+    const modelOptions = (models || []).flatMap(m => {
+      const name = m.name || '';
+      const versionObjects = m.all_versions || m.latest_versions || [];
+      const versionNumbers = versionObjects
+        .map(v => (typeof v === 'object' ? v.version : v))
+        .filter(Boolean)
+        .sort((a, b) => Number(b) - Number(a));
+      return versionNumbers.map(v =>
+        `<option value="${escHtml(name)}:${escHtml(String(v))}">${escHtml(name)} v${escHtml(String(v))}</option>`
+      );
+    }).join('');
+
+    const noModelsMsg = (!models || models.length === 0)
+      ? '<p style="color:var(--text-2);font-size:13px">No models available. Register models in MLflow to submit batch predictions.</p>'
+      : '';
+
+    const rows = (jobs || []).map(j => batchJobRow(j, projectName)).join('');
+
+    panel.innerHTML = `
+      <div class="card mb-4">
+        <div class="card-header">
+          <span class="card-title">Submit Batch Prediction</span>
+        </div>
+        <div style="padding:16px 20px">
+          ${noModelsMsg}
+          ${models && models.length > 0 ? `
+          <div class="row-form" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <select class="form-select" id="batch-model-select" style="flex:1;min-width:200px">
+              ${modelOptions}
+            </select>
+            <label class="btn btn-secondary btn-sm" style="cursor:pointer">
+              <input type="file" id="batch-file-input" accept=".csv" style="display:none">
+              Choose CSV file
+            </label>
+            <span id="batch-file-name" style="font-size:12px;color:var(--text-2)">No file selected</span>
+            <button class="btn btn-primary btn-sm" id="batch-submit-btn" disabled>Submit</button>
+          </div>` : ''}
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Batch Jobs</span>
+          <span class="section-count">${(jobs || []).length}</span>
+          <button class="btn btn-secondary btn-sm" id="batch-cleanup-btn" style="margin-left:auto">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            </svg>
+            Cleanup
+          </button>
+          <button class="btn btn-secondary btn-sm" id="batch-refresh-btn">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+            </svg>
+            Refresh
+          </button>
+        </div>
+        <div id="batch-jobs-area">
+          ${rows ? `
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Job ID</th><th>Model</th><th>Version</th><th>Status</th><th>Created</th><th style="text-align:right">Actions</th></tr></thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>` : emptyHTML('No batch jobs', 'Submit a batch prediction to get started.')}
+        </div>
+      </div>
+    `;
+
+    // File input handling
+    const fileInput = document.getElementById('batch-file-input');
+    const submitBtn = document.getElementById('batch-submit-btn');
+    if (fileInput) {
+      fileInput.addEventListener('change', () => {
+        const fileName = fileInput.files[0]?.name || 'No file selected';
+        document.getElementById('batch-file-name').textContent = fileName;
+        submitBtn.disabled = !fileInput.files[0];
+      });
+    }
+
+    // Submit handling
+    if (submitBtn) {
+      submitBtn.addEventListener('click', async () => {
+        const select = document.getElementById('batch-model-select');
+        const [modelName, version] = select.value.split(':');
+        const file = fileInput.files[0];
+        if (!file) return;
+
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner spinner-sm"></span>';
+        try {
+          const result = await API.batch.submit(projectName, modelName, version, file);
+          Toast.success(`Batch job submitted: ${result.job_id}`);
+          loadBatch(projectName, panel);
+        } catch (err) {
+          Toast.error(`Submit failed: ${err.message}`);
+          submitBtn.innerHTML = 'Submit';
+          submitBtn.disabled = false;
+        }
+      });
+    }
+
+    // Refresh
+    document.getElementById('batch-refresh-btn')?.addEventListener('click', () =>
+      loadBatch(projectName, panel)
+    );
+
+    // Cleanup finished/failed jobs
+    document.getElementById('batch-cleanup-btn')?.addEventListener('click', async () => {
+      const ok = await Modal.confirm({
+        title: 'Cleanup Batch Jobs',
+        message: 'Delete all completed and failed batch jobs and their associated files?',
+        confirmLabel: 'Cleanup',
+        danger: true,
+      });
+      if (ok) {
+        try {
+          const result = await API.batch.cleanup(projectName);
+          Toast.success(`Cleaned up ${result.deleted} batch job(s).`);
+          loadBatch(projectName, panel);
+        } catch (err) { Toast.error(err.message); }
+      }
+    });
+
+    // Delete buttons
+    panel.querySelectorAll('.batch-delete-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const jobId = btn.dataset.jobId;
+        const ok = await Modal.confirm({
+          title: 'Delete Batch Job',
+          message: `Delete batch job <strong>${escHtml(jobId)}</strong> and all associated files?`,
+          confirmLabel: 'Delete',
+          danger: true,
+        });
+        if (ok) {
+          try {
+            await API.batch.delete(projectName, jobId);
+            Toast.success('Batch job deleted.');
+            loadBatch(projectName, panel);
+          } catch (err) { Toast.error(err.message); }
+        }
+      });
+    });
+
+    // Error detail buttons
+    panel.querySelectorAll('.batch-error-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        Modal.confirm({
+          title: 'Batch Job Error',
+          message: `<pre style="white-space:pre-wrap;font-size:12px;max-height:300px;overflow:auto">${escHtml(btn.dataset.error)}</pre>`,
+          confirmLabel: 'OK',
+        });
+      });
+    });
+
+    // Download buttons
+    panel.querySelectorAll('.batch-download-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const jobId = btn.dataset.jobId;
+        try {
+          const blob = await API.batch.download(projectName, jobId);
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `predictions-${jobId}.csv`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        } catch (err) { Toast.error(err.message); }
+      });
+    });
+
+    // Poll for building/pending/running jobs
+    (jobs || []).forEach(j => {
+      const s = (j.status || '').toLowerCase();
+      if (s === 'building' || s === 'pending' || s === 'running') {
+        pollBatchStatus(projectName, j.job_id, panel);
+      }
+    });
+  }
+
+  function batchJobRow(j, projectName) {
+    const jobId = j.job_id || '—';
+    const model = j.model_name || '—';
+    const version = j.model_version || '—';
+    const status = j.status || 'unknown';
+    const created = j.created_at ? new Date(j.created_at).toLocaleString() : '—';
+    const isCompleted = status.toLowerCase() === 'completed';
+    const isFailed = status.toLowerCase() === 'failed';
+    const errorMsg = j.error_message || '';
+
+    return `
+      <tr data-job-id="${escHtml(jobId)}">
+        <td class="mono" style="font-size:12px">${escHtml(jobId)}</td>
+        <td class="font-bold">${escHtml(model)}</td>
+        <td class="mono">${escHtml(String(version))}</td>
+        <td>
+          ${statusBadge(status)}
+          ${isFailed && errorMsg ? `<button class="btn btn-secondary btn-xs batch-error-btn" data-error="${escHtml(errorMsg)}" style="margin-left:4px" title="View error">?</button>` : ''}
+        </td>
+        <td>${escHtml(created)}</td>
+        <td class="actions">
+          <div class="flex gap-2 justify-end">
+            ${isCompleted ? `<button class="btn btn-secondary btn-sm batch-download-btn" data-job-id="${escHtml(jobId)}">Download</button>` : ''}
+            <button class="btn btn-danger btn-xs batch-delete-btn" data-job-id="${escHtml(jobId)}">Delete</button>
+          </div>
+        </td>
+      </tr>`;
+  }
+
+  function pollBatchStatus(projectName, jobId, panel) {
+    if (batchPollingTimers[jobId]) return;
+    const timer = setInterval(async () => {
+      try {
+        const result = await API.batch.status(projectName, jobId);
+        const state = (result.status || '').toLowerCase();
+        if (state === 'completed' || state === 'failed') {
+          clearInterval(timer);
+          delete batchPollingTimers[jobId];
+          loadBatch(projectName, panel);
+          if (state === 'completed') {
+            Toast.success(`Batch job ${jobId} completed.`);
+          } else {
+            Toast.error(`Batch job ${jobId} failed.`);
+          }
+        }
+      } catch {
+        clearInterval(timer);
+        delete batchPollingTimers[jobId];
+      }
+    }, 3000);
+    batchPollingTimers[jobId] = timer;
+  }
+
   // ── Helpers ──────────────────────────────────────────────────
 
   function statusBadge(status) {
@@ -683,6 +1007,7 @@ const ProjectDetailPage = (() => {
 
   function clearPolling() {
     Object.values(pollingTimers).forEach(clearInterval);
+    Object.values(batchPollingTimers).forEach(clearInterval);
   }
 
   return { render };
