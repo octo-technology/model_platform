@@ -55,6 +55,7 @@ def test_create_batch_job(mock_k8s):
         model_version="1",
         input_path="test-project/my-model/1/abc/input.csv",
         output_path="test-project/my-model/1/abc/predictions-abc.csv",
+        job_id="abc12345",
     )
 
     mock_batch_api.create_namespaced_job.assert_called_once()
