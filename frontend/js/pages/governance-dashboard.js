@@ -6,8 +6,8 @@ const GovernanceDashboardPage = (() => {
       <div class="page-animate">
         <div class="page-header">
           <div class="page-title-group">
-            <div class="page-eyebrow">Platform Overview</div>
-            <h1 class="page-title">Governance Dashboard</h1>
+            <div class="page-eyebrow">Governance</div>
+            <h1 class="page-title">Overview</h1>
           </div>
           <div class="flex gap-2">
             <button class="btn btn-secondary btn-sm" id="dash-goto-governance">

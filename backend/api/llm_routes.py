@@ -189,6 +189,44 @@ def act_review(
     return JSONResponse(content={"review": review, "llm_compliance": llm_status})
 
 
+@router.post("/{project_name}/{model_name}/{version}/suggest_risk_level")
+def suggest_risk_level(
+    project_name: str,
+    model_name: str,
+    version: str,
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+    user_adapter: UserHandler = Depends(get_user_adapter),
+    model_info_db_handler: ModelInfoDbHandler = Depends(get_model_info_db_handler),
+    registry_pool: RegistryHandler = Depends(get_registry_pool),
+    platform_config_handler: PlatformConfigHandler = Depends(get_platform_config_handler),
+) -> JSONResponse:
+    """Suggest an AI Act risk level for a model version using Claude."""
+    user_can_perform_action_for_project(
+        current_user,
+        project_name=project_name,
+        action_name=inspect.currentframe().f_code.co_name,
+        user_adapter=user_adapter,
+    )
+    if not llm_usecases.is_available(platform_config_handler):
+        raise HTTPException(status_code=503, detail="AI assist is not available: no LLM provider configured.")
+
+    registry: ModelRegistry = registry_pool.get_registry_adapter(
+        project_name, get_project_registry_tracking_uri(project_name, request)
+    )
+    try:
+        ai_act_markdown = generate_ai_act_card(registry, model_info_db_handler, project_name, model_name, version)
+        result = llm_usecases.suggest_risk_level(ai_act_markdown, platform_config_handler)
+        if result["suggested_risk_level"]:
+            model_info_db_handler.update_suggested_risk_level(
+                model_name, version, project_name, result["suggested_risk_level"]
+            )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return JSONResponse(content=result)
+
+
 class GatePolicyRequest(BaseModel):
     policy: str  # "strict" | "permissive" | "disabled"
 

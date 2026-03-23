@@ -126,6 +126,10 @@ const API = (() => {
       aiActCard: (projectName, modelName, version) =>
         get(`/model_infos/${enc(projectName)}/${enc(modelName)}/${enc(version)}/ai_act_card`),
       listForProject: (projectName) => get(`/model_infos/${enc(projectName)}/list`),
+      acceptRiskLevel: (projectName, modelName, version, riskLevel) =>
+        post(`/model_infos/${enc(projectName)}/${enc(modelName)}/${enc(version)}/accept_risk_level`, {
+          body: { risk_level: riskLevel },
+        }),
     },
 
     // ── Compliance ──────────────────────────────────────────────
@@ -159,6 +163,8 @@ const API = (() => {
       status: () => get('/ai/status').catch(() => ({ available: false, provider: null })),
       actReview: (proj, model, ver) =>
         post(`/ai/${enc(proj)}/${enc(model)}/${enc(ver)}/act_review`),
+      suggestRiskLevel: (proj, model, ver) =>
+        post(`/ai/${enc(proj)}/${enc(model)}/${enc(ver)}/suggest_risk_level`),
       setCredentials: (apiKey, region) =>
         fetch(`${API_BASE}/ai/credentials`, {
           method: 'PUT',

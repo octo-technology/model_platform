@@ -34,6 +34,7 @@ def map_rows_to_model_infos(rows: list) -> list[ModelInfo]:
             act_review=row[7] if len(row) > 7 else None,
             deterministic_compliance=row[8] if len(row) > 8 else "not_evaluated",
             llm_compliance=row[9] if len(row) > 9 else "not_evaluated",
+            suggested_risk_level=row[10] if len(row) > 10 else None,
         )
         for row in rows
     ]
@@ -61,7 +62,13 @@ class ModelInfoSQLiteDBHandler(ModelInfoDbHandler):
                 )
                 """
             )
-            for col in ["generated_model_card", "act_review", "deterministic_compliance", "llm_compliance"]:
+            for col in [
+                "generated_model_card",
+                "act_review",
+                "deterministic_compliance",
+                "llm_compliance",
+                "suggested_risk_level",
+            ]:
                 try:
                     cursor.execute(f"ALTER TABLE model_infos ADD COLUMN {col} TEXT")
                 except Exception:
@@ -160,6 +167,22 @@ class ModelInfoSQLiteDBHandler(ModelInfoDbHandler):
                 "UPDATE model_infos SET risk_level = ? "
                 "WHERE model_name = ? AND model_version = ? AND project_name = ?",
                 (risk_level, model_name, model_version, project_name),
+            )
+            connection.commit()
+        finally:
+            connection.close()
+            return True
+
+    def update_suggested_risk_level(
+        self, model_name: str, model_version: str, project_name: str, suggested_risk_level: str
+    ) -> bool:
+        connection = sqlite3.connect(self.db_path)
+        try:
+            cursor = connection.cursor()
+            cursor.execute(
+                "UPDATE model_infos SET suggested_risk_level = ? "
+                "WHERE model_name = ? AND model_version = ? AND project_name = ?",
+                (suggested_risk_level, model_name, model_version, project_name),
             )
             connection.commit()
         finally:
