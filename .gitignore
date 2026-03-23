@@ -1,6 +1,7 @@
 .idea/
 .vscode/
 .env
+.DS_Store
 poetry.lock
 __pycache__
 mlruns
