@@ -80,6 +80,12 @@ class K8SModelDeployment(ModelDeployment, K8SDeployment):
                                 image=f"{self.docker_image_name}:latest",
                                 image_pull_policy="IfNotPresent",  # Ajouté pour éviter les erreurs de pull
                                 ports=[client.V1ContainerPort(container_port=self.port)],
+                                env=[
+                                    client.V1EnvVar(
+                                        name="ROOT_PATH",
+                                        value=f"/deploy/{self.namespace}/{self.service_name}",
+                                    ),
+                                ],
                             )
                         ],
                         restart_policy="Always",  # Bonne pratique pour un Deployment

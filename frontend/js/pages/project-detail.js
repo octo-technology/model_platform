@@ -636,6 +636,7 @@ const ProjectDetailPage = (() => {
       const dashUrl     = m.dashboard_url    || buildDashboardUrl(projectName, deployName);
       const deployDate  = m.deployment_date  ? new Date(m.deployment_date).toLocaleDateString() : '—';
       const endpointUrl = buildDashboardUrl(projectName, deployName);
+      const docsUrl     = endpointUrl ? `${endpointUrl}/docs` : '';
 
       return `
         <tr>
@@ -647,6 +648,7 @@ const ProjectDetailPage = (() => {
           <td>${statusBadge(status)}</td>
           <td class="actions">
             <div class="flex gap-2 justify-end">
+              ${docsUrl ? `<a href="${escHtml(docsUrl)}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">API Docs</a>` : ''}
               ${dashUrl ? `<a href="${escHtml(dashUrl)}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Dashboard</a>` : ''}
               <button class="btn btn-danger btn-sm undeploy-btn" data-model="${escHtml(name)}" data-version="${escHtml(String(version))}">Undeploy</button>
             </div>
