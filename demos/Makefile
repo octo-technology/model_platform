@@ -25,3 +25,6 @@ batch-download:
 
 batch-list:
 	uv run mp batch list $(PROJECT_NAME)
+
+run-notebooks:
+	./run_notebooks.sh
