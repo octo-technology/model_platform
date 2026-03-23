@@ -1,4 +1,3 @@
-import logging
 import sqlite3
 
 from backend.domain.entities.project import Project
@@ -73,11 +72,6 @@ class ProjectSQLiteDBHandler(ProjectDbHandler):
 
     def add_project(self, project: Project) -> bool:
         connection = sqlite3.connect(self.db_path)
-        try:
-            self.get_project(name=project.name)
-            raise ProjectAlreadyExistError(name=project.name, message="Project with same name already exists")
-        except ProjectDoesntExistError:
-            logging.info("Project name not used yet, ok")
         try:
             cursor = connection.cursor()
             cursor.execute(

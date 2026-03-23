@@ -1,11 +1,8 @@
-import logging
-
 import psycopg2
 
 from backend.domain.entities.project import Project
 from backend.domain.ports.project_db_handler import ProjectDbHandler
 from backend.infrastructure.project_sqlite_db_handler import (
-    ProjectAlreadyExistError,
     ProjectDoesntExistError,
     map_rows_to_projects,
 )
@@ -60,11 +57,6 @@ class ProjectPostgresDBHandler(ProjectDbHandler):
 
     def add_project(self, project: Project) -> bool:
         connection = self._connect()
-        try:
-            self.get_project(name=project.name)
-            raise ProjectAlreadyExistError(name=project.name, message="Project with same name already exists")
-        except ProjectDoesntExistError:
-            logging.info("Project name not used yet, ok")
         try:
             cursor = connection.cursor()
             query = """
