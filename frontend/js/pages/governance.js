@@ -4,14 +4,15 @@ const GovernancePage = (() => {
   let aiAvailable = false;
   let aiCache = {}; // key: "modelName:version" → { actReview, llmCompliance, deterministicCompliance }
   let modelCardCache = {}; // key: "modelName:version" → markdown string
+  let riskCache = {}; // key: "modelName:version" → { riskLevel, suggestedRiskLevel }
 
   function render(container) {
     container.innerHTML = `
       <div class="page-animate">
         <div class="page-header">
           <div class="page-title-group">
-            <div class="page-eyebrow">Audit & Compliance</div>
-            <h1 class="page-title">Governance</h1>
+            <div class="page-eyebrow">Governance</div>
+            <h1 class="page-title">Audit & Compliance</h1>
           </div>
         </div>
 
@@ -149,14 +150,20 @@ const GovernancePage = (() => {
       ]);
 
       aiCache = {};
+      riskCache = {};
       for (const item of list) {
-        aiCache[`${item.model_name}:${item.model_version}`] = {
+        const k = `${item.model_name}:${item.model_version}`;
+        aiCache[k] = {
           actReview: item.act_review,
           deterministicCompliance: item.deterministic_compliance || 'not_evaluated',
           llmCompliance: item.llm_compliance || 'not_evaluated',
         };
+        riskCache[k] = {
+          riskLevel: item.risk_level || null,
+          suggestedRiskLevel: item.suggested_risk_level || null,
+        };
         if (item.model_card) {
-          modelCardCache[`${item.model_name}:${item.model_version}`] = item.model_card;
+          modelCardCache[k] = item.model_card;
         }
       }
 
@@ -201,7 +208,7 @@ const GovernancePage = (() => {
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
             </svg>
-            Réévaluer la conformité
+            Re-evaluate compliance
           </button>
           <button class="btn btn-secondary btn-sm" id="download-gov-btn">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -242,16 +249,16 @@ const GovernancePage = (() => {
     document.getElementById('evaluate-compliance-btn').addEventListener('click', async () => {
       const btn = document.getElementById('evaluate-compliance-btn');
       btn.disabled = true;
-      btn.innerHTML = '<span class="spinner spinner-sm"></span> Évaluation…';
+      btn.innerHTML = '<span class="spinner spinner-sm"></span> Evaluating…';
       try {
         await API.compliance.evaluateProject(projectName);
-        Toast.success('Conformité réévaluée.');
+        Toast.success('Compliance re-evaluated.');
         loadGovernanceData(projectName);
       } catch (err) {
-        Toast.error(`Erreur : ${err.message}`);
+        Toast.error(`Error: ${err.message}`);
       } finally {
         btn.disabled = false;
-        btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Réévaluer la conformité`;
+        btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Re-evaluate compliance`;
       }
     });
 
@@ -275,6 +282,18 @@ const GovernancePage = (() => {
         return;
       }
 
+      const suggestRiskBtn = e.target.closest('.suggest-risk-btn');
+      if (suggestRiskBtn) {
+        runSuggestRiskLevel(suggestRiskBtn.dataset.project, suggestRiskBtn.dataset.model, suggestRiskBtn.dataset.version);
+        return;
+      }
+
+      const acceptRiskBtn = e.target.closest('.accept-risk-btn');
+      if (acceptRiskBtn) {
+        acceptRiskLevel(acceptRiskBtn.dataset.project, acceptRiskBtn.dataset.model, acceptRiskBtn.dataset.version, acceptRiskBtn.dataset.level);
+        return;
+      }
+
     });
   }
 
@@ -284,7 +303,7 @@ const GovernancePage = (() => {
     const cardContent = modelCardCache[`${modelName}:${version}`];
     const bodyHtml = cardContent
       ? `<div class="ai-act-md">${renderMarkdown(cardContent)}</div>`
-      : `<p style="color:var(--text-2)">Aucune model card disponible pour cette version.</p>`;
+      : `<p style="color:var(--text-2)">No model card available for this version.</p>`;
 
     Modal.open({
       title: `Model Card — ${modelName} v${version}`,
@@ -294,7 +313,7 @@ const GovernancePage = (() => {
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
           </svg>
-          Télécharger .md
+          Download .md
         </button>` : '',
     });
 
@@ -309,7 +328,7 @@ const GovernancePage = (() => {
   async function openAiActModal(projectName, modelName, version) {
     const key = `${modelName}:${version}`;
     const cached = aiCache[key];
-    const reviewBtnLabel = cached && cached.actReview ? 'Ré-analyser' : 'Analyser avec Claude';
+    const reviewBtnLabel = cached && cached.actReview ? 'Re-analyze' : 'Analyze with Claude';
 
     const aiReviewBtnHtml = aiAvailable ? `
       <button class="btn btn-ai btn-sm" id="ai-act-review-btn">
@@ -320,15 +339,15 @@ const GovernancePage = (() => {
       </button>` : '';
 
     const { close } = Modal.open({
-      title: `Fiche IA Act — ${modelName} v${version}`,
-      body: `<div class="ai-act-loading"><span class="spinner"></span><span>Génération de la fiche…</span></div>`,
+      title: `AI Act Card — ${modelName} v${version}`,
+      body: `<div class="ai-act-loading"><span class="spinner"></span><span>Generating card…</span></div>`,
       footer: `
         ${aiReviewBtnHtml}
         <button class="btn btn-secondary" id="ai-act-download" disabled>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
           </svg>
-          Télécharger .md
+          Download .md
         </button>`,
     });
 
@@ -373,7 +392,7 @@ const GovernancePage = (() => {
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
               </svg>
-              Analyse de conformité IA Act par Claude
+              AI Act compliance analysis by Claude
             </div>
             <div class="ai-review-body ai-act-md">${renderMarkdown(cached.actReview)}</div>
           `;
@@ -394,7 +413,7 @@ const GovernancePage = (() => {
 
     } catch (err) {
       const bodyEl = document.querySelector('#modal-container .modal-body');
-      if (bodyEl) bodyEl.innerHTML = `<p style="color:var(--red-light)">Erreur : ${escHtml(err.message)}</p>`;
+      if (bodyEl) bodyEl.innerHTML = `<p style="color:var(--red-light)">Error: ${escHtml(err.message)}</p>`;
     }
   }
 
@@ -403,7 +422,7 @@ const GovernancePage = (() => {
     const reviewBtn = document.getElementById('ai-act-review-btn');
     if (reviewBtn) {
       reviewBtn.disabled = true;
-      reviewBtn.innerHTML = '<span class="spinner spinner-sm"></span> Analyse en cours…';
+      reviewBtn.innerHTML = '<span class="spinner spinner-sm"></span> Analyzing…';
     }
 
     try {
@@ -425,7 +444,7 @@ const GovernancePage = (() => {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
             </svg>
-            Analyse de conformité IA Act par Claude
+            AI Act compliance analysis by Claude
           </div>
           <div class="ai-review-body ai-act-md">${renderMarkdown(review)}</div>
         `;
@@ -442,11 +461,11 @@ const GovernancePage = (() => {
         }
       }
     } catch (err) {
-      Toast.error(`Erreur d'analyse : ${escHtml(err.message)}`);
+      Toast.error(`Analysis error: ${escHtml(err.message)}`);
     } finally {
       if (reviewBtn) {
         reviewBtn.disabled = false;
-        reviewBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg> Ré-analyser`;
+        reviewBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg> Re-analyze`;
       }
     }
   }
@@ -462,19 +481,19 @@ const GovernancePage = (() => {
     const rerunIconSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`;
     const dlIconSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>`;
 
-    const badge = `<div class="ai-output-badge">${aiIconSvg} Analyse de conformité IA Act par Claude</div>`;
-    const loadingHtml = `${badge}<div class="ai-act-loading"><span class="spinner"></span><span>Analyse en cours…</span></div>`;
+    const badge = `<div class="ai-output-badge">${aiIconSvg} AI Act compliance analysis by Claude</div>`;
+    const loadingHtml = `${badge}<div class="ai-act-loading"><span class="spinner"></span><span>Analysis in progress…</span></div>`;
     const reviewHtml = (text) => `${badge}<div class="ai-act-md">${renderMarkdown(text)}</div>`;
 
     const { close } = Modal.open({
-      title: `Conformité IA Act — ${modelName} v${version}`,
+      title: `AI Act Compliance — ${modelName} v${version}`,
       body: hasCache ? reviewHtml(cached.actReview) : loadingHtml,
       footer: `
         <button class="btn btn-secondary btn-sm" id="direct-review-dl-btn" ${hasCache ? '' : 'disabled'}>
-          ${dlIconSvg} Télécharger .md
+          ${dlIconSvg} Download .md
         </button>
         <button class="btn btn-ai btn-sm" id="direct-review-rerun-btn" ${hasCache ? '' : 'disabled'}>
-          ${rerunIconSvg} Ré-analyser
+          ${rerunIconSvg} Re-analyze
         </button>`,
     });
 
@@ -492,7 +511,7 @@ const GovernancePage = (() => {
     const runReview = async () => {
       const btn = rerunBtn();
       const dl  = dlBtn();
-      if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner spinner-sm"></span> Analyse en cours…'; }
+      if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner spinner-sm"></span> Analyzing…'; }
       if (dl)  dl.disabled = true;
       const bodyEl = document.querySelector('#modal-container .modal-body');
       if (bodyEl) bodyEl.innerHTML = loadingHtml;
@@ -511,11 +530,11 @@ const GovernancePage = (() => {
         const dl2 = dlBtn();
         if (dl2) dl2.disabled = false;
       } catch (err) {
-        if (bodyEl) bodyEl.innerHTML = `${badge}<p style="color:var(--red-light)">Erreur : ${escHtml(err.message)}</p>`;
-        Toast.error(`Erreur d'analyse : ${escHtml(err.message)}`);
+        if (bodyEl) bodyEl.innerHTML = `${badge}<p style="color:var(--red-light)">Error: ${escHtml(err.message)}</p>`;
+        Toast.error(`Analysis error: ${escHtml(err.message)}`);
       } finally {
         const btn2 = rerunBtn();
-        if (btn2) { btn2.disabled = false; btn2.innerHTML = `${rerunIconSvg} Ré-analyser`; }
+        if (btn2) { btn2.disabled = false; btn2.innerHTML = `${rerunIconSvg} Re-analyze`; }
       }
     };
 
@@ -554,6 +573,182 @@ const GovernancePage = (() => {
     }).join('');
   }
 
+  // ── Risk Level Suggestion ────────────────────────────────────
+
+  function riskBadge(level) {
+    const meta = {
+      unacceptable: { cls: 'risk-unacceptable', label: 'Unacceptable' },
+      high:         { cls: 'risk-high',         label: 'High' },
+      limited:      { cls: 'risk-limited',      label: 'Limited' },
+      minimal:      { cls: 'risk-minimal',      label: 'Minimal' },
+    };
+    const m = meta[(level || '').toLowerCase()];
+    if (!m) return `<span class="risk-badge risk-unknown">${escHtml(level || '—')}</span>`;
+    return `<span class="risk-badge ${m.cls}">${m.label}</span>`;
+  }
+
+  function renderRiskCell(modelName, version, projectName) {
+    const key = `${modelName}:${version}`;
+    const cached = riskCache[key];
+    const riskLevel = cached ? cached.riskLevel : null;
+    const suggested = cached ? cached.suggestedRiskLevel : null;
+
+    const safeProj  = escHtml(projectName);
+    const safeModel = escHtml(modelName);
+    const safeVer   = escHtml(String(version));
+
+    let html = '';
+    if (riskLevel) {
+      html += riskBadge(riskLevel);
+    } else if (suggested) {
+      html += `<span class="risk-suggestion" title="AI suggestion — not validated">${riskBadge(suggested)}<span class="risk-suggestion-tag">suggestion</span></span>`;
+      html += `
+        <button class="btn btn-secondary btn-xs accept-risk-btn"
+          data-project="${safeProj}"
+          data-model="${safeModel}"
+          data-version="${safeVer}"
+          data-level="${escHtml(suggested)}"
+          title="Accept this risk level">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          Accept
+        </button>`;
+    } else {
+      html += `<span class="risk-badge risk-unknown">—</span>`;
+    }
+
+    if (aiAvailable && !riskLevel) {
+      html += `
+        <button class="btn btn-ai btn-xs suggest-risk-btn"
+          data-project="${safeProj}"
+          data-model="${safeModel}"
+          data-version="${safeVer}"
+          title="Suggest risk level with Claude">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+          Suggest
+        </button>`;
+    }
+
+    return html;
+  }
+
+  async function runSuggestRiskLevel(projectName, modelName, version) {
+    const key = `${modelName}:${version}`;
+    const cell = document.querySelector(`[data-risk-cell="${modelName}:${version}"]`);
+    const btn = cell ? cell.querySelector('.suggest-risk-btn') : null;
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner spinner-sm"></span>';
+    }
+
+    try {
+      const data = await API.ai.suggestRiskLevel(projectName, modelName, version);
+      const level = data.suggested_risk_level;
+      const justification = data.justification || '';
+
+      if (level) {
+        riskCache[key] = riskCache[key] || { riskLevel: null, suggestedRiskLevel: null };
+        riskCache[key].suggestedRiskLevel = level;
+      }
+
+      if (cell) {
+        cell.innerHTML = renderRiskCell(modelName, version, projectName);
+      }
+
+      if (level && justification) {
+        Toast.success(`Suggested risk: ${level.toUpperCase()}`);
+        openRiskSuggestionModal(projectName, modelName, version, level, justification);
+      } else {
+        Toast.warning('Unable to determine risk level.');
+      }
+    } catch (err) {
+      Toast.error(`Error: ${err.message}`);
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg> Suggest`;
+      }
+    }
+  }
+
+  async function acceptRiskLevel(projectName, modelName, version, level) {
+    const key = `${modelName}:${version}`;
+    const cell = document.querySelector(`[data-risk-cell="${modelName}:${version}"]`);
+    const btn = cell ? cell.querySelector('.accept-risk-btn') : null;
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner spinner-sm"></span>';
+    }
+
+    try {
+      await API.modelInfos.acceptRiskLevel(projectName, modelName, version, level);
+      riskCache[key] = riskCache[key] || { riskLevel: null, suggestedRiskLevel: null };
+      riskCache[key].riskLevel = level;
+      if (cell) {
+        cell.innerHTML = renderRiskCell(modelName, version, projectName);
+      }
+      Toast.success(`Risk level accepted: ${level.toUpperCase()}`);
+      // Close modal if open
+      const modalClose = document.querySelector('#modal-container .modal-close');
+      if (modalClose) modalClose.click();
+    } catch (err) {
+      Toast.error(`Error: ${err.message}`);
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Accept`;
+      }
+    }
+  }
+
+  function openRiskSuggestionModal(projectName, modelName, version, level, justification) {
+    const levelMeta = {
+      unacceptable: { icon: '🚫', title: 'Unacceptable', desc: 'Prohibited system (Art. 5)', cls: 'risk-unacceptable' },
+      high:         { icon: '⚠️', title: 'High', desc: 'Mandatory compliance (Art. 6 + Annex III)', cls: 'risk-high' },
+      limited:      { icon: '📋', title: 'Limited', desc: 'Transparency obligations (Art. 50)', cls: 'risk-limited' },
+      minimal:      { icon: '✅', title: 'Minimal', desc: 'No specific obligations', cls: 'risk-minimal' },
+    };
+    const meta = levelMeta[level] || levelMeta.minimal;
+
+    Modal.open({
+      title: `Risk Suggestion — ${modelName} v${version}`,
+      body: `
+        <div class="risk-suggestion-result">
+          <div class="risk-suggestion-result__level">
+            <div class="risk-suggestion-result__icon">${meta.icon}</div>
+            <div>
+              <div class="risk-suggestion-result__title">${meta.title}</div>
+              <div class="risk-suggestion-result__subtitle">${meta.desc}</div>
+            </div>
+            <span class="risk-badge ${meta.cls}" style="margin-left:auto">${meta.title}</span>
+          </div>
+          <div class="risk-suggestion-result__justification">
+            <div class="risk-suggestion-result__justification-label">Justification</div>
+            <div class="risk-suggestion-result__justification-text">${escHtml(justification)}</div>
+          </div>
+          <div class="risk-suggestion-result__notice">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+            </svg>
+            This suggestion is indicative only. Review the justification before accepting.
+          </div>
+        </div>`,
+      footer: `
+        <button class="btn btn-primary btn-sm" id="modal-accept-risk-btn">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          Accept Risk Level
+        </button>`,
+    });
+
+    const acceptBtn = document.getElementById('modal-accept-risk-btn');
+    if (acceptBtn) {
+      acceptBtn.addEventListener('click', () => acceptRiskLevel(projectName, modelName, version, level));
+    }
+  }
+
   // ── Render helpers ────────────────────────────────────────────
 
   function complianceBadge(status, label) {
@@ -564,10 +759,10 @@ const GovernancePage = (() => {
       not_evaluated: 'badge-neutral',
     };
     const labels = {
-      compliant: 'Conforme',
-      partially_compliant: 'Partiel',
-      non_compliant: 'Non conforme',
-      not_evaluated: 'Non évalué',
+      compliant: 'Compliant',
+      partially_compliant: 'Partial',
+      non_compliant: 'Non-compliant',
+      not_evaluated: 'Not evaluated',
     };
     const cls = colors[status] || 'badge-neutral';
     const text = labels[status] || status;
@@ -623,13 +818,13 @@ const GovernancePage = (() => {
       const llmComplianceStatus = cached ? cached.llmCompliance : 'not_evaluated';
       const hasModelCard = !!(v.tags && v.tags['mlflow.note.content']) || !!modelCardCache[`${modelName}:${ver}`];
 
-      const reviewLabel = cached && cached.actReview ? 'Ré-analyser' : 'Analyser';
+      const reviewLabel = cached && cached.actReview ? 'Re-analyze' : 'Analyze';
       const directReviewBtn = aiAvailable ? `
         <button class="btn btn-ai btn-xs ai-direct-review-btn"
           data-project="${safeProj}"
           data-model="${safeModel}"
           data-version="${safeVer}"
-          title="Analyse de conformité IA Act par Claude">
+          title="AI Act compliance analysis by Claude">
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
@@ -643,7 +838,10 @@ const GovernancePage = (() => {
           <td>${escHtml(user)}</td>
           <td style="white-space:nowrap">${escHtml(created)}</td>
           <td style="max-width:180px;color:var(--text-1);font-size:11px">${escHtml(metrics)}</td>
-          <td style="white-space:nowrap">${complianceBadge(detCompliance, 'Déterministe')}</td>
+          <td style="white-space:nowrap" data-risk-cell="${safeModel}:${safeVer}">
+            <div class="flex gap-1 items-center">${renderRiskCell(modelName, ver, projectName)}</div>
+          </td>
+          <td style="white-space:nowrap">${complianceBadge(detCompliance, 'Deterministic')}</td>
           <td style="white-space:nowrap" data-llm-badge="${safeModel}:${safeVer}">${complianceBadge(llmComplianceStatus, 'LLM')}</td>
           <td>
             <div class="flex gap-2 items-center" style="flex-wrap:wrap">
@@ -670,7 +868,7 @@ const GovernancePage = (() => {
                   <line x1="16" y1="17" x2="8" y2="17"/>
                   <polyline points="10 9 9 9 8 9"/>
                 </svg>
-                Fiche IA Act
+                AI Act Card
               </button>
               ${directReviewBtn}
             </div>
@@ -683,7 +881,7 @@ const GovernancePage = (() => {
         <table>
           <thead>
             <tr>
-              <th>Version</th><th>Run Name</th><th>User</th><th>Created</th><th>Metrics</th><th>Déterministe</th><th>LLM</th><th></th>
+              <th>Version</th><th>Run Name</th><th>User</th><th>Created</th><th>Metrics</th><th>Risk</th><th>Deterministic</th><th>LLM</th><th></th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>

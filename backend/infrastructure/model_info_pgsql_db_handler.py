@@ -54,6 +54,7 @@ class ModelInfoPostgresDBHandler(ModelInfoDbHandler):
             cursor.execute(
                 "ALTER TABLE model_infos ADD COLUMN IF NOT EXISTS llm_compliance TEXT DEFAULT 'not_evaluated'"
             )
+            cursor.execute("ALTER TABLE model_infos ADD COLUMN IF NOT EXISTS suggested_risk_level TEXT")
             connection.commit()
         finally:
             connection.close()
@@ -150,6 +151,22 @@ class ModelInfoPostgresDBHandler(ModelInfoDbHandler):
                 "UPDATE model_infos SET risk_level = %s "
                 "WHERE model_name = %s AND model_version = %s AND project_name = %s",
                 (risk_level, model_name, model_version, project_name),
+            )
+            connection.commit()
+        finally:
+            connection.close()
+            return True
+
+    def update_suggested_risk_level(
+        self, model_name: str, model_version: str, project_name: str, suggested_risk_level: str
+    ) -> bool:
+        connection = self._connect()
+        try:
+            cursor = connection.cursor()
+            cursor.execute(
+                "UPDATE model_infos SET suggested_risk_level = %s "
+                "WHERE model_name = %s AND model_version = %s AND project_name = %s",
+                (suggested_risk_level, model_name, model_version, project_name),
             )
             connection.commit()
         finally:

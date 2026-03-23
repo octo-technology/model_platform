@@ -397,10 +397,10 @@ const ProjectDetailPage = (() => {
 
   function complianceIcon(status, label) {
     const prefix = label ? `<span style="font-size:10px;color:var(--text-2);margin-right:4px">${escHtml(label)}</span>` : '';
-    if (status === 'compliant') return `${prefix}<span class="badge badge-green" title="${escHtml(label || '')} — Conforme">Conforme</span>`;
-    if (status === 'partially_compliant') return `${prefix}<span class="badge badge-orange" title="${escHtml(label || '')} — Partiellement conforme">Partiel</span>`;
-    if (status === 'non_compliant') return `${prefix}<span class="badge badge-red" title="${escHtml(label || '')} — Non conforme">Non conforme</span>`;
-    if (status === 'not_evaluated') return `${prefix}<span class="badge badge-neutral" title="${escHtml(label || '')} — Non évalué">Non évalué</span>`;
+    if (status === 'compliant') return `${prefix}<span class="badge badge-green" title="${escHtml(label || '')} — Compliant">Compliant</span>`;
+    if (status === 'partially_compliant') return `${prefix}<span class="badge badge-orange" title="${escHtml(label || '')} — Partially compliant">Partial</span>`;
+    if (status === 'non_compliant') return `${prefix}<span class="badge badge-red" title="${escHtml(label || '')} — Non-compliant">Non-compliant</span>`;
+    if (status === 'not_evaluated') return `${prefix}<span class="badge badge-neutral" title="${escHtml(label || '')} — Not evaluated">Not evaluated</span>`;
     return `${prefix}<span class="badge badge-neutral">—</span>`;
   }
 
@@ -432,8 +432,8 @@ const ProjectDetailPage = (() => {
     const firstVersion = versionNumbers.length > 0 ? versionNumbers[0] : '';
     const firstCompliance = (complianceMap || {})[`${name}:${firstVersion}`];
     const initialBadge = firstCompliance
-      ? `${complianceIcon(firstCompliance.deterministic, 'Dét.')} ${complianceIcon(firstCompliance.llm, 'LLM')}`
-      : `${complianceIcon('not_evaluated', 'Dét.')} ${complianceIcon('not_evaluated', 'LLM')}`;
+      ? `${complianceIcon(firstCompliance.deterministic, 'Det.')} ${complianceIcon(firstCompliance.llm, 'LLM')}`
+      : `${complianceIcon('not_evaluated', 'Det.')} ${complianceIcon('not_evaluated', 'LLM')}`;
 
     return `
       <tr>
@@ -466,8 +466,8 @@ const ProjectDetailPage = (() => {
         if (!cell) return;
         const c = (complianceMap || {})[`${modelName}:${version}`];
         cell.innerHTML = c
-          ? `${complianceIcon(c.deterministic, 'Dét.')} ${complianceIcon(c.llm, 'LLM')}`
-          : `${complianceIcon('not_evaluated', 'Dét.')} ${complianceIcon('not_evaluated', 'LLM')}`;
+          ? `${complianceIcon(c.deterministic, 'Det.')} ${complianceIcon(c.llm, 'LLM')}`
+          : `${complianceIcon('not_evaluated', 'Det.')} ${complianceIcon('not_evaluated', 'LLM')}`;
       });
     });
 

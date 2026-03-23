@@ -51,7 +51,7 @@ const SearchPage = (() => {
                 <option value="">All projects</option>
               </select>
               <div class="search-hint">
-                <kbd>⌘K</kbd> depuis n'importe où
+                <kbd>⌘K</kbd> from anywhere
               </div>
             </div>
           </div>
@@ -146,7 +146,7 @@ const SearchPage = (() => {
             </svg>
           </div>
           <div class="empty-state-title">No results for "${escHtml(query)}"</div>
-          <div class="empty-state-desc">Essayez des termes différents ou élargissez la portée à tous les projets.</div>
+          <div class="empty-state-desc">Try different terms or broaden the scope to all projects.</div>
         </div>`;
       return;
     }
@@ -154,8 +154,8 @@ const SearchPage = (() => {
     const cards = results.map(r => renderResultCard(r, query)).join('');
     area.innerHTML = `
       <div class="search-results-header">
-        <span class="search-results-count">${results.length} résultat${results.length > 1 ? 's' : ''}</span>
-        ${currentProjectFilter ? `<span class="search-results-scope">dans <strong>${escHtml(currentProjectFilter)}</strong></span>` : ''}
+        <span class="search-results-count">${results.length} result${results.length > 1 ? 's' : ''}</span>
+        ${currentProjectFilter ? `<span class="search-results-scope">in <strong>${escHtml(currentProjectFilter)}</strong></span>` : ''}
       </div>
       <div class="search-results-list">${cards}</div>
     `;
@@ -248,26 +248,26 @@ const SearchPage = (() => {
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
         </div>
-        <div class="search-empty-title">Recherchez dans vos modèles</div>
-        <div class="search-empty-desc">Recherche full-text dans les model cards et niveaux de risque de tous vos projets.</div>
+        <div class="search-empty-title">Search your models</div>
+        <div class="search-empty-desc">Full-text search across model cards and risk levels of all your projects.</div>
         <div class="search-empty-tips">
           <div class="search-tip-item">
             <span class="search-tip-icon">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
             </span>
-            Recherchez par niveau de risque : <code>high</code>, <code>minimal</code>, <code>unacceptable</code>
+            Search by risk level: <code>high</code>, <code>minimal</code>, <code>unacceptable</code>
           </div>
           <div class="search-tip-item">
             <span class="search-tip-icon">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="9" height="9"/><rect x="13" y="2" width="9" height="9"/><rect x="13" y="13" width="9" height="9"/><rect x="2" y="13" width="9" height="9"/></svg>
             </span>
-            Recherchez par cas d'usage, domaine, ou contenu du model card
+            Search by use case, domain, or model card content
           </div>
           <div class="search-tip-item">
             <span class="search-tip-icon">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
             </span>
-            Filtrez par projet via le sélecteur ci-dessus
+            Filter by project using the selector above
           </div>
         </div>
       </div>`;

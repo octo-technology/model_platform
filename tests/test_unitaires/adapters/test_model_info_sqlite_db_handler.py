@@ -107,6 +107,37 @@ def test_search_model_infos_scoped_to_project(handler):
     assert results[0].project_name == "proj_x"
 
 
+def test_update_suggested_risk_level(handler):
+    model_info = ModelInfo(model_name="my_model", model_version="1", project_name="proj_a", risk_level="high")
+    handler.add_model_info(model_info)
+    handler.update_suggested_risk_level(
+        model_name="my_model", model_version="1", project_name="proj_a", suggested_risk_level="limited"
+    )
+    retrieved = handler.get_model_info(model_name="my_model", model_version="1", project_name="proj_a")
+    assert retrieved.suggested_risk_level == "limited"
+    assert retrieved.risk_level == "high"
+
+
+def test_accept_risk_level_sets_risk_level(handler):
+    model_info = ModelInfo(model_name="my_model", model_version="1", project_name="proj_a")
+    handler.add_model_info(model_info)
+    handler.update_suggested_risk_level(
+        model_name="my_model", model_version="1", project_name="proj_a", suggested_risk_level="high"
+    )
+    handler.update_risk_level(model_name="my_model", model_version="1", project_name="proj_a", risk_level="high")
+    retrieved = handler.get_model_info(model_name="my_model", model_version="1", project_name="proj_a")
+    assert retrieved.risk_level == "high"
+    assert retrieved.suggested_risk_level == "high"
+
+
+def test_accept_risk_level_overwrites_existing(handler):
+    model_info = ModelInfo(model_name="my_model", model_version="1", project_name="proj_a", risk_level="minimal")
+    handler.add_model_info(model_info)
+    handler.update_risk_level(model_name="my_model", model_version="1", project_name="proj_a", risk_level="high")
+    retrieved = handler.get_model_info(model_name="my_model", model_version="1", project_name="proj_a")
+    assert retrieved.risk_level == "high"
+
+
 def test_search_model_infos_no_results(handler):
     handler.add_model_info(
         ModelInfo(model_name="model_a", model_version="1", project_name="proj_x", model_card="image classification")

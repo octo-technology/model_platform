@@ -5,64 +5,64 @@ const ComplianceGuidePage = (() => {
   const MODEL_CARD_TEMPLATE = `# Model Card — {model_name}
 
 ## Description
-<!-- Décrivez brièvement ce que fait ce modèle -->
+<!-- Briefly describe what this model does -->
 
-## Niveau de risque AI Act
-<!-- inacceptable / élevé / limité / minimal -->
-<!-- Justifiez votre choix au regard de l'usage prévu et de l'Annexe III -->
+## AI Act Risk Level
+<!-- unacceptable / high / limited / minimal -->
+<!-- Justify your choice based on intended use and Annex III -->
 
-## Usage prévu
-### Objectif
-<!-- But principal du système -->
-### Cas d'usage
-<!-- Usages prévus -->
-### Utilisateurs cibles
-<!-- Qui utilise ce modèle -->
-### Usages interdits
-<!-- Ce que le modèle ne doit PAS faire -->
+## Intended Use
+### Objective
+<!-- Main purpose of the system -->
+### Use Cases
+<!-- Intended uses -->
+### Target Users
+<!-- Who uses this model -->
+### Prohibited Uses
+<!-- What the model must NOT do -->
 
-## Données d'entraînement
-<!-- Source, volume, période, langue, données personnelles, prétraitement -->
+## Training Data
+<!-- Source, volume, period, language, personal data, preprocessing -->
 
-## Évaluation des performances et équité
-<!-- Résultats des évaluations, analyse des biais par sous-groupes -->
+## Performance Evaluation and Fairness
+<!-- Evaluation results, bias analysis by subgroups -->
 
-## Limites connues
-<!-- Limites techniques, domaine de validité, risques résiduels -->
+## Known Limitations
+<!-- Technical limitations, validity domain, residual risks -->
 
-## Contrôle humain
-<!-- Mesures de supervision humaine, alertes, kill switch, audit -->
+## Human Oversight
+<!-- Human supervision measures, alerts, kill switch, audit -->
 
-## Explicabilité
-<!-- Méthodes d'explicabilité utilisées (SHAP, LIME…) -->
+## Explainability
+<!-- Explainability methods used (SHAP, LIME…) -->
 
-## Robustesse
-<!-- Tests de robustesse effectués, gestion des entrées hors distribution -->`;
+## Robustness
+<!-- Robustness tests performed, out-of-distribution input handling -->`;
 
   const MINIMAL_SNIPPET = `import mlflow
 
 with mlflow.start_run():
-    # 1. Niveau de risque (obligatoire)
+    # 1. Risk level (mandatory)
     mlflow.set_tag("risk_level", "minimal")
 
-    # 2. Auteur (obligatoire — automatique via mlflow.user)
+    # 2. Author (mandatory — automatic via mlflow.user)
 
-    # 3. Métriques (obligatoire — au moins une)
+    # 3. Metrics (mandatory — at least one)
     mlflow.log_metric("accuracy", 0.94)
 
-    # 4. Model card (obligatoire)
+    # 4. Model card (mandatory)
     mlflow.set_tag("mlflow.note.content", """
-# Model Card — Mon Modèle
+# Model Card — My Model
 ## Description
-Modèle de classification simple.
-## Niveau de risque AI Act
-Minimal — pas d'impact direct sur les personnes.
+Simple classification model.
+## AI Act Risk Level
+Minimal — no direct impact on individuals.
     """)
 
-    # 5. Paramètres (recommandé)
+    # 5. Parameters (recommended)
     mlflow.log_param("n_estimators", 100)
 
-    # 6. Signature (recommandé)
+    # 6. Signature (recommended)
     from mlflow.models import infer_signature
     signature = infer_signature(X_train, model.predict(X_train))
     mlflow.sklearn.log_model(model, "model", signature=signature)`;
@@ -70,47 +70,47 @@ Minimal — pas d'impact direct sur les personnes.
   const LIMITED_SNIPPET = `import mlflow
 
 with mlflow.start_run():
-    # 1. Niveau de risque
+    # 1. Risk level
     mlflow.set_tag("risk_level", "limited")
 
-    # 2. Métriques de performance
+    # 2. Performance metrics
     mlflow.log_metric("accuracy", 0.92)
     mlflow.log_metric("f1_score", 0.89)
 
-    # 3. Paramètres du modèle
+    # 3. Model parameters
     mlflow.log_param("model_type", "gradient_boosting")
     mlflow.log_param("n_estimators", 200)
 
-    # 4. Model card avec section transparence
+    # 4. Model card with transparency section
     mlflow.set_tag("mlflow.note.content", """
-# Model Card — Mon Modèle (Risque Limité)
+# Model Card — My Model (Limited Risk)
 
 ## Description
-Chatbot de support client utilisant un modèle de NLP.
+Customer support chatbot using an NLP model.
 
-## Niveau de risque AI Act
-Limité (Art. 50) — système d'IA interagissant avec des personnes.
+## AI Act Risk Level
+Limited (Art. 50) — AI system interacting with people.
 
-## Usage prévu
-### Objectif
-Répondre aux questions fréquentes des clients.
-### Utilisateurs cibles
-Clients du service après-vente.
-### Usages interdits
-Ne doit pas prendre de décisions engageantes.
+## Intended Use
+### Objective
+Answer frequently asked customer questions.
+### Target Users
+After-sales service customers.
+### Prohibited Uses
+Must not make binding decisions.
 
-## Transparence (Art. 50)
-Les utilisateurs sont informés qu'ils interagissent avec une IA
-via un bandeau visible sur l'interface.
+## Transparency (Art. 50)
+Users are informed they are interacting with an AI
+via a visible banner on the interface.
 
-## Données d'entraînement
-Historique de 50 000 conversations anonymisées (2023-2024).
+## Training Data
+History of 50,000 anonymized conversations (2023-2024).
 
-## Limites connues
-Ne couvre pas les demandes hors périmètre SAV.
+## Known Limitations
+Does not cover requests outside the after-sales scope.
     """)
 
-    # 5. Signature du modèle
+    # 5. Model signature
     from mlflow.models import infer_signature
     signature = infer_signature(X_test, predictions)
     mlflow.sklearn.log_model(model, "model", signature=signature)`;
@@ -119,21 +119,21 @@ Ne couvre pas les demandes hors périmètre SAV.
 from mlflow.models import infer_signature
 
 with mlflow.start_run():
-    # ── 1. Niveau de risque ──────────────────────────────
+    # ── 1. Risk level ─────────────────────────────────
     mlflow.set_tag("risk_level", "high")
 
-    # ── 2. Métriques de performance complètes ────────────
+    # ── 2. Comprehensive performance metrics ──────────
     mlflow.log_metric("accuracy", 0.91)
     mlflow.log_metric("f1_score", 0.88)
     mlflow.log_metric("precision", 0.90)
     mlflow.log_metric("recall", 0.86)
     mlflow.log_metric("auc_roc", 0.95)
-    # Métriques par sous-groupe (équité)
+    # Subgroup fairness metrics
     mlflow.log_metric("f1_male", 0.89)
     mlflow.log_metric("f1_female", 0.87)
     mlflow.log_metric("demographic_parity_diff", 0.02)
 
-    # ── 3. Paramètres détaillés ──────────────────────────
+    # ── 3. Detailed parameters ────────────────────────
     mlflow.log_param("model_type", "xgboost")
     mlflow.log_param("n_estimators", 500)
     mlflow.log_param("max_depth", 6)
@@ -142,85 +142,85 @@ with mlflow.start_run():
     mlflow.log_param("training_samples", 150000)
     mlflow.log_param("feature_count", 42)
 
-    # ── 4. Model card complète ───────────────────────────
+    # ── 4. Complete model card ────────────────────────
     mlflow.set_tag("mlflow.note.content", """
 # Model Card — Credit Scoring Model
 
 ## Description
-Modèle de scoring crédit évaluant la solvabilité des
-demandeurs de prêt personnel.
+Credit scoring model evaluating the creditworthiness
+of personal loan applicants.
 
-## Niveau de risque AI Act
-Élevé (Art. 6, Annexe III §5a) — évaluation de la
-solvabilité des personnes physiques.
+## AI Act Risk Level
+High (Art. 6, Annex III §5a) — creditworthiness
+assessment of natural persons.
 
-## Usage prévu
-### Objectif
-Calculer un score de risque crédit (0-1000).
-### Cas d'usage
-Aide à la décision pour l'octroi de prêts personnels.
-### Utilisateurs cibles
-Analystes crédit de la banque de détail.
-### Usages interdits
-- Décision entièrement automatisée sans recours humain
-- Utilisation sur des populations non représentées
+## Intended Use
+### Objective
+Calculate a credit risk score (0-1000).
+### Use Cases
+Decision support for personal loan approval.
+### Target Users
+Retail banking credit analysts.
+### Prohibited Uses
+- Fully automated decisions without human recourse
+- Use on unrepresented populations
 
-## Données d'entraînement
-Source : Bureau de crédit national, 150 000 dossiers.
-Période : Jan 2022 — Dec 2024.
-Variables sensibles exclues : origine ethnique, religion.
-Prétraitement : imputation médiane, normalisation, SMOTE.
+## Training Data
+Source: National credit bureau, 150,000 records.
+Period: Jan 2022 — Dec 2024.
+Sensitive variables excluded: ethnic origin, religion.
+Preprocessing: median imputation, normalization, SMOTE.
 
-## Évaluation des performances et équité
-AUC-ROC : 0.95, F1 global : 0.88
-Analyse par genre : écart F1 < 2%.
-Demographic parity difference : 0.02.
+## Performance Evaluation and Fairness
+AUC-ROC: 0.95, Overall F1: 0.88
+Gender analysis: F1 gap < 2%.
+Demographic parity difference: 0.02.
 
-## Limites connues
-- Performances dégradées pour les profils < 25 ans
-- Non validé pour les prêts immobiliers
+## Known Limitations
+- Degraded performance for profiles < 25 years old
+- Not validated for mortgage loans
 
-## Contrôle humain
-Seuil de revue manuelle : score entre 400 et 600.
-Kill switch : désactivation en < 5 min via dashboard.
+## Human Oversight
+Manual review threshold: score between 400 and 600.
+Kill switch: deactivation in < 5 min via dashboard.
 
-## Explicabilité
-SHAP values calculées pour chaque prédiction.
-Top 5 features affichées à l'analyste.
+## Explainability
+SHAP values computed for each prediction.
+Top 5 features displayed to the analyst.
 
-## Robustesse
-Tests adversariaux sur 10 000 échantillons perturbés.
-Monitoring de data drift via PSI (seuil : 0.2).
+## Robustness
+Adversarial tests on 10,000 perturbed samples.
+Data drift monitoring via PSI (threshold: 0.2).
     """)
 
-    # ── 5. Signature du modèle ───────────────────────────
+    # ── 5. Model signature ────────────────────────────
     signature = infer_signature(X_test, model.predict(X_test))
     mlflow.xgboost.log_model(model, "model", signature=signature)`;
 
   const SIMPLIFIED_CARD = `# Model Card — {model_name}
 
 ## Description
-<!-- Décrivez brièvement ce que fait ce modèle -->
+<!-- Briefly describe what this model does -->
 
-## Niveau de risque AI Act
+## AI Act Risk Level
 Minimal — <!-- justification -->
 
-## Usage prévu
-<!-- But principal et utilisateurs cibles -->
+## Intended Use
+<!-- Main purpose and target users -->
 
-## Données d'entraînement
-<!-- Source et volume -->
+## Training Data
+<!-- Source and volume -->
 
-## Limites connues
-<!-- Limites principales -->`;
+## Known Limitations
+<!-- Main limitations -->`;
 
   // ── Tab content data ──────────────────────────────────────
 
   const TABS = [
     { id: 'minimal',       label: 'Minimal',       color: 'green' },
-    { id: 'limited',       label: 'Limité',        color: 'yellow' },
-    { id: 'high',          label: 'Élevé',         color: 'orange' },
-    { id: 'unacceptable',  label: 'Inacceptable',  color: 'red' },
+    { id: 'limited',       label: 'Limited',        color: 'yellow' },
+    { id: 'high',          label: 'High',           color: 'orange' },
+    { id: 'unacceptable',  label: 'Unacceptable',   color: 'red' },
   ];
 
   // ── Render ────────────────────────────────────────────────
@@ -230,9 +230,9 @@ Minimal — <!-- justification -->
       <div class="page-animate">
         <div class="page-header">
           <div class="page-title-group">
-            <div class="page-eyebrow">Documentation</div>
-            <h1 class="page-title">Guide de conformité</h1>
-            <p class="cg-subtitle">Tout ce qu'un data scientist doit pousser vers MLflow pour rendre ses modèles conformes à l'AI Act.</p>
+            <div class="page-eyebrow">Governance</div>
+            <h1 class="page-title">Compliance Guide</h1>
+            <p class="cg-subtitle">Everything a data scientist needs to push to MLflow to make their models AI Act compliant.</p>
           </div>
         </div>
 
@@ -242,13 +242,13 @@ Minimal — <!-- justification -->
           <div class="cg-quickstart">
             <div class="cg-quickstart__header">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-              <h2>Quick Start — Critères plateforme</h2>
+              <h2>Quick Start — Platform Criteria</h2>
             </div>
             <div class="cg-quickstart__body">
               <div class="cg-checklist">
                 <div class="cg-checklist__item cg-checklist__item--mandatory">
                   <span class="cg-checklist__icon cg-checklist__icon--mandatory">●</span>
-                  <span><strong>Niveau de risque</strong> — tag <code>risk_level</code></span>
+                  <span><strong>Risk level</strong> — tag <code>risk_level</code></span>
                 </div>
                 <div class="cg-checklist__item cg-checklist__item--mandatory">
                   <span class="cg-checklist__icon cg-checklist__icon--mandatory">●</span>
@@ -256,24 +256,24 @@ Minimal — <!-- justification -->
                 </div>
                 <div class="cg-checklist__item cg-checklist__item--mandatory">
                   <span class="cg-checklist__icon cg-checklist__icon--mandatory">●</span>
-                  <span><strong>Au moins une métrique</strong> — <code>mlflow.log_metric()</code></span>
+                  <span><strong>At least one metric</strong> — <code>mlflow.log_metric()</code></span>
                 </div>
                 <div class="cg-checklist__item cg-checklist__item--mandatory">
                   <span class="cg-checklist__icon cg-checklist__icon--mandatory">●</span>
-                  <span><strong>Auteur</strong> — automatique via <code>mlflow.user</code></span>
+                  <span><strong>Author</strong> — automatic via <code>mlflow.user</code></span>
                 </div>
                 <div class="cg-checklist__item cg-checklist__item--recommended">
                   <span class="cg-checklist__icon cg-checklist__icon--recommended">○</span>
-                  <span><strong>Paramètres</strong> — <code>mlflow.log_param()</code></span>
+                  <span><strong>Parameters</strong> — <code>mlflow.log_param()</code></span>
                 </div>
                 <div class="cg-checklist__item cg-checklist__item--recommended">
                   <span class="cg-checklist__icon cg-checklist__icon--recommended">○</span>
-                  <span><strong>Signature du modèle</strong> — <code>infer_signature()</code></span>
+                  <span><strong>Model signature</strong> — <code>infer_signature()</code></span>
                 </div>
               </div>
               <div class="cg-checklist__legend">
-                <span class="cg-checklist__icon cg-checklist__icon--mandatory">●</span> Obligatoire
-                <span class="cg-checklist__icon cg-checklist__icon--recommended" style="margin-left:16px">○</span> Recommandé (1 minimum pour statut "compliant")
+                <span class="cg-checklist__icon cg-checklist__icon--mandatory">●</span> Mandatory
+                <span class="cg-checklist__icon cg-checklist__icon--recommended" style="margin-left:16px">○</span> Recommended (1 minimum for "compliant" status)
               </div>
             </div>
           </div>
@@ -333,7 +333,7 @@ Minimal — <!-- justification -->
     if (!headings.length) { toc.innerHTML = ''; return; }
 
     toc.innerHTML = headings.length
-      ? `<div class="cg-toc__title">Sur cette page</div>` +
+      ? `<div class="cg-toc__title">On this page</div>` +
         Array.from(headings).map(h =>
           `<a class="cg-toc__link" href="#${h.id}" data-target="${h.id}">${h.textContent}</a>`
         ).join('')
@@ -359,8 +359,8 @@ Minimal — <!-- justification -->
       btn.addEventListener('click', () => {
         const code = btn.closest('.cg-code').querySelector('code').textContent;
         navigator.clipboard.writeText(code).then(() => {
-          btn.textContent = 'Copié !';
-          setTimeout(() => { btn.textContent = 'Copier'; }, 2000);
+          btn.textContent = 'Copied!';
+          setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
         });
       });
     });
@@ -370,8 +370,8 @@ Minimal — <!-- justification -->
         const tpl = btn.dataset.template;
         const content = tpl === 'full' ? MODEL_CARD_TEMPLATE : SIMPLIFIED_CARD;
         navigator.clipboard.writeText(content).then(() => {
-          btn.textContent = 'Copié !';
-          setTimeout(() => { btn.textContent = 'Copier le template'; }, 2000);
+          btn.textContent = 'Copied!';
+          setTimeout(() => { btn.textContent = 'Copy template'; }, 2000);
         });
       });
     });
@@ -386,7 +386,7 @@ Minimal — <!-- justification -->
       <div class="cg-code">
         <div class="cg-code__header">
           ${titleHtml}
-          <button class="cg-code__copy">Copier</button>
+          <button class="cg-code__copy">Copy</button>
         </div>
         <pre><code>${escaped}</code></pre>
       </div>`;
@@ -416,16 +416,16 @@ Minimal — <!-- justification -->
 
   function minimalContent() {
     return `
-      <h3 id="min-overview">Vue d'ensemble</h3>
-      <p>Les systèmes d'IA à <strong>risque minimal</strong> ne sont soumis à aucune obligation spécifique de l'AI Act.
-      Cependant, les critères de la plateforme restent nécessaires pour assurer la traçabilité et la qualité.</p>
+      <h3 id="min-overview">Overview</h3>
+      <p><strong>Minimal risk</strong> AI systems are not subject to any specific obligation under the AI Act.
+      However, platform criteria remain necessary to ensure traceability and quality.</p>
 
-      ${callout('info', '<strong>Exemples :</strong> filtres anti-spam, recommandation de contenu, optimisation logistique, jeux vidéo.')}
+      ${callout('info', '<strong>Examples:</strong> spam filters, content recommendation, logistics optimization, video games.')}
 
-      <h3 id="min-obligations">Obligations AI Act</h3>
-      <p>Aucune obligation réglementaire spécifique. Le fournisseur peut volontairement adhérer à des codes de conduite (Art. 95).</p>
+      <h3 id="min-obligations">AI Act Obligations</h3>
+      <p>No specific regulatory obligation. The provider may voluntarily adhere to codes of conduct (Art. 95).</p>
 
-      <h3 id="min-checklist">Checklist plateforme</h3>
+      <h3 id="min-checklist">Platform Checklist</h3>
       <div class="cg-checklist cg-checklist--compact">
         <div class="cg-checklist__item cg-checklist__item--mandatory">
           <span class="cg-checklist__icon cg-checklist__icon--mandatory">●</span>
@@ -433,66 +433,66 @@ Minimal — <!-- justification -->
         </div>
         <div class="cg-checklist__item cg-checklist__item--mandatory">
           <span class="cg-checklist__icon cg-checklist__icon--mandatory">●</span>
-          <span>Model card (même simplifiée)</span>
+          <span>Model card (even simplified)</span>
         </div>
         <div class="cg-checklist__item cg-checklist__item--mandatory">
           <span class="cg-checklist__icon cg-checklist__icon--mandatory">●</span>
-          <span>Au moins 1 métrique de performance</span>
+          <span>At least 1 performance metric</span>
         </div>
         <div class="cg-checklist__item cg-checklist__item--mandatory">
           <span class="cg-checklist__icon cg-checklist__icon--mandatory">●</span>
-          <span>Auteur identifié (automatique)</span>
+          <span>Identified author (automatic)</span>
         </div>
         <div class="cg-checklist__item cg-checklist__item--recommended">
           <span class="cg-checklist__icon cg-checklist__icon--recommended">○</span>
-          <span>Paramètres du modèle</span>
+          <span>Model parameters</span>
         </div>
         <div class="cg-checklist__item cg-checklist__item--recommended">
           <span class="cg-checklist__icon cg-checklist__icon--recommended">○</span>
-          <span>Signature du modèle</span>
+          <span>Model signature</span>
         </div>
       </div>
 
       <h3 id="min-code">Code snippet</h3>
-      ${codeBlock(MINIMAL_SNIPPET, 'Enregistrement MLflow — Risque Minimal')}
+      ${codeBlock(MINIMAL_SNIPPET, 'MLflow Registration — Minimal Risk')}
 
-      <h3 id="min-template">Template model card</h3>
+      <h3 id="min-template">Model card template</h3>
       <div class="cg-template">
         <div class="cg-template__header">
-          <span class="cg-template__badge">Simplifié</span>
-          <span>Model card pour risque minimal</span>
+          <span class="cg-template__badge">Simplified</span>
+          <span>Model card for minimal risk</span>
         </div>
         <pre class="cg-template__preview">${SIMPLIFIED_CARD.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre>
-        <button class="cg-template__copy" data-template="simplified">Copier le template</button>
+        <button class="cg-template__copy" data-template="simplified">Copy template</button>
       </div>
 
-      <h3 id="min-tips">Tips score LLM</h3>
-      ${callout('tip', 'Même pour un modèle à risque minimal, une model card bien documentée améliorera votre score de review LLM. Visez au minimum une description claire et une justification du niveau de risque.')}
-      <p>Pour un score ≥ 5/10 sur un modèle minimal, documentez au minimum :</p>
+      <h3 id="min-tips">LLM Score Tips</h3>
+      ${callout('tip', 'Even for a minimal risk model, a well-documented model card will improve your LLM review score. At minimum, aim for a clear description and a risk level justification.')}
+      <p>For a score ≥ 5/10 on a minimal model, document at minimum:</p>
       <ul class="cg-list">
-        <li>La classification du risque avec justification</li>
-        <li>Une description de l'usage prévu</li>
-        <li>Les métriques de performance principales</li>
+        <li>Risk classification with justification</li>
+        <li>A description of the intended use</li>
+        <li>Key performance metrics</li>
       </ul>
     `;
   }
 
   function limitedContent() {
     return `
-      <h3 id="lim-overview">Vue d'ensemble</h3>
-      <p>Les systèmes d'IA à <strong>risque limité</strong> sont soumis à des <strong>obligations de transparence</strong> (Article 50).
-      L'utilisateur doit être informé qu'il interagit avec un système d'IA.</p>
+      <h3 id="lim-overview">Overview</h3>
+      <p><strong>Limited risk</strong> AI systems are subject to <strong>transparency obligations</strong> (Article 50).
+      Users must be informed that they are interacting with an AI system.</p>
 
-      ${callout('info', '<strong>Exemples :</strong> chatbots, systèmes de génération de contenu (texte, image, audio), deepfakes, systèmes de reconnaissance d\'émotions.')}
+      ${callout('info', '<strong>Examples:</strong> chatbots, content generation systems (text, image, audio), deepfakes, emotion recognition systems.')}
 
-      <h3 id="lim-obligations">Obligations AI Act (Art. 50)</h3>
+      <h3 id="lim-obligations">AI Act Obligations (Art. 50)</h3>
       <ul class="cg-list">
-        <li><strong>Transparence envers l'utilisateur</strong> — informer clairement que le contenu est généré par IA ou que l'interaction est avec une IA</li>
-        <li><strong>Marquage du contenu</strong> — les contenus générés (deepfakes, texte synthétique) doivent être identifiés comme tels</li>
-        <li><strong>Information accessible</strong> — notification visible, compréhensible, dans la langue de l'utilisateur</li>
+        <li><strong>Transparency to users</strong> — clearly inform that content is AI-generated or that the interaction is with an AI</li>
+        <li><strong>Content marking</strong> — generated content (deepfakes, synthetic text) must be identified as such</li>
+        <li><strong>Accessible information</strong> — visible, understandable notification in the user's language</li>
       </ul>
 
-      <h3 id="lim-checklist">Checklist plateforme</h3>
+      <h3 id="lim-checklist">Platform Checklist</h3>
       <div class="cg-checklist cg-checklist--compact">
         <div class="cg-checklist__item cg-checklist__item--mandatory">
           <span class="cg-checklist__icon cg-checklist__icon--mandatory">●</span>
@@ -500,72 +500,72 @@ Minimal — <!-- justification -->
         </div>
         <div class="cg-checklist__item cg-checklist__item--mandatory">
           <span class="cg-checklist__icon cg-checklist__icon--mandatory">●</span>
-          <span>Model card avec <strong>section Transparence</strong></span>
+          <span>Model card with <strong>Transparency section</strong></span>
         </div>
         <div class="cg-checklist__item cg-checklist__item--mandatory">
           <span class="cg-checklist__icon cg-checklist__icon--mandatory">●</span>
-          <span>Au moins 1 métrique de performance</span>
+          <span>At least 1 performance metric</span>
         </div>
         <div class="cg-checklist__item cg-checklist__item--mandatory">
           <span class="cg-checklist__icon cg-checklist__icon--mandatory">●</span>
-          <span>Auteur identifié</span>
+          <span>Identified author</span>
         </div>
         <div class="cg-checklist__item cg-checklist__item--recommended">
           <span class="cg-checklist__icon cg-checklist__icon--recommended">○</span>
-          <span>Paramètres du modèle</span>
+          <span>Model parameters</span>
         </div>
         <div class="cg-checklist__item cg-checklist__item--recommended">
           <span class="cg-checklist__icon cg-checklist__icon--recommended">○</span>
-          <span>Signature du modèle</span>
+          <span>Model signature</span>
         </div>
       </div>
-      ${callout('warning', 'Pour le risque limité, la model card <strong>doit inclure une section Transparence</strong> décrivant comment les utilisateurs sont informés qu\'ils interagissent avec une IA.')}
+      ${callout('warning', 'For limited risk, the model card <strong>must include a Transparency section</strong> describing how users are informed they are interacting with an AI.')}
 
       <h3 id="lim-code">Code snippet</h3>
-      ${codeBlock(LIMITED_SNIPPET, 'Enregistrement MLflow — Risque Limité')}
+      ${codeBlock(LIMITED_SNIPPET, 'MLflow Registration — Limited Risk')}
 
-      <h3 id="lim-template">Template model card</h3>
+      <h3 id="lim-template">Model card template</h3>
       <div class="cg-template">
         <div class="cg-template__header">
-          <span class="cg-template__badge cg-template__badge--limited">Limité</span>
-          <span>Model card avec section transparence</span>
+          <span class="cg-template__badge cg-template__badge--limited">Limited</span>
+          <span>Model card with transparency section</span>
         </div>
         <pre class="cg-template__preview">${MODEL_CARD_TEMPLATE.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre>
-        <button class="cg-template__copy" data-template="full">Copier le template</button>
+        <button class="cg-template__copy" data-template="full">Copy template</button>
       </div>
 
-      <h3 id="lim-tips">Tips score LLM</h3>
-      <p>Pour un score ≥ 6/10 sur un modèle à risque limité :</p>
+      <h3 id="lim-tips">LLM Score Tips</h3>
+      <p>For a score ≥ 6/10 on a limited risk model:</p>
       <ul class="cg-list">
-        <li>Classification du risque avec référence à l'Art. 50</li>
-        <li>Section transparence détaillée (comment l'utilisateur est notifié)</li>
-        <li>Description des données d'entraînement</li>
-        <li>Métriques de performance documentées</li>
+        <li>Risk classification with reference to Art. 50</li>
+        <li>Detailed transparency section (how the user is notified)</li>
+        <li>Training data description</li>
+        <li>Documented performance metrics</li>
       </ul>
     `;
   }
 
   function highContent() {
     return `
-      <h3 id="high-overview">Vue d'ensemble</h3>
-      <p>Les systèmes d'IA à <strong>risque élevé</strong> (Art. 6, Annexe III) sont soumis à l'ensemble des exigences de conformité du règlement.
-      La documentation doit être exhaustive et couvrir tous les aspects du cycle de vie du modèle.</p>
+      <h3 id="high-overview">Overview</h3>
+      <p><strong>High risk</strong> AI systems (Art. 6, Annex III) are subject to the full set of compliance requirements under the regulation.
+      Documentation must be comprehensive and cover all aspects of the model lifecycle.</p>
 
-      ${callout('warning', '<strong>Domaines Annexe III</strong> concernés : identification biométrique, infrastructures critiques, éducation et formation, emploi et recrutement, accès aux services essentiels (crédit, assurance), forces de l\'ordre, migration et asile, justice.')}
+      ${callout('warning', '<strong>Annex III domains</strong> covered: biometric identification, critical infrastructure, education and training, employment and recruitment, access to essential services (credit, insurance), law enforcement, migration and asylum, justice.')}
 
-      <h3 id="high-obligations">Obligations AI Act</h3>
+      <h3 id="high-obligations">AI Act Obligations</h3>
       <ul class="cg-list">
-        <li><strong>Système de gestion des risques</strong> (Art. 9) — identification, estimation et évaluation des risques</li>
-        <li><strong>Données et gouvernance</strong> (Art. 10) — qualité, représentativité, détection de biais</li>
-        <li><strong>Documentation technique</strong> (Art. 11) — description complète du système</li>
-        <li><strong>Enregistrement des activités</strong> (Art. 12) — traçabilité des décisions</li>
-        <li><strong>Transparence</strong> (Art. 13) — information des utilisateurs et des personnes concernées</li>
-        <li><strong>Contrôle humain</strong> (Art. 14) — supervision effective par un humain</li>
-        <li><strong>Exactitude et robustesse</strong> (Art. 15) — performance, résilience, cybersécurité</li>
-        <li><strong>Surveillance post-déploiement</strong> (Art. 72) — monitoring continu</li>
+        <li><strong>Risk management system</strong> (Art. 9) — risk identification, estimation and evaluation</li>
+        <li><strong>Data and governance</strong> (Art. 10) — quality, representativeness, bias detection</li>
+        <li><strong>Technical documentation</strong> (Art. 11) — complete system description</li>
+        <li><strong>Activity logging</strong> (Art. 12) — decision traceability</li>
+        <li><strong>Transparency</strong> (Art. 13) — information for users and affected persons</li>
+        <li><strong>Human oversight</strong> (Art. 14) — effective human supervision</li>
+        <li><strong>Accuracy and robustness</strong> (Art. 15) — performance, resilience, cybersecurity</li>
+        <li><strong>Post-deployment monitoring</strong> (Art. 72) — continuous monitoring</li>
       </ul>
 
-      <h3 id="high-checklist">Checklist détaillée</h3>
+      <h3 id="high-checklist">Detailed Checklist</h3>
       <div class="cg-checklist cg-checklist--compact">
         <div class="cg-checklist__item cg-checklist__item--mandatory">
           <span class="cg-checklist__icon cg-checklist__icon--mandatory">●</span>
@@ -573,149 +573,149 @@ Minimal — <!-- justification -->
         </div>
         <div class="cg-checklist__item cg-checklist__item--mandatory">
           <span class="cg-checklist__icon cg-checklist__icon--mandatory">●</span>
-          <span>Model card <strong>complète</strong> (toutes les sections)</span>
+          <span><strong>Complete</strong> model card (all sections)</span>
         </div>
         <div class="cg-checklist__item cg-checklist__item--mandatory">
           <span class="cg-checklist__icon cg-checklist__icon--mandatory">●</span>
-          <span>Métriques détaillées + métriques d'équité par sous-groupe</span>
+          <span>Detailed metrics + fairness metrics by subgroup</span>
         </div>
         <div class="cg-checklist__item cg-checklist__item--mandatory">
           <span class="cg-checklist__icon cg-checklist__icon--mandatory">●</span>
-          <span>Auteur identifié</span>
+          <span>Identified author</span>
         </div>
         <div class="cg-checklist__item cg-checklist__item--recommended">
           <span class="cg-checklist__icon cg-checklist__icon--recommended">○</span>
-          <span>Paramètres complets (modèle + données + entraînement)</span>
+          <span>Complete parameters (model + data + training)</span>
         </div>
         <div class="cg-checklist__item cg-checklist__item--recommended">
           <span class="cg-checklist__icon cg-checklist__icon--recommended">○</span>
-          <span>Signature du modèle (input/output schema)</span>
+          <span>Model signature (input/output schema)</span>
         </div>
       </div>
 
       <h3 id="high-code">Code snippet</h3>
-      ${codeBlock(HIGH_SNIPPET, 'Enregistrement MLflow — Risque Élevé (complet)')}
+      ${codeBlock(HIGH_SNIPPET, 'MLflow Registration — High Risk (complete)')}
 
-      <h3 id="high-template">Template model card</h3>
+      <h3 id="high-template">Model card template</h3>
       <div class="cg-template">
         <div class="cg-template__header">
-          <span class="cg-template__badge cg-template__badge--high">Complet</span>
-          <span>Model card pour risque élevé — toutes sections requises</span>
+          <span class="cg-template__badge cg-template__badge--high">Complete</span>
+          <span>Model card for high risk — all sections required</span>
         </div>
         <pre class="cg-template__preview">${MODEL_CARD_TEMPLATE.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre>
-        <button class="cg-template__copy" data-template="full">Copier le template</button>
+        <button class="cg-template__copy" data-template="full">Copy template</button>
       </div>
 
-      <h3 id="high-tips">Tips pour le score LLM</h3>
-      <p>Le review LLM évalue votre model card sur <strong>9 critères</strong>. Voici comment maximiser chacun :</p>
+      <h3 id="high-tips">LLM Score Tips</h3>
+      <p>The LLM review evaluates your model card on <strong>9 criteria</strong>. Here's how to maximize each:</p>
 
       <div class="cg-criteria-grid">
         <div class="cg-criteria">
           <div class="cg-criteria__num">1</div>
           <div class="cg-criteria__body">
-            <strong>Classification du risque</strong>
-            <p>Justifiez avec une référence précise à l'Annexe III (ex : "§5a — évaluation de solvabilité"). Expliquez pourquoi l'usage prévu tombe dans cette catégorie.</p>
+            <strong>Risk Classification</strong>
+            <p>Justify with a precise reference to Annex III (e.g., "§5a — creditworthiness assessment"). Explain why the intended use falls under this category.</p>
           </div>
         </div>
         <div class="cg-criteria">
           <div class="cg-criteria__num">2</div>
           <div class="cg-criteria__body">
-            <strong>Documentation technique (Art. 11)</strong>
-            <p>Architecture du modèle, paramètres, métriques de performance, description des jeux de données. Plus c'est détaillé, mieux c'est.</p>
+            <strong>Technical Documentation (Art. 11)</strong>
+            <p>Model architecture, parameters, performance metrics, dataset descriptions. The more detailed, the better.</p>
           </div>
         </div>
         <div class="cg-criteria">
           <div class="cg-criteria__num">3</div>
           <div class="cg-criteria__body">
-            <strong>Traçabilité (Art. 12)</strong>
-            <p>Auteur identifié, versioning clair, run ID MLflow, lien vers le dépôt Git. La chaîne de responsabilité doit être identifiable.</p>
+            <strong>Traceability (Art. 12)</strong>
+            <p>Identified author, clear versioning, MLflow run ID, link to Git repository. The chain of responsibility must be identifiable.</p>
           </div>
         </div>
         <div class="cg-criteria">
           <div class="cg-criteria__num">4</div>
           <div class="cg-criteria__body">
-            <strong>Données et biais (Art. 10)</strong>
-            <p>Description complète du dataset (source, volume, période). Plan d'atténuation des biais avec métriques d'équité par sous-groupe.</p>
+            <strong>Data and Bias (Art. 10)</strong>
+            <p>Complete dataset description (source, volume, period). Bias mitigation plan with fairness metrics by subgroup.</p>
           </div>
         </div>
         <div class="cg-criteria">
           <div class="cg-criteria__num">5</div>
           <div class="cg-criteria__body">
-            <strong>Transparence (Art. 13)</strong>
-            <p>Instructions d'usage claires, limitations documentées, cas d'usage inappropriés listés. Les utilisateurs en aval doivent comprendre les risques.</p>
+            <strong>Transparency (Art. 13)</strong>
+            <p>Clear usage instructions, documented limitations, listed inappropriate use cases. Downstream users must understand the risks.</p>
           </div>
         </div>
         <div class="cg-criteria">
           <div class="cg-criteria__num">6</div>
           <div class="cg-criteria__body">
-            <strong>Surveillance post-déploiement (Art. 72)</strong>
-            <p>Plan de monitoring avec KPIs et seuils d'alerte. Décrivez la détection de drift (data drift, concept drift) et les procédures de mise à jour.</p>
+            <strong>Post-deployment Monitoring (Art. 72)</strong>
+            <p>Monitoring plan with KPIs and alert thresholds. Describe drift detection (data drift, concept drift) and update procedures.</p>
           </div>
         </div>
         <div class="cg-criteria">
           <div class="cg-criteria__num">7</div>
           <div class="cg-criteria__body">
-            <strong>Mesures de conformité</strong>
-            <p>Identifiez les lacunes restantes et les actions correctives requises avant déploiement.</p>
+            <strong>Compliance Measures</strong>
+            <p>Identify remaining gaps and corrective actions required before deployment.</p>
           </div>
         </div>
         <div class="cg-criteria">
           <div class="cg-criteria__num">8</div>
           <div class="cg-criteria__body">
-            <strong>Plan d'actions</strong>
-            <p>Recommandations concrètes classées par priorité (critique / important / amélioration) avec un responsable et un livrable attendu.</p>
+            <strong>Action Plan</strong>
+            <p>Concrete recommendations ranked by priority (critical / important / improvement) with an owner and expected deliverable.</p>
           </div>
         </div>
         <div class="cg-criteria">
           <div class="cg-criteria__num">9</div>
           <div class="cg-criteria__body">
-            <strong>Score de complétude</strong>
-            <p>Chaque section bien documentée ≈ 1 point. Le LLM justifie sa note globale sur 10.</p>
+            <strong>Completeness Score</strong>
+            <p>Each well-documented section ≈ 1 point. The LLM justifies its overall score out of 10.</p>
           </div>
         </div>
       </div>
 
-      ${callout('tip', '<strong>Pour atteindre 7/10</strong>, documentez au minimum : classification du risque avec justification Annexe III, documentation technique complète (architecture + métriques + données), description des données avec analyse de biais, et un plan de surveillance post-déploiement avec KPIs.')}
+      ${callout('tip', '<strong>To reach 7/10</strong>, document at minimum: risk classification with Annex III justification, complete technical documentation (architecture + metrics + data), data description with bias analysis, and a post-deployment monitoring plan with KPIs.')}
     `;
   }
 
   function unacceptableContent() {
     return `
-      <h3 id="ua-overview">Vue d'ensemble</h3>
+      <h3 id="ua-overview">Overview</h3>
       <div class="cg-banner cg-banner--danger">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
         </svg>
         <div>
-          <strong>Déploiement interdit</strong>
-          <p>Les systèmes d'IA à risque inacceptable sont interdits par l'Article 5 du règlement AI Act.
-          La plateforme <strong>bloque automatiquement</strong> le déploiement de tout modèle classifié "inacceptable".</p>
+          <strong>Deployment Prohibited</strong>
+          <p>Unacceptable risk AI systems are prohibited under Article 5 of the AI Act regulation.
+          The platform <strong>automatically blocks</strong> deployment of any model classified as "unacceptable".</p>
         </div>
       </div>
 
-      <h3 id="ua-practices">Pratiques interdites (Art. 5)</h3>
-      <p>Les pratiques suivantes sont expressément interdites :</p>
+      <h3 id="ua-practices">Prohibited Practices (Art. 5)</h3>
+      <p>The following practices are expressly prohibited:</p>
       <ul class="cg-list cg-list--danger">
-        <li><strong>Manipulation subliminale</strong> — techniques visant à altérer le comportement d'une personne de manière à causer un préjudice</li>
-        <li><strong>Exploitation de vulnérabilités</strong> — ciblage de personnes vulnérables (âge, handicap, situation sociale)</li>
-        <li><strong>Scoring social</strong> — notation des personnes basée sur leur comportement social ou caractéristiques personnelles, par ou pour les autorités publiques</li>
-        <li><strong>Évaluation prédictive du risque criminel</strong> — basée uniquement sur le profilage ou les traits de personnalité</li>
-        <li><strong>Scraping facial non ciblé</strong> — constitution de bases de données de reconnaissance faciale par collecte massive d'images</li>
-        <li><strong>Reconnaissance des émotions</strong> — sur le lieu de travail ou dans les établissements d'éducation (sauf raisons médicales ou de sécurité)</li>
-        <li><strong>Catégorisation biométrique</strong> — basée sur des données sensibles (origine, orientation sexuelle, opinions politiques, etc.)</li>
-        <li><strong>Identification biométrique à distance en temps réel</strong> — dans les espaces publics à des fins répressives (exceptions très encadrées)</li>
+        <li><strong>Subliminal manipulation</strong> — techniques aimed at altering a person's behavior in a way that causes harm</li>
+        <li><strong>Exploitation of vulnerabilities</strong> — targeting vulnerable persons (age, disability, social situation)</li>
+        <li><strong>Social scoring</strong> — rating persons based on their social behavior or personal characteristics, by or for public authorities</li>
+        <li><strong>Predictive criminal risk assessment</strong> — based solely on profiling or personality traits</li>
+        <li><strong>Untargeted facial scraping</strong> — building facial recognition databases through mass image collection</li>
+        <li><strong>Emotion recognition</strong> — in the workplace or educational institutions (except for medical or safety reasons)</li>
+        <li><strong>Biometric categorization</strong> — based on sensitive data (origin, sexual orientation, political opinions, etc.)</li>
+        <li><strong>Real-time remote biometric identification</strong> — in public spaces for law enforcement purposes (very limited exceptions)</li>
       </ul>
 
-      <h3 id="ua-platform">Comportement plateforme</h3>
-      ${callout('danger', 'Lorsqu\'un modèle est classifié <code>risk_level = "unacceptable"</code>, la plateforme :<br>• Marque le statut de conformité comme <strong>non conforme</strong> automatiquement<br>• <strong>Bloque le déploiement</strong> (si la gate policy est activée)<br>• Aucune review LLM n\'est déclenchée')}
+      <h3 id="ua-platform">Platform Behavior</h3>
+      ${callout('danger', 'When a model is classified <code>risk_level = "unacceptable"</code>, the platform:<br>• Automatically marks compliance status as <strong>non-compliant</strong><br>• <strong>Blocks deployment</strong> (if gate policy is enabled)<br>• No LLM review is triggered')}
 
-      <h3 id="ua-action">Que faire ?</h3>
-      <p>Si vous pensez que votre modèle est classifié à tort comme "inacceptable" :</p>
+      <h3 id="ua-action">What to Do?</h3>
+      <p>If you believe your model is incorrectly classified as "unacceptable":</p>
       <ul class="cg-list">
-        <li>Réévaluez l'usage prévu — l'interdiction porte sur l'<strong>usage</strong>, pas sur la technologie</li>
-        <li>Vérifiez si une exception s'applique (Art. 5, paragraphes 2-4)</li>
-        <li>Consultez votre responsable conformité ou DPO</li>
-        <li>Si l'usage réel est différent, modifiez le tag <code>risk_level</code> avec la classification appropriée et mettez à jour la model card</li>
+        <li>Re-evaluate the intended use — the prohibition targets the <strong>use</strong>, not the technology</li>
+        <li>Check if an exception applies (Art. 5, paragraphs 2-4)</li>
+        <li>Consult your compliance officer or DPO</li>
+        <li>If the actual use is different, update the <code>risk_level</code> tag with the appropriate classification and update the model card</li>
       </ul>
     `;
   }

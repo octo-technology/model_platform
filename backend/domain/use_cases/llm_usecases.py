@@ -1,9 +1,11 @@
 # Philippe Stepniewski
+import json
 import os
 from pathlib import Path
 
 import anthropic
 import boto3
+from loguru import logger
 
 from backend.domain.ports.platform_config_handler import PlatformConfigHandler
 
@@ -142,3 +144,54 @@ def review_ai_act_compliance(ai_act_card_markdown: str, platform_config_handler:
         return next((b.text for b in message.content if b.type == "text"), "")
 
     return _call_bedrock(client, model_id, prompt, max_tokens=4096)
+
+
+VALID_RISK_LEVELS = {"unacceptable", "high", "limited", "minimal"}
+
+
+def suggest_risk_level(ai_act_card_markdown: str, platform_config_handler: PlatformConfigHandler = None) -> dict:
+    """
+    Call Claude to suggest an AI Act risk level based on the model's AI Act card.
+    Returns {"suggested_risk_level": "high", "justification": "..."}.
+    """
+    client = _make_client(platform_config_handler)
+    provider = get_provider(platform_config_handler)
+    model_id = ANTHROPIC_MODEL_ID if provider == "anthropic" else get_bedrock_model_id(platform_config_handler)
+
+    prompt = _load_prompt("risk_level_suggestion.txt").format(ai_act_card_markdown=ai_act_card_markdown)
+
+    if provider == "anthropic":
+        with client.messages.stream(
+            model=model_id,
+            max_tokens=1024,
+            thinking={"type": "adaptive"},
+            messages=[{"role": "user", "content": prompt}],
+        ) as stream:
+            message = stream.get_final_message()
+        raw_response = next((b.text for b in message.content if b.type == "text"), "")
+    else:
+        raw_response = _call_bedrock(client, model_id, prompt, max_tokens=1024)
+
+    return _parse_risk_level_response(raw_response)
+
+
+def _parse_risk_level_response(raw_response: str) -> dict:
+    """Extract the suggested risk level and justification from LLM JSON response."""
+    cleaned = raw_response.strip()
+    if "```json" in cleaned:
+        cleaned = cleaned.split("```json")[1].split("```")[0].strip()
+    elif "```" in cleaned:
+        cleaned = cleaned.split("```")[1].split("```")[0].strip()
+
+    try:
+        result = json.loads(cleaned)
+    except json.JSONDecodeError:
+        logger.warning(f"Failed to parse risk level suggestion as JSON: {raw_response[:200]}")
+        return {"suggested_risk_level": None, "justification": raw_response}
+
+    level = result.get("suggested_risk_level", "").lower().strip()
+    if level not in VALID_RISK_LEVELS:
+        logger.warning(f"LLM suggested invalid risk level: {level}")
+        return {"suggested_risk_level": None, "justification": result.get("justification", raw_response)}
+
+    return {"suggested_risk_level": level, "justification": result.get("justification", "")}
