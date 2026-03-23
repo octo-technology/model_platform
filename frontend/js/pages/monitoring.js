@@ -248,6 +248,7 @@ const MonitoringPage = (() => {
                           <div class="model-row-version">v${m.version}</div>
                         </div>
                         <div class="model-row-actions">
+                          <a href="${m.deployment_name && m.project ? `http://${window.MP_HOST_NAME || ''}/deploy/${m.project}/${m.deployment_name}/docs` : '#'}" target="_blank" rel="noopener" class="model-row-link${!m.deployment_name ? ' model-row-link-disabled' : ''}" title="Open API Docs (Swagger)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg></a>
                           <a href="${m.dashboard_url ? m.dashboard_url + GRAFANA_QUERY_PARAMS : '#'}" target="_blank" rel="noopener" class="model-row-link${!m.dashboard_url ? ' model-row-link-disabled' : ''}" title="Open Grafana dashboard"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg></a>
                         </div>
                       </div>

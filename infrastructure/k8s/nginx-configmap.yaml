@@ -164,6 +164,42 @@ data:
                   proxy_read_timeout 86400;
               }
 
+            location ~ ^/deploy/([^/]+)/([^/]+)/docs$ {
+                  set $project_name $1;
+                  set $deployment_name $2;
+
+                  resolver kube-dns.kube-system.svc.cluster.local valid=10s;
+
+                  proxy_pass http://$deployment_name.$project_name.svc.cluster.local:8000/docs;
+
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+                  proxy_http_version 1.1;
+                  proxy_set_header Upgrade $http_upgrade;
+                  proxy_set_header Connection "upgrade";
+                  proxy_read_timeout 86400;
+              }
+
+            location ~ ^/deploy/([^/]+)/([^/]+)/openapi\.json$ {
+                  set $project_name $1;
+                  set $deployment_name $2;
+
+                  resolver kube-dns.kube-system.svc.cluster.local valid=10s;
+
+                  proxy_pass http://$deployment_name.$project_name.svc.cluster.local:8000/openapi.json;
+
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+                  proxy_http_version 1.1;
+                  proxy_set_header Upgrade $http_upgrade;
+                  proxy_set_header Connection "upgrade";
+                  proxy_read_timeout 86400;
+              }
+
             location /prometheus/ {
               resolver kube-dns.kube-system.svc.cluster.local valid=10s;
               proxy_pass http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090/;
