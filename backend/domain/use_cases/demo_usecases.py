@@ -14,6 +14,7 @@ import requests
 from loguru import logger
 
 from backend.domain.entities.model_deployment import ModelDeployment
+from backend.domain.use_cases.payload_generator import PayloadGenerator, build_feature_specs
 from backend.infrastructure.k8s_deployment_cluster_adapter import K8SDeploymentClusterAdapter
 from backend.utils import sanitize_project_name
 
@@ -101,16 +102,40 @@ class UserBehaviorSimulator:
         self.endpoint_url: str = f"http://{deployment.deployment_name}.{namespace}.svc.cluster.local:8000/predict"
         logger.info(f"Model endpoint discovered: {self.endpoint_url}")
 
-    def generate_random_payload(self) -> dict:
-        """Generate a random payload for credit scoring model.
+        # Initialize payload generator with dynamically discovered feature specs
+        self._payload_generator = PayloadGenerator()
+        tracking_uri = f"http://{namespace}.{namespace}.svc.cluster.local:5000"
+        logger.info(
+            f"Discovering feature specs for {model_name} v{deployment.model_version} from MLflow at {tracking_uri}"
+        )
+        self._feature_specs = build_feature_specs(tracking_uri, model_name, deployment.model_version)
+        if not self._feature_specs:
+            logger.warning(f"Falling back to hardcoded credit scoring payload for {model_name}")
 
-        This method creates sample data compatible with credit default prediction model.
-        Returns can be customized based on specific model requirements.
+    def generate_random_payload(self) -> dict:
+        """Generate a random payload based on discovered model features.
+
+        Uses dynamically discovered feature schemas from MLflow when available,
+        falls back to hardcoded credit scoring payload if schema discovery fails.
 
         Returns
         -------
         dict
             A payload with model inputs in the expected format
+        """
+        if self._feature_specs:
+            return self._payload_generator.generate(self._feature_specs)
+        return self._generate_credit_scoring_payload()
+
+    def _generate_credit_scoring_payload(self) -> dict:
+        """Generate a hardcoded payload for credit scoring model.
+
+        This is the fallback when schema discovery fails.
+
+        Returns
+        -------
+        dict
+            A payload with credit scoring features
         """
         age = random.randint(22, 70)
         income = random.randint(15000, 150000)
