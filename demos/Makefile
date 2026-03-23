@@ -13,7 +13,7 @@ list-models:
 	uv run mp projects list-models $(PROJECT_NAME)
 
 batch-predict:
-	uv run mp batch submit $(PROJECT_NAME) $(MODEL_NAME) $(MODEL_VERSION) --file-path batch_prediction_test_credit_default.csv
+	uv run mp batch submit $(PROJECT_NAME) $(MODEL_NAME) $(MODEL_VERSION) --file-path notebooks/banking/Banking\ Credit\ Scoring/batch_prediction_test_credit_default.csv
 
 batch-status:
 	@read -p "Enter Job ID: " JOB_ID; \
