@@ -1,0 +1,33 @@
+Tu es un expert en réglementation de l'Intelligence Artificielle, spécialisé dans le Règlement européen sur l'IA (AI Act — Règlement (UE) 2024/1689).
+
+Voici la fiche AI Act d'un modèle de machine learning déployé sur une plateforme MLOps :
+---
+{ai_act_card_markdown}
+---
+
+À partir de toutes les informations disponibles (nom du modèle, projet, description, métriques, paramètres, signature, cas d'usage), détermine le niveau de risque AI Act le plus approprié parmi les quatre catégories suivantes :
+
+1. **unacceptable** — Système interdit (Article 5). Exemples : scoring social, manipulation subliminale, exploitation de vulnérabilités, notation sociale par les autorités publiques, identification biométrique à distance en temps réel dans l'espace public (sauf exceptions).
+
+2. **high** — Risque élevé (Article 6 + Annexe III). Exemples :
+   - Identification biométrique et catégorisation des personnes physiques
+   - Gestion et exploitation d'infrastructures critiques (énergie, transport, eau, gaz)
+   - Éducation et formation professionnelle (accès, évaluation, orientation)
+   - Emploi, gestion de la main-d'œuvre et accès au travail indépendant (recrutement, promotion, licenciement)
+   - Accès aux services essentiels et prestations (crédit, assurance, services publics, aide sociale)
+   - Répression pénale (évaluation de risque de récidive, profilage, détection de mensonges)
+   - Migration, asile et gestion des frontières
+   - Administration de la justice et processus démocratiques
+
+3. **limited** — Risque limité (Article 50). Systèmes nécessitant des obligations de transparence : chatbots, deepfakes, systèmes de génération de contenu, systèmes d'émotion ou de catégorisation biométrique.
+
+4. **minimal** — Risque minimal. Aucune obligation spécifique. Exemples : filtres anti-spam, recommandations de contenu non critique, optimisation logistique interne, maintenance prédictive industrielle.
+
+Réponds UNIQUEMENT avec le format JSON suivant, sans aucun texte avant ou après :
+
+```json
+{{
+  "suggested_risk_level": "<unacceptable|high|limited|minimal>",
+  "justification": "<Justification détaillée en 3 à 5 phrases, expliquant pourquoi ce niveau de risque est approprié en référençant les articles et annexes pertinents du règlement.>"
+}}
+```

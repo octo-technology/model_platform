@@ -1,12 +1,14 @@
 # Philippe Stepniewski
 from loguru import logger
 
+from backend.domain.entities.exceptions.already_existing_project_exception import AlreadyExistingProjectException
 from backend.domain.entities.project import Project
 from backend.domain.ports.object_storage_handler import ObjectStorageHandler
 from backend.domain.ports.project_db_handler import ProjectDbHandler
 from backend.domain.use_cases.deploy_registry import deploy_registry
 from backend.domain.use_cases.deployed_models import _remove_project_namespace
 from backend.infrastructure.log_events_handler_json_adapter import LogEventsHandlerFileAdapter
+from backend.infrastructure.project_sqlite_db_handler import ProjectDoesntExistError
 
 EVENT_LOGGER = LogEventsHandlerFileAdapter()
 
@@ -25,6 +27,11 @@ def list_projects_for_user(user: str, project_db_handler: ProjectDbHandler) -> l
 
 
 def add_project(project_db_handler: ProjectDbHandler, project: Project, object_storage: ObjectStorageHandler) -> bool:
+    try:
+        project_db_handler.get_project(project.name)
+        raise AlreadyExistingProjectException(project_name=project.name)
+    except ProjectDoesntExistError:
+        pass
     deploy_registry(project.name)
     if project.batch_enabled:
         object_storage.ensure_project_space(project.name)
