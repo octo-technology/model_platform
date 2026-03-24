@@ -1,9 +1,11 @@
+import atexit
 import os
 from typing import Any, Dict, Optional
 
 import mlflow
 import numpy as np
 import pandas as pd
+from codecarbon import OfflineEmissionsTracker
 from fastapi import FastAPI, File, HTTPException, Request, Response, UploadFile
 from loguru import logger
 from opentelemetry import metrics, trace
@@ -11,7 +13,7 @@ from opentelemetry.exporter.prometheus import PrometheusMetricReader
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
-from prometheus_client import generate_latest
+from prometheus_client import Counter, generate_latest
 from pydantic import BaseModel
 
 try:
@@ -22,6 +24,45 @@ except Exception as e:
     logger.error(f"Error loading model: {e}")
 
 image_name = os.environ["IMAGE_NAME"]
+
+# --- Carbon footprint tracking (CodeCarbon, background, every 15s) ---
+co2_counter = Counter(
+    "model_co2_emissions_mg_total",
+    "Cumulative CO2 equivalent emissions in milligrams (CodeCarbon, country: FRA)",
+)
+
+
+class _PrometheusOutputHandler:
+    """CodeCarbon 3.x output_handler that increments the Prometheus counter.
+
+    CodeCarbon calls handler.out(total, delta) after each measurement cycle.
+    'delta.emissions' is the CO2 emitted (kg CO2eq) during that cycle.
+    """
+
+    def out(self, total, delta) -> None:  # noqa: ANN001
+        delta_mg = (delta.emissions or 0.0) * 1_000_000  # kg → mg
+        co2_counter.inc(delta_mg)
+        logger.info(
+            f"[CodeCarbon] measurement — delta={delta_mg:.6f} mg, "
+            f"cumulative={(total.emissions or 0.0) * 1_000_000:.6f} mg CO2eq"
+        )
+
+
+_carbon_tracker = OfflineEmissionsTracker(
+    country_iso_code=os.getenv("CODECARBON_COUNTRY_ISO_CODE", "FRA"),
+    measure_power_secs=15,
+    save_to_file=False,
+    log_level="warning",
+    force_cpu_power=float(os.getenv("CODECARBON_CPU_POWER_WATTS", "15")),
+    output_handlers=[_PrometheusOutputHandler()],
+)
+try:
+    _carbon_tracker.start()
+    logger.info("[CodeCarbon] tracker started (measure_power_secs=15, country=FRA)")
+    atexit.register(_carbon_tracker.stop)
+except Exception as _e:
+    logger.warning(f"CodeCarbon tracker could not start: {_e}")
+# --- end carbon tracking ---
 
 tracer = trace.get_tracer(f"model_platform_{image_name}")
 

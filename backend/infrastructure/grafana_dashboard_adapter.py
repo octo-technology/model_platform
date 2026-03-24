@@ -100,8 +100,8 @@ class GrafanaDashboardAdapter(DashboardHandler):
                     elif "kube_pod_container_status_restarts_total" in expr:
                         expr = expr.replace('container="{CONTAINER}"', container_pattern)
 
-                    # http metrics need a job filter
-                    if "http_" in expr:
+                    # http metrics and model_ metrics (e.g. CO2 counter) need a job filter
+                    if "http_" in expr or "model_" in expr:
                         expr = expr.replace("{", f'{{job="{service_name}", ', 1)
 
                     target["expr"] = expr

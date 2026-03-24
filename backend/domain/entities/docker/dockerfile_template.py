@@ -40,6 +40,7 @@ class DockerfileTemplate:
         RUN uv pip install uvicorn fastapi cloudpickle loguru mlflow python-multipart
         RUN uv pip install opentelemetry-api opentelemetry-sdk opentelemetry-instrumentation-fastapi \
             opentelemetry-exporter-prometheus
+        RUN uv pip install codecarbon>=2.3.0
 
         # Clean up apt cache to reduce image size
         RUN rm -rf /var/lib/apt/lists/*
