@@ -21,7 +21,7 @@ class LogEventsHandlerFileAdapter(LogEventsHandler):
     def __init__(self):
         """Initialize the LogEventsHandlerAdapter instance."""
         super().__init__()
-        self.events_folder = os.environ["PATH_LOG_EVENTS"]
+        self.events_folder = os.getenv("PATH_LOG_EVENTS", "/tmp/test_log_events")
         if not path.exists(self.events_folder):
             pathlib.Path(self.events_folder).mkdir(parents=True, exist_ok=True)
 
