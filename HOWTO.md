@@ -5,7 +5,7 @@
 A working minikube is needed for dev purposes
 
 ```bash
-    brew install minikube kubectl
+    brew install minikube kubectl colima
 ```
 
 Install helm
