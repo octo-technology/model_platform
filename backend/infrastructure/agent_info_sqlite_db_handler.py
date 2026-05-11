@@ -22,7 +22,7 @@ class AgentInfoAlreadyExistError(Exception):
         self.project_name = project_name
 
 
-def _map_rows_to_agent_infos(rows: list) -> list[AgentInfo]:
+def map_rows_to_agent_infos(rows: list) -> list[AgentInfo]:
     result = []
     for row in rows:
         # columns: 0=id, 1=agent_name, 2=agent_version, 3=project_name,
@@ -152,7 +152,7 @@ class AgentInfoSQLiteDBHandler(AgentInfoDbHandler):
         finally:
             connection.close()
         if len(rows) == 1:
-            return _map_rows_to_agent_infos(rows)[0]
+            return map_rows_to_agent_infos(rows)[0]
         raise AgentInfoDoesntExistError(
             message="AgentInfo doesn't exist",
             agent_name=agent_name,
@@ -168,7 +168,7 @@ class AgentInfoSQLiteDBHandler(AgentInfoDbHandler):
             rows = cursor.fetchall()
         finally:
             connection.close()
-        return _map_rows_to_agent_infos(rows)
+        return map_rows_to_agent_infos(rows)
 
     def update_agent_card(self, agent_name: str, agent_version: str, project_name: str, agent_card: str) -> bool:
         connection = sqlite3.connect(self.db_path)
@@ -290,4 +290,4 @@ class AgentInfoSQLiteDBHandler(AgentInfoDbHandler):
             rows = cursor.fetchall()
         finally:
             connection.close()
-        return _map_rows_to_agent_infos(rows)
+        return map_rows_to_agent_infos(rows)

@@ -3,59 +3,13 @@ import logging
 
 import psycopg2
 
-from backend.domain.entities.agent_info import AgentInfo, AgentTool
+from backend.domain.entities.agent_info import AgentInfo
 from backend.domain.ports.agent_info_db_handler import AgentInfoDbHandler
-
-
-class AgentInfoDoesntExistError(Exception):
-    def __init__(self, message, agent_name=None, agent_version=None, project_name=None):
-        super().__init__(message)
-        self.agent_name = agent_name
-        self.agent_version = agent_version
-        self.project_name = project_name
-
-
-class AgentInfoAlreadyExistError(Exception):
-    def __init__(self, message, agent_name=None, agent_version=None, project_name=None):
-        super().__init__(message)
-        self.agent_name = agent_name
-        self.agent_version = agent_version
-        self.project_name = project_name
-
-
-def _map_rows_to_agent_infos(rows: list) -> list[AgentInfo]:
-    result = []
-    for row in rows:
-        # columns: 0=id, 1=agent_name, 2=agent_version, 3=project_name,
-        #          4=description, 5=agent_type, 6=llm_provider, 7=llm_model,
-        #          8=tools (JSONB), 9=guardrails (JSONB), 10=max_iterations,
-        #          11=agent_card, 12=risk_level, 13=deterministic_compliance,
-        #          14=llm_compliance, 15=act_review, 16=suggested_risk_level
-        tools_raw = row[8]
-        tools = [AgentTool(**t) for t in json.loads(tools_raw)] if tools_raw else []
-        guardrails_raw = row[9]
-        guardrails = json.loads(guardrails_raw) if guardrails_raw else None
-        result.append(
-            AgentInfo(
-                agent_name=row[1],
-                agent_version=row[2],
-                project_name=row[3],
-                description=row[4],
-                agent_type=row[5],
-                llm_provider=row[6],
-                llm_model=row[7],
-                tools=tools,
-                guardrails=guardrails,
-                max_iterations=row[10],
-                agent_card=row[11],
-                risk_level=row[12],
-                deterministic_compliance=row[13] if row[13] is not None else "not_evaluated",
-                llm_compliance=row[14] if row[14] is not None else "not_evaluated",
-                act_review=row[15],
-                suggested_risk_level=row[16],
-            )
-        )
-    return result
+from backend.infrastructure.agent_info_sqlite_db_handler import (
+    AgentInfoAlreadyExistError,
+    AgentInfoDoesntExistError,
+    map_rows_to_agent_infos,
+)
 
 
 class AgentInfoPostgresDBHandler(AgentInfoDbHandler):
@@ -170,7 +124,7 @@ class AgentInfoPostgresDBHandler(AgentInfoDbHandler):
         finally:
             connection.close()
         if len(rows) == 1:
-            return _map_rows_to_agent_infos(rows)[0]
+            return map_rows_to_agent_infos(rows)[0]
         raise AgentInfoDoesntExistError(
             message="AgentInfo doesn't exist",
             agent_name=agent_name,
@@ -186,7 +140,7 @@ class AgentInfoPostgresDBHandler(AgentInfoDbHandler):
             rows = cursor.fetchall()
         finally:
             connection.close()
-        return _map_rows_to_agent_infos(rows)
+        return map_rows_to_agent_infos(rows)
 
     def update_agent_card(self, agent_name: str, agent_version: str, project_name: str, agent_card: str) -> bool:
         connection = self._connect()
@@ -316,4 +270,4 @@ class AgentInfoPostgresDBHandler(AgentInfoDbHandler):
             rows = cursor.fetchall()
         finally:
             connection.close()
-        return _map_rows_to_agent_infos(rows)
+        return map_rows_to_agent_infos(rows)
