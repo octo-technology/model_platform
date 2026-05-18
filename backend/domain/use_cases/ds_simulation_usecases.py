@@ -239,7 +239,7 @@ class DSSimulator:
             signature = infer_signature(features_train_sc, model.predict_proba(features_train_sc))
             mlflow.sklearn.log_model(
                 sk_model=model,
-                artifact_path="custom_model",
+                name="custom_model",
                 registered_model_name=self.model_name,
                 signature=signature,
                 input_example=features_train_sc[:3],

@@ -1,6 +1,9 @@
-"""MLFlow Model Registry Adapter module.
+"""MLFlow Model Registry Adapter (MLflow 3.x with LoggedModel).
 
 This module provides an adapter for interacting with the MLFlow Model Registry.
+In MLflow 3.x, models are first-class entities (LoggedModel) decoupled from runs.
+Governance info (metrics, params, tags, signature, flavors) is sourced directly
+from the LoggedModel rather than parsed from run-level `mlflow.log-model.history` tags.
 """
 
 import os
@@ -19,10 +22,9 @@ from backend.utils import hash_directory
 
 
 class MLFlowModelRegistryAdapter(ModelRegistry):
-    """Adapter for interacting with the MLFlow Model Registry."""
+    """Adapter for the MLflow Model Registry (3.x)."""
 
     def __init__(self, mlflow_client_manager: MLflowClientManager):
-        """Initialize the MLFlowModelRegistryAdapter instance."""
         super().__init__()
         self.mlflow_client_manager: MLflowClientManager = mlflow_client_manager
 
@@ -30,50 +32,21 @@ class MLFlowModelRegistryAdapter(ModelRegistry):
     def mlflow_client(self) -> MlflowClient:
         return self.mlflow_client_manager.client
 
-        # TODO problème avec la tracking uri pour un list artifacts
+    # -------------------------------------------------------------------------
+    # Registered models (used for promotion + listing)
+    # -------------------------------------------------------------------------
 
     def list_all_models(self) -> list[dict[str, str | int]]:
-        """List all registered models in the MLFlow Model Registry by querying the MLFlow client.
-
-        Returns
-        -------
-            list[dict[str, str | int]]: A list of dictionaries containing model attributes.
-        """
         registered_model_list = self.mlflow_client.search_registered_models()
         logger.debug(f"Got following models: {registered_model_list}")
         return self._process_mlflow_list(registered_model_list)
 
     def list_model_versions(self, model_name: str) -> list[dict]:
-        """List all versions of a registered model in the MLFlow Model Registry by querying the MLFlow client.
-
-        Parameters
-        ----------
-        model_name : str
-            The name of the model to list versions for.
-
-        Returns
-        -------
-        list[dict[str, str | int]]
-            A list of dictionaries containing model version attributes.
-        """
         all_model_versions: PagedList[ModelVersion] = self.mlflow_client.search_model_versions(f"name='{model_name}'")
-        all_model_versions_processed: list[dict] = self._process_model_versions(all_model_versions.to_list())
-        return all_model_versions_processed
+        return self._process_model_versions(all_model_versions.to_list())
 
     @staticmethod
     def _process_mlflow_list(mlflow_registered_model_list: list[RegisteredModel]) -> list[dict[str, str | int]]:
-        """Process a list of MLFlow registered models and return a sorted list of dictionaries.
-
-        Parameters
-        ----------
-        mlflow_registered_model_list : list[RegisteredModel]
-            A list of MLFlow registered models to be processed.
-
-        Returns
-        -------
-        list[dict[str, str | int]]
-        A list of dictionaries containing model attributes, sorted by creation timestamp in descending order.
-        """
         processed_list = [
             {
                 "name": model.name,
@@ -88,24 +61,28 @@ class MLFlowModelRegistryAdapter(ModelRegistry):
 
     @staticmethod
     def _process_model_versions(model_version: list[ModelVersion]) -> list[dict]:
-        processed_versions = [
-            {
+        processed_versions = []
+        for version in model_version:
+            entry = {
                 "name": version.name,
                 "version": version.version,
                 "creation_timestamp": version.creation_timestamp,
                 "run_id": version.run_id,
             }
-            for version in model_version
-        ]
-
+            # MLflow 3.x: ModelVersion has model_id pointing to a LoggedModel
+            model_id = getattr(version, "model_id", None)
+            if model_id:
+                entry["model_id"] = model_id
+            processed_versions.append(entry)
         return processed_versions
+
+    # -------------------------------------------------------------------------
+    # Artifacts
+    # -------------------------------------------------------------------------
 
     def _get_model_artifacts_path(self, run_id: str) -> str:
         logger.info(f"Using mlflow tracking uri: {self.mlflow_client_manager.tracking_uri}")
-        logger.info(f"Using mlflow tracking uri: {self.mlflow_client.tracking_uri}")
         artifacts: list[FileInfo] = self.mlflow_client.list_artifacts(run_id)
-        # The model artifact is a directory (MLmodel, pkl, etc.). Pick the first directory;
-        # fall back to the first entry if no directory is found.
         model_artifact = next((a for a in artifacts if a.is_dir), artifacts[0])
         return model_artifact.path
 
@@ -126,11 +103,11 @@ class MLFlowModelRegistryAdapter(ModelRegistry):
         logger.info(f"Downloaded model artefacts to: {downloaded_artifacts_path}")
         return downloaded_artifacts_path
 
-    def _get_model_run_id(self, model_name: str, version: str) -> str:
-        model_versions: list[dict] = self.list_model_versions(model_name)
-        run_id = [model_version["run_id"] for model_version in model_versions if model_version["version"] == version][0]
+    def _get_model_version_entity(self, model_name: str, version: str) -> ModelVersion:
+        return self.mlflow_client.get_model_version(model_name, version)
 
-        return run_id
+    def _get_model_run_id(self, model_name: str, version: str) -> str:
+        return self._get_model_version_entity(model_name, version).run_id
 
     def get_model_card(self, model_name: str, version: str) -> str | None:
         try:
@@ -147,21 +124,125 @@ class MLFlowModelRegistryAdapter(ModelRegistry):
             logger.warning(f"Could not fetch model_card.md for {model_name} v{version}: {e}")
             return None
 
+    # -------------------------------------------------------------------------
+    # LoggedModel (MLflow 3.x first-class entity)
+    # -------------------------------------------------------------------------
+
+    def get_logged_model(self, model_name: str, version: str) -> dict:
+        mv = self._get_model_version_entity(model_name, version)
+        model_id = getattr(mv, "model_id", None)
+        model_uri = f"models:/{model_name}/{version}"
+
+        logged_model_data = self._fetch_logged_model(model_id) if model_id else None
+        model_info_data = self._fetch_model_info(model_uri)
+
+        return {
+            "model_id": model_id,
+            "name": model_name,
+            "version": version,
+            "creation_timestamp": (
+                logged_model_data.get("creation_timestamp") if logged_model_data else mv.creation_timestamp
+            ),
+            "source_run_id": logged_model_data.get("source_run_id") if logged_model_data else mv.run_id,
+            "tags": (logged_model_data or {}).get("tags", {}),
+            "params": (logged_model_data or {}).get("params", {}),
+            "metrics": (logged_model_data or {}).get("metrics", {}),
+            "flavors": model_info_data.get("flavors", []),
+            "signature": model_info_data.get("signature"),
+            "model_uri": model_uri,
+        }
+
+    def _fetch_logged_model(self, model_id: str) -> dict | None:
+        """Fetch LoggedModel via MLflow 3.x client API."""
+        try:
+            logged_model = self.mlflow_client.get_logged_model(model_id)
+            return {
+                "creation_timestamp": getattr(logged_model, "creation_timestamp", None),
+                "source_run_id": getattr(logged_model, "source_run_id", None),
+                "tags": dict(getattr(logged_model, "tags", {}) or {}),
+                "params": dict(getattr(logged_model, "params", {}) or {}),
+                "metrics": self._extract_metrics(logged_model),
+            }
+        except Exception as e:
+            logger.warning(f"Could not fetch LoggedModel {model_id}: {e}")
+            return None
+
+    @staticmethod
+    def _extract_metrics(logged_model) -> dict:
+        """LoggedModel.metrics is a list of Metric entities in 3.x; flatten to {key: value}."""
+        raw = getattr(logged_model, "metrics", None) or []
+        if isinstance(raw, dict):
+            return raw
+        result: dict = {}
+        for m in raw:
+            key = getattr(m, "key", None) or (m.get("key") if isinstance(m, dict) else None)
+            value = getattr(m, "value", None) or (m.get("value") if isinstance(m, dict) else None)
+            if key is not None:
+                result[key] = value
+        return result
+
+    def _fetch_model_info(self, model_uri: str) -> dict:
+        """Fetch flavors and signature via mlflow.models.get_model_info (reads MLmodel file)."""
+        try:
+            info = mlflow.models.get_model_info(model_uri)
+            flavors = list(info.flavors.keys()) if getattr(info, "flavors", None) else []
+            signature = None
+            if getattr(info, "signature", None) is not None:
+                signature_obj = info.signature
+                signature = signature_obj.to_dict() if hasattr(signature_obj, "to_dict") else dict(signature_obj)
+            return {"flavors": flavors, "signature": signature}
+        except Exception as e:
+            logger.warning(f"Could not fetch model info for {model_uri}: {e}")
+            return {"flavors": [], "signature": None}
+
+    # -------------------------------------------------------------------------
+    # Governance (LoggedModel + source run)
+    # -------------------------------------------------------------------------
+
     def get_model_governance_information(self, model_name: str, version: str) -> dict:
-        run_id = self._get_model_run_id(model_name, version)
-        model_tags = self.mlflow_client.get_run(run_id).data.tags
-        model_params = self.mlflow_client.get_run(run_id).data.params
-        model_metrics = self.mlflow_client.get_run(run_id).data.metrics
+        logged = self.get_logged_model(model_name, version)
+        run_id = logged["source_run_id"]
+
+        run_tags: dict = {}
+        run_params: dict = {}
+        run_metrics: dict = {}
+        if run_id:
+            try:
+                run = self.mlflow_client.get_run(run_id)
+                run_tags = dict(run.data.tags or {})
+                run_params = dict(run.data.params or {})
+                run_metrics = dict(run.data.metrics or {})
+            except Exception as e:
+                logger.warning(f"Could not fetch source run {run_id}: {e}")
+
+        # Merged tags: run tags first, model tags override (model is authoritative)
+        merged_tags = {**run_tags, **logged["tags"]}
+        # Params/metrics: prefer model-level (LoggedModel), fall back to run-level
+        merged_params = {**run_params, **logged["params"]}
+        merged_metrics = {**run_metrics, **logged["metrics"]}
+
         return {
             "model_name": model_name,
             "version": version,
+            "model_id": logged["model_id"],
             "run_id": run_id,
-            "tags": model_tags,
-            "params": model_params,
-            "metrics": model_metrics,
+            "creation_timestamp": logged["creation_timestamp"],
+            "tags": merged_tags,
+            "params": merged_params,
+            "metrics": merged_metrics,
+            "flavors": logged["flavors"],
+            "signature": logged["signature"],
+            "model_uri": logged["model_uri"],
         }
 
+    # -------------------------------------------------------------------------
+    # Logging
+    # -------------------------------------------------------------------------
+
     def log_model(self, **kwargs) -> None:
+        """Log a pyfunc model. MLflow 3.x uses `name=` (legacy `artifact_path=` is translated)."""
+        if "artifact_path" in kwargs and "name" not in kwargs:
+            kwargs["name"] = kwargs.pop("artifact_path")
         client = self.mlflow_client
         logger.info(client.tracking_uri)
         mlflow.set_tracking_uri(client.tracking_uri)

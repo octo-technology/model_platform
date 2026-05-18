@@ -21,11 +21,13 @@ DEPLOYMENT_GATE_POLICY_KEY = "DEPLOYMENT_GATE_POLICY"
 def evaluate_deterministic_compliance(model_info: ModelInfo, governance: dict) -> str:
     """Evaluate deterministic compliance based on model metadata.
 
+    Reads LoggedModel-centric governance dict produced by the registry adapter.
     Returns one of: compliant, partially_compliant, non_compliant.
     """
     tags: dict = governance.get("tags", {})
     params: dict = governance.get("params", {})
     metrics: dict = governance.get("metrics", {})
+    signature: dict | None = governance.get("signature")
 
     # Immediate rejection for unacceptable risk
     if model_info.risk_level == "unacceptable":
@@ -44,29 +46,13 @@ def evaluate_deterministic_compliance(model_info: ModelInfo, governance: dict) -
 
     # Recommended criteria
     has_params = len(params) > 0
-    has_signature = _has_model_signature(tags)
+    has_signature = bool(signature)
     recommended_count = sum([has_params, has_signature])
 
     if recommended_count >= 1:
         return COMPLIANCE_COMPLIANT
 
     return COMPLIANCE_PARTIALLY_COMPLIANT
-
-
-def _has_model_signature(tags: dict) -> bool:
-    import json
-
-    history_raw = tags.get("mlflow.log-model.history")
-    if not history_raw:
-        return False
-    try:
-        history = json.loads(history_raw)
-        if isinstance(history, list) and history:
-            sig = history[0].get("signature")
-            return sig is not None and sig != {}
-    except (json.JSONDecodeError, KeyError):
-        pass
-    return False
 
 
 def extract_llm_compliance_from_review(act_review: str | None) -> str:
@@ -102,7 +88,7 @@ def evaluate_project_compliance(
         try:
             governance = registry.get_model_governance_information(model_info.model_name, model_info.model_version)
         except Exception:
-            governance = {"tags": {}, "params": {}, "metrics": {}}
+            governance = {"tags": {}, "params": {}, "metrics": {}, "signature": None, "flavors": []}
 
         status = evaluate_deterministic_compliance(model_info, governance)
         model_info_db_handler.update_compliance_statuses(
