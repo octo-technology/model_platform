@@ -82,7 +82,7 @@ class K8SRegistryDeployment(RegistryDeployment, K8SDeployment):
                             client.V1Container(
                                 name="mlflow",
                                 image="ghcr.io/octo-technology/model-platform/mlflow:latest",
-                                image_pull_policy="Always",
+                                image_pull_policy=os.environ.get("MLFLOW_IMAGE_PULL_POLICY", "Always"),
                                 ports=[client.V1ContainerPort(container_port=self.port)],
                                 env=[
                                     client.V1EnvVar(name="MLFLOW_SERVER_HOST", value="0.0.0.0"),
@@ -102,6 +102,8 @@ class K8SRegistryDeployment(RegistryDeployment, K8SDeployment):
                                     f"postgresql://{self.pgsql_user}:{self.pgsql_password}@{self.pgsql_cluster_host}/{self.mlflow_db_name}",
                                     "--artifacts-destination",
                                     "s3://bucket",
+                                    "--allowed-hosts",
+                                    "*",
                                     #  "--static-prefix",
                                     #  f"/{self.sub_path}/{project_name}",
                                 ],

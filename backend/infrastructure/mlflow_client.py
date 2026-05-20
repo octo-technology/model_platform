@@ -3,8 +3,6 @@
 This module defines the settings for configuring MLFlow, including environment variables.
 """
 
-import sys
-
 import mlflow
 from loguru import logger
 from mlflow import MlflowException
@@ -49,7 +47,7 @@ class MLflowClientManager:
         except MlflowException as e:
             self.client = None
             logger.error(f"Failed to connect to MLflow server: {e}")
-            sys.exit(1)
+            raise
 
     def close(self):
         """

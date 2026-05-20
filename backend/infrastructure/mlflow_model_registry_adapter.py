@@ -91,17 +91,17 @@ class MLFlowModelRegistryAdapter(ModelRegistry):
 
     def download_model_artifacts(self, model_name: str, version: str, destination_path: str) -> str:
         mlflow.set_tracking_uri(self.mlflow_client_manager.tracking_uri)
-        run_id = self._get_model_run_id(model_name, version)
-        logger.info(f"Downloading model artefacts for run_id: {run_id}")
-        artifacts_path: str = self._get_model_artifacts_path(run_id)
-        downloaded_artifacts_path = self._download_run_id_artifacts(run_id, artifacts_path, destination_path)
-        downloaded_artifacts_path = os.path.join(destination_path, downloaded_artifacts_path)
-        hash_value = hash_directory(downloaded_artifacts_path)
-        hash_file_path = os.path.join(downloaded_artifacts_path, hash_value)
+        model_uri = f"models:/{model_name}/{version}"
+        logger.info(f"Downloading model artefacts for model_uri: {model_uri}")
+        target_path = os.path.join(destination_path, "custom_model")
+        os.makedirs(target_path, exist_ok=True)
+        mlflow.artifacts.download_artifacts(artifact_uri=model_uri, dst_path=target_path)
+        hash_value = hash_directory(target_path)
+        hash_file_path = os.path.join(target_path, hash_value)
         with open(hash_file_path, "w") as f:
             f.write("")
-        logger.info(f"Downloaded model artefacts to: {downloaded_artifacts_path}")
-        return downloaded_artifacts_path
+        logger.info(f"Downloaded model artefacts to: {target_path}")
+        return target_path
 
     def _get_model_version_entity(self, model_name: str, version: str) -> ModelVersion:
         return self.mlflow_client.get_model_version(model_name, version)
@@ -184,6 +184,7 @@ class MLFlowModelRegistryAdapter(ModelRegistry):
     def _fetch_model_info(self, model_uri: str) -> dict:
         """Fetch flavors and signature via mlflow.models.get_model_info (reads MLmodel file)."""
         try:
+            mlflow.set_tracking_uri(self.mlflow_client_manager.tracking_uri)
             info = mlflow.models.get_model_info(model_uri)
             flavors = list(info.flavors.keys()) if getattr(info, "flavors", None) else []
             signature = None
@@ -238,6 +239,54 @@ class MLFlowModelRegistryAdapter(ModelRegistry):
     # -------------------------------------------------------------------------
     # Logging
     # -------------------------------------------------------------------------
+
+    def sync_run_data_to_model_version_tags(self, model_name: str, version: str) -> None:
+        """Copy run tags to model version tags and run description to model version description."""
+        try:
+            governance = self.get_model_governance_information(model_name, version)
+        except Exception as e:
+            logger.warning(f"Could not get governance info for {model_name} v{version}: {e}")
+            return
+
+        tags = governance.get("tags", {})
+
+        for key, value in tags.items():
+            if not key.startswith("mlflow."):
+                try:
+                    self.mlflow_client.set_model_version_tag(model_name, version, key, str(value)[:500])
+                except Exception as e:
+                    logger.warning(f"Could not set tag '{key}' on {model_name} v{version}: {e}")
+
+        description = tags.get("mlflow.note.content")
+        if description:
+            try:
+                self.mlflow_client.update_model_version(model_name, version, description=description[:5000])
+            except Exception as e:
+                logger.warning(f"Could not set description on {model_name} v{version}: {e}")
+
+    def sync_run_data_to_registered_model_tags(self, model_name: str, version: str) -> None:
+        """Copy run tags and description of a version to the registered model level."""
+        try:
+            governance = self.get_model_governance_information(model_name, version)
+        except Exception as e:
+            logger.warning(f"Could not get governance info for {model_name} v{version}: {e}")
+            return
+
+        tags = governance.get("tags", {})
+
+        for key, value in tags.items():
+            if not key.startswith("mlflow."):
+                try:
+                    self.mlflow_client.set_registered_model_tag(model_name, key, str(value)[:500])
+                except Exception as e:
+                    logger.warning(f"Could not set registered model tag '{key}' on {model_name}: {e}")
+
+        description = tags.get("mlflow.note.content")
+        if description:
+            try:
+                self.mlflow_client.update_registered_model(model_name, description=description[:5000])
+            except Exception as e:
+                logger.warning(f"Could not set description on registered model {model_name}: {e}")
 
     def log_model(self, **kwargs) -> None:
         """Log a pyfunc model. MLflow 3.x uses `name=` (legacy `artifact_path=` is translated)."""
