@@ -3,7 +3,7 @@
 import sqlite3
 from typing import Any
 
-from .database_utils import execute_query as _pg_execute_query
+from database_utils import execute_query as _pg_execute_query
 
 
 class PostgresAdapter:

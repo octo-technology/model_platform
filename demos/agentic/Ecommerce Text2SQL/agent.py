@@ -5,9 +5,18 @@ The platform handles tracing (mlflow.langchain.autolog) and registration externa
 """
 
 import json
+import uuid
 from typing import Annotated, TypedDict
 
 import mlflow
+from config import (
+    MAMMOUTH_AGENT_MODEL,
+    MAMMOUTH_API_KEY,
+    MAMMOUTH_BASE_URL,
+    MAMMOUTH_REFLECT_MODEL,
+    MAMMOUTH_TEMPERATURE,
+)
+from database_adapters import PostgresAdapter
 from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage, SystemMessage, ToolMessage
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, START, StateGraph
@@ -15,17 +24,8 @@ from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 from mlflow.pyfunc import ResponsesAgent
 from mlflow.types.responses import ResponsesAgentRequest, ResponsesAgentResponse
-
-from .config import (
-    MAMMOUTH_AGENT_MODEL,
-    MAMMOUTH_API_KEY,
-    MAMMOUTH_BASE_URL,
-    MAMMOUTH_REFLECT_MODEL,
-    MAMMOUTH_TEMPERATURE,
-)
-from .database_adapters import PostgresAdapter
-from .prompts import AGENT_SYSTEM_PROMPT, REFLECTION_SYSTEM_PROMPT
-from .tools import make_tools
+from prompts import AGENT_SYSTEM_PROMPT, REFLECTION_SYSTEM_PROMPT
+from tools import make_tools
 
 MAX_REFLECTIONS = 2
 
@@ -191,18 +191,36 @@ class ECommerceAgent(ResponsesAgent):
         )
 
         return ResponsesAgentResponse(
-            output=[{"role": "assistant", "content": response_text}],
+            output=[
+                {
+                    "id": f"msg_{uuid.uuid4().hex}",
+                    "type": "message",
+                    "role": "assistant",
+                    "content": [{"type": "output_text", "text": response_text}],
+                }
+            ],
         )
 
     @staticmethod
     def _convert_input_to_langchain_messages(input_messages: list) -> list:
-        """Convert OpenAI Responses API messages to LangChain messages."""
+        """Convert OpenAI Responses API messages to LangChain messages.
+
+        Handles both dicts and pydantic Message objects (MLflow passes the latter
+        during signature validation).
+        """
         converted = []
         for msg in input_messages:
-            role = msg.get("role")
-            content = msg.get("content", "")
+            # Normalize pydantic Message objects to plain dicts
+            data = msg.model_dump() if hasattr(msg, "model_dump") else msg
+            role = data.get("role")
+            content = data.get("content", "")
+
+            # content can be a plain string or a list of {type, text} parts
             if isinstance(content, list):
-                content = " ".join(part.get("text", "") for part in content if isinstance(part, dict))
+                content = " ".join(
+                    (part.get("text", "") if isinstance(part, dict) else getattr(part, "text", "")) for part in content
+                )
+
             if role == "user":
                 converted.append(HumanMessage(content=content))
             elif role == "assistant":

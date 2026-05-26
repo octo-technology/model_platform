@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 
 from backend.api import (
+    agent_infos_routes,
     auth_routes,
     batch_routes,
     compliance_report_routes,
@@ -30,6 +31,7 @@ from backend.api import (
 from backend.domain.use_cases.config import Config
 from backend.domain.use_cases.demo_usecases import SimulationManager
 from backend.domain.use_cases.ds_simulation_usecases import DSSimulationManager
+from backend.infrastructure.agent_info_pgsql_db_handler import AgentInfoPostgresDBHandler
 from backend.infrastructure.grafana_dashboard_adapter import GrafanaDashboardAdapter
 from backend.infrastructure.k8s_batch_prediction_adapter import K8sBatchPredictionAdapter
 from backend.infrastructure.minio_storage_adapter import MinioStorageAdapter
@@ -62,6 +64,7 @@ async def lifespan(app: FastAPI):
     app.state.registry_pool = MLFlowHandlerAdapter()
     app.state.project_db_handler = ProjectPostgresDBHandler(db_config=config.pgsql_db_config)
     app.state.model_info_db_handler = ModelInfoPostgresDBHandler(db_config=config.pgsql_db_config)
+    app.state.agent_info_db_handler = AgentInfoPostgresDBHandler(db_config=config.pgsql_db_config)
     app.state.user_adapter = UserPgsqlDbAdapter(db_config=config.pgsql_db_config, admin_config=config.mp_admin_config)
     app.state.platform_config_handler = PlatformConfigPgsqlAdapter(db_config=config.pgsql_db_config)
     app.state.object_storage_handler = MinioStorageAdapter()
@@ -75,6 +78,11 @@ async def lifespan(app: FastAPI):
         interval=30,
         project_db_handler=app.state.project_db_handler,
         model_info_db_handler=app.state.model_info_db_handler,
+    )
+    app.state.registry_pool.start_agent_info_sync_task(
+        interval=30,
+        project_db_handler=app.state.project_db_handler,
+        agent_info_db_handler=app.state.agent_info_db_handler,
     )
     yield
 
@@ -106,6 +114,7 @@ def create_app() -> FastAPI:
     app.include_router(users_routes.router, prefix="/users", tags=["Users"])
     app.include_router(hugging_face_routes.router, prefix="/hugging_face", tags=["Registre"])
     app.include_router(model_infos_routes.router, prefix="/model_infos", tags=["Model Infos"])
+    app.include_router(agent_infos_routes.router, prefix="/agent_infos", tags=["Agent Infos"])
     app.include_router(llm_routes.router, prefix="/ai", tags=["AI Assist"])
     app.include_router(compliance_report_routes.router, prefix="/compliance", tags=["Compliance Report"])
     app.include_router(batch_routes.router, prefix="/{project_name}/batch", tags=["Batch Predictions"])

@@ -37,7 +37,11 @@ class MLFlowModelRegistryAdapter(ModelRegistry):
     # -------------------------------------------------------------------------
 
     def list_all_models(self) -> list[dict[str, str | int]]:
-        registered_model_list = self.mlflow_client.search_registered_models()
+        # Exclude registered models tagged as agents (handled by AgentRegistry).
+        # MLflow doesn't support `!=` filters on tags reliably, so we filter in Python.
+        registered_model_list = [
+            m for m in self.mlflow_client.search_registered_models() if m.tags.get("model_type") != "agent"
+        ]
         logger.debug(f"Got following models: {registered_model_list}")
         return self._process_mlflow_list(registered_model_list)
 

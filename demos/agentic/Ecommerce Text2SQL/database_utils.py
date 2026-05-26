@@ -3,8 +3,7 @@
 from typing import Any
 
 import psycopg
-
-from .config import DB_CONFIG
+from config import DB_CONFIG
 
 
 def execute_query(sql: str, params: tuple = ()) -> list[dict[str, Any]]:
