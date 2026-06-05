@@ -161,6 +161,33 @@ async def predict(request: Request, file: Optional[UploadFile] = File(None)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post(
+    "/agent_predict",
+    summary="Run agent inference (MLflow ResponsesAgent)",
+    description='Send a Responses API payload to invoke an agent: {"input": [{"role": "user", "content": "..."}]}',
+)
+async def agent_predict(request: Request):
+    tracer = trace.get_tracer(__name__)
+    try:
+        body = await request.json()
+        logger.info("Received agent payload for inference")
+
+        # MLflow's pyfunc wrapper around ResponsesAgent expects either a dict matching
+        # the signature OR a single-row DataFrame. Pass the raw dict — the wrapper
+        # will validate against the schema and build the ResponsesAgentRequest internally.
+        with tracer.start_as_current_span("agent_inference"):
+            response = model.predict(body)
+
+        if hasattr(response, "model_dump"):
+            return response.model_dump()
+        if hasattr(response, "tolist"):
+            return response.tolist()
+        return response
+    except Exception as e:
+        logger.exception("Agent prediction failed")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/health", summary="Health check")
 async def health_check():
     return {"status": "healthy"}

@@ -329,11 +329,10 @@ const ProjectDetailPage = (() => {
   async function loadModels(projectName, panel) {
     panel.innerHTML = loadingHTML();
     try {
-      // Fetch ML models, their compliance, and agents in parallel
-      // Agents may 404 if the backend doesn't expose them yet → fall back to []
-      const [models, modelInfos, agents] = await Promise.all([
+      const [models, modelInfos, mlflowAgents, agentInfos] = await Promise.all([
         API.models.list(projectName).catch(() => []),
         API.modelInfos.listForProject(projectName).catch(() => []),
+        API.agents.list(projectName).catch(() => []),
         API.agentInfos.listForProject(projectName).catch(() => []),
       ]);
 
@@ -343,6 +342,16 @@ const ProjectDetailPage = (() => {
         complianceMap[`${info.model_name}:${info.model_version}`] = {
           deterministic: info.deterministic_compliance || 'not_evaluated',
           llm: info.llm_compliance || 'not_evaluated',
+        };
+      }
+
+      // Build compliance lookup for agents: "agentName:agentVersion" → { ... }
+      const agentComplianceMap = {};
+      for (const info of agentInfos) {
+        agentComplianceMap[`${info.agent_name}:${info.agent_version}`] = {
+          deterministic: info.deterministic_compliance || 'not_evaluated',
+          llm: info.llm_compliance || 'not_evaluated',
+          risk_level: info.risk_level,
         };
       }
 
@@ -360,21 +369,105 @@ const ProjectDetailPage = (() => {
           )
         : [];
 
-      renderAvailableAIs(projectName, modelsWithVersions, agents, panel, complianceMap);
+      // Same for agents
+      const agentsWithVersions = (mlflowAgents && mlflowAgents.length > 0)
+        ? await Promise.all(
+            mlflowAgents.map(async a => {
+              try {
+                const versions = await API.agents.versions(projectName, a.name);
+                return { ...a, all_versions: versions };
+              } catch {
+                return { ...a, all_versions: a.latest_versions || [] };
+              }
+            })
+          )
+        : [];
+
+      renderAvailableAIs(projectName, modelsWithVersions, agentsWithVersions, panel, complianceMap, agentComplianceMap);
     } catch (err) {
       panel.innerHTML = errorHTML(err.message);
     }
   }
 
-  function renderAvailableAIs(projectName, models, agents, panel, complianceMap) {
+  function renderAvailableAIs(projectName, models, agents, panel, complianceMap, agentComplianceMap) {
     panel.innerHTML = `
       ${renderMLModelsSection(projectName, models, complianceMap)}
-      ${renderAvailableAgentsSection(projectName, agents)}
+      ${renderAvailableAgentsSection(projectName, agents, agentComplianceMap)}
       <div id="deploy-status-area"></div>
     `;
     if (models.length > 0) {
       attachModelEvents(projectName, panel, 'available', complianceMap);
     }
+    attachAgentDeployEvents(projectName, panel, agentComplianceMap);
+  }
+
+  function attachAgentDeployEvents(projectName, panel, agentComplianceMap) {
+    // Update compliance badge when the version dropdown changes
+    panel.querySelectorAll('.version-select-agent').forEach(sel => {
+      sel.addEventListener('change', () => {
+        const agentName = sel.dataset.agent;
+        const version = sel.value;
+        const cell = panel.querySelector(`.compliance-cell-agent[data-agent="${agentName}"]`);
+        if (!cell) return;
+        const c = (agentComplianceMap || {})[`${agentName}:${version}`];
+        cell.innerHTML = c
+          ? `${complianceIcon(c.deterministic, 'Det.')} ${complianceIcon(c.llm, 'LLM')}`
+          : `${complianceIcon('not_evaluated', 'Det.')} ${complianceIcon('not_evaluated', 'LLM')}`;
+      });
+    });
+
+    panel.querySelectorAll('.deploy-agent-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const agentName = btn.dataset.agent;
+        const row = btn.closest('tr');
+        const version = row.querySelector(`select.version-select-agent[data-agent="${agentName}"]`).value;
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner spinner-sm"></span>';
+
+        try {
+          const result = await API.agents.deploy(projectName, agentName, version);
+          const taskId = result.task_id || null;
+          btn.innerHTML = 'Deploying…';
+
+          if (taskId) {
+            pollAgentDeployStatus(projectName, taskId, agentName, version, btn);
+          } else {
+            Toast.success(`Deployment started for ${agentName} v${version}`);
+            btn.innerHTML = 'Deploy';
+            btn.disabled = false;
+          }
+        } catch (err) {
+          Toast.error(`Agent deploy failed: ${err.message}`);
+          btn.innerHTML = 'Deploy';
+          btn.disabled = false;
+        }
+      });
+    });
+  }
+
+  function pollAgentDeployStatus(projectName, taskId, agentName, version, btn) {
+    const interval = setInterval(async () => {
+      try {
+        const result = await API.agents.taskStatus(projectName, taskId);
+        const status = result.status || '';
+        if (status === 'completed') {
+          clearInterval(interval);
+          Toast.success(`${agentName} v${version} deployed.`);
+          btn.innerHTML = 'Deployed';
+        } else if (status.startsWith('failed')) {
+          clearInterval(interval);
+          Toast.error(`Deploy failed: ${status}`);
+          btn.innerHTML = 'Deploy';
+          btn.disabled = false;
+        }
+      } catch (err) {
+        clearInterval(interval);
+        Toast.error(`Status poll failed: ${err.message}`);
+        btn.innerHTML = 'Deploy';
+        btn.disabled = false;
+      }
+    }, 3000);
   }
 
   function renderMLModelsSection(projectName, models, complianceMap) {
@@ -415,12 +508,12 @@ const ProjectDetailPage = (() => {
     `;
   }
 
-  function renderAvailableAgentsSection(projectName, agents) {
+  function renderAvailableAgentsSection(projectName, agents, agentComplianceMap) {
     const sectionHeader = `
       <div class="section-toolbar" style="margin-top:24px">
         <div class="section-toolbar-left">
           <span class="section-title">Agentic Models</span>
-          <span class="section-count">${agents.length}</span>
+          <span class="section-count">${(agents || []).length}</span>
         </div>
       </div>`;
 
@@ -431,7 +524,7 @@ const ProjectDetailPage = (() => {
       `;
     }
 
-    const rows = agents.map(a => agentRow(a, projectName)).join('');
+    const rows = agents.map(a => agentRow(a, projectName, agentComplianceMap)).join('');
     return `
       ${sectionHeader}
       <div class="table-wrap">
@@ -439,29 +532,66 @@ const ProjectDetailPage = (() => {
           <thead>
             <tr>
               <th>Agent name</th>
-              <th>Version</th>
-              <th>Risk level</th>
+              <th>Aliases</th>
+              <th>Latest version</th>
+              <th>Registered</th>
+              <th>Version to deploy</th>
               <th>Compliance</th>
+              <th style="text-align:right">Action</th>
             </tr>
           </thead>
-          <tbody>${rows}</tbody>
+          <tbody id="agents-tbody">${rows}</tbody>
         </table>
       </div>
     `;
   }
 
-  function agentRow(a, projectName) {
-    const name    = a.agent_name    || '—';
-    const version = a.agent_version || '—';
-    const risk    = a.risk_level    || '—';
-    const det     = a.deterministic_compliance || 'not_evaluated';
-    const llm     = a.llm_compliance || 'not_evaluated';
+  function agentRow(a, projectName, agentComplianceMap) {
+    const name = a.name || '—';
+
+    const versionObjects = a.all_versions || a.latest_versions || [];
+    const versionNumbers = versionObjects
+      .map(v => (typeof v === 'object' ? v.version : v))
+      .filter(Boolean)
+      .sort((a, b) => Number(b) - Number(a));
+
+    const latest = versionNumbers.length > 0 ? versionNumbers[0] : '—';
+
+    const ts = a.creation_timestamp;
+    const registered = ts ? new Date(ts).toLocaleDateString() : '—';
+
+    const aliases = a.aliases && typeof a.aliases === 'object' ? Object.keys(a.aliases) : (Array.isArray(a.aliases) ? a.aliases : []);
+    const aliasesDisplay = aliases.length > 0 ? aliases.join(', ') : '—';
+
+    const versionOptions = versionNumbers.length > 0
+      ? versionNumbers.map(v => `<option value="${escHtml(String(v))}">${escHtml(String(v))}</option>`).join('')
+      : `<option value="">—</option>`;
+
+    const firstVersion = versionNumbers.length > 0 ? versionNumbers[0] : '';
+    const firstCompliance = (agentComplianceMap || {})[`${name}:${firstVersion}`];
+    const initialBadge = firstCompliance
+      ? `${complianceIcon(firstCompliance.deterministic, 'Det.')} ${complianceIcon(firstCompliance.llm, 'LLM')}`
+      : `${complianceIcon('not_evaluated', 'Det.')} ${complianceIcon('not_evaluated', 'LLM')}`;
+
     return `
       <tr>
         <td class="font-bold">${escHtml(name)}</td>
-        <td class="mono">${escHtml(String(version))}</td>
-        <td>${escHtml(risk)}</td>
-        <td>${complianceIcon(det, 'Det.')} ${complianceIcon(llm, 'LLM')}</td>
+        <td style="font-size:12px;color:var(--text-2)">${escHtml(aliasesDisplay)}</td>
+        <td class="mono">${escHtml(String(latest))}</td>
+        <td>${escHtml(registered)}</td>
+        <td>
+          <select class="form-select version-select-agent" style="width:90px;padding:4px 28px 4px 8px;" data-agent="${escHtml(name)}">
+            ${versionOptions}
+          </select>
+        </td>
+        <td class="compliance-cell-agent" data-agent="${escHtml(name)}">${initialBadge}</td>
+        <td class="actions">
+          <button class="btn btn-primary btn-sm deploy-agent-btn"
+                  data-agent="${escHtml(name)}"
+                  data-project="${escHtml(projectName)}">
+            Deploy
+          </button>
+        </td>
       </tr>
     `;
   }
@@ -727,6 +857,26 @@ const ProjectDetailPage = (() => {
         }
       });
     });
+
+    panel.querySelectorAll('.undeploy-agent-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const agentName = btn.dataset.agent;
+        const version   = btn.dataset.version;
+        const ok = await Modal.confirm({
+          title: 'Undeploy Agent',
+          message: `Undeploy <strong>${agentName}</strong> v${version}?`,
+          confirmLabel: 'Undeploy',
+          danger: true,
+        });
+        if (ok) {
+          try {
+            await API.agents.undeploy(projectName, agentName, version);
+            Toast.success(`${agentName} v${version} undeployed.`);
+            loadDeployed(projectName, panel);
+          } catch (err) { Toast.error(err.message); }
+        }
+      });
+    });
   }
 
   function renderDeployedMLSection(projectName, models) {
@@ -806,16 +956,28 @@ const ProjectDetailPage = (() => {
     }
 
     const rows = agents.map(a => {
-      const name       = a.name || a.agent_name || '—';
-      const version    = a.version || a.agent_version || '—';
-      const status     = a.status || 'unknown';
-      const deployDate = a.deployment_date ? new Date(a.deployment_date).toLocaleDateString() : '—';
+      const name        = a.model_name      || a.name || a.agent_name || '—';
+      const version     = a.model_version   || a.version || a.agent_version || '—';
+      const status      = a.status          || 'unknown';
+      const deployName  = a.deployment_name || '—';
+      const deployDate  = a.deployment_date ? new Date(a.deployment_date).toLocaleDateString() : '—';
+      const baseUrl     = buildDashboardUrl(projectName, deployName);
+      const endpointUrl = baseUrl ? `${baseUrl}/agent_predict` : '';
+      const dashUrl     = a.dashboard_url || baseUrl;
       return `
         <tr>
           <td class="font-bold">${escHtml(name)}</td>
           <td class="mono">${escHtml(String(version))}</td>
           <td>${escHtml(deployDate)}</td>
+          <td>${endpointUrl ? `<a href="${escHtml(endpointUrl)}" target="_blank" rel="noopener" style="color:var(--cyan);font-size:12px;font-family:var(--font-mono)">${escHtml(endpointUrl)}</a>` : '—'}</td>
+          <td class="mono">${escHtml(deployName)}</td>
           <td>${statusBadge(status)}</td>
+          <td class="actions">
+            <div class="flex gap-2 justify-end">
+              ${dashUrl ? `<a href="${escHtml(dashUrl)}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Dashboard</a>` : ''}
+              <button class="btn btn-danger btn-sm undeploy-agent-btn" data-agent="${escHtml(name)}" data-version="${escHtml(String(version))}">Undeploy</button>
+            </div>
+          </td>
         </tr>`;
     }).join('');
 
@@ -823,7 +985,7 @@ const ProjectDetailPage = (() => {
       ${sectionHeader}
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Agent</th><th>Version</th><th>Deployed on</th><th>Status</th></tr></thead>
+          <thead><tr><th>Agent</th><th>Version</th><th>Deployed on</th><th>Endpoint</th><th>Deployment name</th><th>Status</th><th style="text-align:right">Actions</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>`;

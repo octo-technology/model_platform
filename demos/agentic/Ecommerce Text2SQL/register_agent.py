@@ -22,7 +22,7 @@ sys.path.insert(0, _DEMO_DIR)
 from config import MAMMOUTH_AGENT_MODEL, MAMMOUTH_REFLECT_MODEL  # noqa: E402
 
 MODEL_NAME = "ecommerce_text2sql"
-EXPERIMENT_NAME = "agents"
+EXPERIMENT_NAME = "ecommerce_text2sql_exp"
 
 PIP_REQUIREMENTS = [
     "mlflow>=3.0",
@@ -41,15 +41,13 @@ def main() -> None:
         f"http://model-platform.com/registry/{project_name}/",
     )
 
-    print(f"MLflow tracking URI : {tracking_uri}", flush=True)
     mlflow.set_tracking_uri(tracking_uri)
-    print("Setting experiment...", flush=True)
     mlflow.set_experiment(EXPERIMENT_NAME)
-    print("Experiment set", flush=True)
+    print(f"MLflow tracking URI : {tracking_uri}", flush=True)
 
     with mlflow.start_run(run_name=f"register-{MODEL_NAME}") as run:
         logged = mlflow.pyfunc.log_model(
-            name="agent",
+            name=MODEL_NAME,
             python_model=os.path.join(_DEMO_DIR, "agent.py"),
             code_paths=[
                 os.path.join(_DEMO_DIR, f)
@@ -64,7 +62,6 @@ def main() -> None:
                 ]
             ],
             pip_requirements=PIP_REQUIREMENTS,
-            input_example={"input": [{"role": "user", "content": "Salut comment ca va ?"}]},
         )
         print(f"Logged model URI: {logged.model_uri}")
         print(f"Run ID: {run.info.run_id}")

@@ -143,6 +143,15 @@ const API = (() => {
         }),
     },
 
+    // ── Agents (registry + deploy / undeploy) ───────────────────
+    agents: {
+      list:       (proj) => get(`/${proj}/agents/list`),
+      versions:   (proj, agent) => get(`/${proj}/agents/${agent}/versions`),
+      deploy:     (proj, agent, ver) => get(`/${proj}/agents/deploy/${agent}/${ver}`),
+      undeploy:   (proj, agent, ver) => get(`/${proj}/agents/undeploy/${agent}/${ver}`),
+      taskStatus: (proj, taskId) => get(`/${proj}/agents/task-status/${taskId}`),
+    },
+
     // ── Deployed agents (live agentic deployments) ──────────────
     deployedAgents: {
       list: (proj) => get(`/${proj}/deployed_agents/list`),
