@@ -77,7 +77,6 @@ def main() -> None:
     )
 
     mlflow.set_tracking_uri(tracking_uri)
-    print("Setting experiment...", flush=True)
     mlflow.set_experiment(EXPERIMENT_NAME)
     print(f"MLflow tracking URI : {tracking_uri}", flush=True)
 
