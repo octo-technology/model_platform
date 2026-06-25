@@ -6,6 +6,8 @@ AgentInfo DB. Compliance metadata (risk_level, act_review, etc.) is then
 managed through the AgentInfoDbHandler.
 """
 
+import json
+
 from loguru import logger
 
 from backend.domain.entities.agent_info import AgentInfo, AgentTool
@@ -34,14 +36,20 @@ def _extract_risk_level(tags: dict) -> str | None:
 
 
 def _parse_tools(tools_raw) -> list[AgentTool]:
-    """Best-effort parse: tools may come as a JSON string in a tag, or a list."""
+    """Best-effort parse: tools may come as a list, a JSON string, or a comma-separated string."""
     if not tools_raw:
         return []
     if isinstance(tools_raw, list):
         return [AgentTool(**t) if isinstance(t, dict) else AgentTool(name=str(t)) for t in tools_raw]
     if isinstance(tools_raw, str):
-        # comma-separated tool names is the simplest convention
-        return [AgentTool(name=t.strip()) for t in tools_raw.split(",") if t.strip()]
+        stripped = tools_raw.strip()
+        if stripped.startswith("["):
+            try:
+                parsed = json.loads(stripped)
+                return _parse_tools(parsed)
+            except json.JSONDecodeError:
+                logger.warning(f"Could not parse tools JSON tag: {stripped[:80]}")
+        return [AgentTool(name=t.strip()) for t in stripped.split(",") if t.strip()]
     return []
 
 
