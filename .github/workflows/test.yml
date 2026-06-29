@@ -183,7 +183,7 @@ jobs:
           echo "=== All Events ==="
           kubectl get events --all-namespaces --sort-by=.metadata.creationTimestamp | tail -50
           echo "=== Backend Pod logs ==="
-          kubectl logs -n model-platform -l app=backend --tail=100 || true
+          kubectl logs -n model-platform -l app=backend --tail=2000 || true
           echo "=== Backend Pod describe ==="
           kubectl describe pod -n model-platform -l app=backend || true
           echo "=== Nginx Pod logs ==="
@@ -314,7 +314,7 @@ jobs:
           echo "=== All Events ==="
           kubectl get events --all-namespaces --sort-by=.metadata.creationTimestamp | tail -50
           echo "=== Backend Pod logs ==="
-          kubectl logs -n model-platform -l app=backend --tail=100 || true
+          kubectl logs -n model-platform -l app=backend --tail=2000 || true
           echo "=== Backend Pod describe ==="
           kubectl describe pod -n model-platform -l app=backend || true
           echo "=== Nginx Pod logs ==="
