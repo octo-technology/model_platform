@@ -26,6 +26,8 @@ class K8SRegistryDeployment(RegistryDeployment, K8SDeployment):
         self.mlflow_s3_endpoint_url = os.environ["MLFLOW_S3_ENDPOINT_URL"]
         self.pgsql_cluster_host = os.environ["POSTGRES_HOST"]
         self.mlflow_db_name = self.project_name.replace("-", "_")
+        mlflow_image = os.environ.get("MLFLOW_IMAGE", "ghcr.io/octo-technology/model-platform/mlflow")
+        self.mlflow_image = f"{mlflow_image}:{os.environ.get('IMAGE_TAG', 'latest')}"
 
     def create_registry_deployment(self):
         self._create_or_update_namespace()
@@ -81,7 +83,7 @@ class K8SRegistryDeployment(RegistryDeployment, K8SDeployment):
                         containers=[
                             client.V1Container(
                                 name="mlflow",
-                                image="ghcr.io/octo-technology/model-platform/mlflow:latest",
+                                image=self.mlflow_image,
                                 image_pull_policy=os.environ.get("MLFLOW_IMAGE_PULL_POLICY", "Always"),
                                 ports=[client.V1ContainerPort(container_port=self.port)],
                                 env=[
