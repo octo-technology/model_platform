@@ -278,8 +278,7 @@ jobs:
         run: |
           make k8s-infra
           make create-backend-secret POSTGRES_PWD=your_postgres_password JWT_SECRET="ask for the JWT secret" ADMIN_EMAIL=alice@example.com ADMIN_PWD=pass!
-          kubectl apply -f infrastructure/k8s/backend-configmap.yaml
-          kubectl patch configmap backend-config -n model-platform --type merge -p "{\"data\":{\"IMAGE_TAG\":\"${IMAGE_TAG}\"}}"
+          sed -i "s|IMAGE_TAG: \"latest\"|IMAGE_TAG: \"${IMAGE_TAG}\"|" infrastructure/k8s/backend-configmap.yaml
           make k8s-modelplatform IMAGE_TAG=${IMAGE_TAG}
 
       - name: Wait for backend to be ready
