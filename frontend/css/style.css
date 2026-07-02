@@ -4858,6 +4858,32 @@ mark.search-mark {
   white-space: nowrap;
 }
 
+.kind-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+.kind-badge-model {
+  background: var(--status-blue-dim, rgba(59,130,246,0.12));
+  color: var(--status-blue-light, #60a5fa);
+  border: 1px solid rgba(59,130,246,0.22);
+}
+
+.kind-badge-agent {
+  background: var(--status-purple-dim, rgba(168,85,247,0.12));
+  color: var(--status-purple-light, #c084fc);
+  border: 1px solid rgba(168,85,247,0.22);
+}
+
 .model-row-version {
   font-size: 11px;
   color: var(--text-2);

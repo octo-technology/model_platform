@@ -29,7 +29,7 @@ const MonitoringPage = (() => {
       <div class="page-header">
         <div class="page-title-group">
           <div class="page-eyebrow">Live Operations</div>
-          <h1 class="page-title">Model Fleet Monitoring</h1>
+          <h1 class="page-title">Fleet Monitoring</h1>
         </div>
         <div class="page-header-meta">
           <div class="status-badge status-badge-live"><span class="status-pulse"></span>Live</div>
@@ -244,7 +244,10 @@ const MonitoringPage = (() => {
                     <div class="model-row model-row-${hasMetrics ? st : 'unknown'}">
                       <div class="model-row-header">
                         <div class="model-row-info">
-                          <div class="model-row-name">${escHtml(m.name)}</div>
+                          <div class="model-row-name">
+                            ${escHtml(m.name)}
+                            <span class="kind-badge kind-badge-${m.kind === 'agent' ? 'agent' : 'model'}">${m.kind === 'agent' ? 'Agent' : 'Model'}</span>
+                          </div>
                           <div class="model-row-version">v${m.version}</div>
                         </div>
                         <div class="model-row-actions">
@@ -299,7 +302,7 @@ const MonitoringPage = (() => {
     // 1. Get projects the current user has access to
     const projects = await API.projects.list();
 
-    // 2. For each project, fetch its deployed models
+    // 2. For each project, fetch its deployed models and deployed agents
     const allModels = [];
     await Promise.all(projects.map(async (project) => {
       const projectName = project.name;
@@ -314,14 +317,33 @@ const MonitoringPage = (() => {
             deployment_name: d.deployment_name,
             status: d.status,
             dashboard_url: d.dashboard_url,
+            kind: 'model',
           });
         });
       } catch (err) {
         console.warn(`Could not fetch deployments for project ${projectName}: ${err.message}`);
       }
+
+      try {
+        const agentDeployments = await API.deployedAgents.list(projectName);
+        agentDeployments.forEach(d => {
+          allModels.push({
+            id: d.deployment_name,
+            name: d.model_name,
+            version: d.version || 1,
+            project: projectName,
+            deployment_name: d.deployment_name,
+            status: d.status,
+            dashboard_url: d.dashboard_url,
+            kind: 'agent',
+          });
+        });
+      } catch (err) {
+        console.warn(`Could not fetch agent deployments for project ${projectName}: ${err.message}`);
+      }
     }));
 
-    console.log(`Fetched ${allModels.length} deployed models across ${projects.length} projects.`);
+    console.log(`Fetched ${allModels.length} deployed models/agents across ${projects.length} projects.`);
     return allModels;
   }
 
