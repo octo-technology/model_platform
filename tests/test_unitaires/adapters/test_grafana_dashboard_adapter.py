@@ -108,6 +108,51 @@ def test_create_dashboard_job_filter_logic(adapter, mock_k8s_client):
     )
 
 
+def test_create_dashboard_agent_uses_agent_template(adapter, mock_k8s_client):
+    """Agents must render the /agent_predict template into a dedicated folder."""
+    mock_k8s_client.read_namespaced_config_map.side_effect = ApiException(status=404)
+
+    adapter.create_dashboard(
+        project_name="test-project",
+        model_name="test-agent",
+        version="v1",
+        service_name="test-service",
+        dashboard_uid="test-project-test-agent-v1-abc123",
+        is_agent=True,
+    )
+
+    call_args = mock_k8s_client.create_namespaced_config_map.call_args
+    configmap = call_args[1]["body"]
+    assert configmap.metadata.annotations["grafana_folder"] == "Agent Monitoring"
+
+    cm_body = configmap.data
+    dashboard_json = json.loads(cm_body["test-project-test-agent-v1-abc123.json"])
+    assert dashboard_json["title"] == "Agent: test-project/test-agent:v1"
+
+    http_exprs = [
+        tgt.get("expr", "")
+        for panel in dashboard_json.get("panels", [])
+        for tgt in panel.get("targets", [])
+        if "http_server_duration_milliseconds_count" in tgt.get("expr", "")
+    ]
+    assert http_exprs, "expected at least one HTTP panel"
+    # Real http_target is ROOT_PATH-prefixed (/deploy/<ns>/<svc>/agent_predict),
+    # so the dashboard must suffix-match it rather than use an exact path.
+    assert all('http_target=~".*/agent_predict"' in expr for expr in http_exprs)
+    assert all('http_target="/predict"' not in expr for expr in http_exprs)
+
+    # Business metrics (tokens/tool calls/cost) must be scoped to this deployment
+    # via the same job filter the HTTP metrics get.
+    agent_exprs = [
+        tgt.get("expr", "")
+        for panel in dashboard_json.get("panels", [])
+        for tgt in panel.get("targets", [])
+        if "agent_tokens_total" in tgt.get("expr", "") or "agent_tool_calls_total" in tgt.get("expr", "")
+    ]
+    assert agent_exprs, "expected at least one agent business panel"
+    assert all('job="test-service"' in expr for expr in agent_exprs)
+
+
 def test_delete_dashboard_removes_configmap(adapter, mock_k8s_client):
     result = adapter.delete_dashboard(
         project_name="test-project",

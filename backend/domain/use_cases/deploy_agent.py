@@ -51,7 +51,9 @@ def deploy_agent(
             EVENT_LOGGER.add_event(
                 Event(action=deploy_agent.__name__, user=current_user, entity=agent_deployment), project_name
             )
-            dashboard_handler.create_dashboard(project_name, agent_name, version, deployment_name, dashboard_uid)
+            dashboard_handler.create_dashboard(
+                project_name, agent_name, version, deployment_name, dashboard_uid, is_agent=True
+            )
         elif build_status == 0:
             logger.error(f"Docker build failed for agent {project_name}/{agent_name}:{version}")
     else:

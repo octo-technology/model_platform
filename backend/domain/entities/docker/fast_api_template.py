@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 from fastapi import FastAPI, File, HTTPException, Request, Response, UploadFile
 from loguru import logger
+from mlflow.entities import SpanType
 from opentelemetry import metrics, trace
 from opentelemetry.exporter.prometheus import PrometheusMetricReader
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
@@ -178,12 +179,16 @@ async def agent_predict(request: Request):
         with tracer.start_as_current_span("agent_inference"):
             response = model.predict(body)
 
+        _agent_invocations.add(1, {"status": "success"})
+        _record_agent_metrics_from_last_trace()
+
         if hasattr(response, "model_dump"):
             return response.model_dump()
         if hasattr(response, "tolist"):
             return response.tolist()
         return response
     except Exception as e:
+        _agent_invocations.add(1, {"status": "error"})
         logger.exception("Agent prediction failed")
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -206,6 +211,86 @@ resource = Resource.create(attributes={SERVICE_NAME: f"model-platform-{image_nam
 reader = PrometheusMetricReader()
 metric_provider = MeterProvider(resource=resource, metric_readers=[reader])
 metrics.set_meter_provider(metric_provider)
+
+# ---------------------------------------------------------------------------
+# Agent business metrics — bridge MLflow trace → OTel metrics → Prometheus
+# ---------------------------------------------------------------------------
+# Agents emit a rich MLflow trace per call (mlflow.langchain.autolog). The basic
+# HTTP instrumentation can't see token usage / tool calls / cost, so after each
+# /agent_predict we read the trace just produced and turn it into OTel counters,
+# exported on the same /metrics endpoint Prometheus already scrapes.
+# Counters are created without the "_total" suffix — the Prometheus exporter
+# appends it (e.g. agent_tokens -> agent_tokens_total).
+_agent_meter = metrics.get_meter("model_platform.agent_metrics")
+_agent_invocations = _agent_meter.create_counter(
+    "agent_invocations", description="Agent invocations, by outcome status."
+)
+_agent_tokens = _agent_meter.create_counter(
+    "agent_tokens", description="LLM tokens consumed by the agent, by token type."
+)
+_agent_cost = _agent_meter.create_counter(
+    "agent_cost_usd", description="Estimated LLM cost in USD, from the MLflow trace."
+)
+_agent_llm_calls = _agent_meter.create_counter(
+    "agent_llm_calls", description="LLM / chat-model spans, summed per agent run."
+)
+_agent_tool_calls = _agent_meter.create_counter("agent_tool_calls", description="Tool spans, by tool name.")
+
+
+def _record_agent_metrics_from_last_trace() -> None:
+    """Translate the MLflow trace from the last agent call into OTel metrics.
+
+    Best-effort: any failure is logged and swallowed so that monitoring never
+    breaks the agent response. Relies on the global last-active trace, which is
+    safe here because model.predict() runs synchronously (one at a time).
+    """
+    try:
+        trace_id = mlflow.get_last_active_trace_id()
+        if not trace_id:
+            logger.debug("No active MLflow trace id; skipping agent metrics")
+            return
+        # autolog writes the trace asynchronously; flush=True waits for those
+        # pending writes, otherwise the span data reads back as corrupted/None.
+        mlflow_trace = mlflow.get_trace(trace_id, flush=True)
+        if mlflow_trace is None:
+            return
+
+        usage = getattr(mlflow_trace.info, "token_usage", None) or {}
+        input_tokens = usage.get("input_tokens")
+        output_tokens = usage.get("output_tokens")
+        if input_tokens:
+            _agent_tokens.add(input_tokens, {"token_type": "input"})
+        if output_tokens:
+            _agent_tokens.add(output_tokens, {"token_type": "output"})
+
+        # In MLflow 3.x, trace.info.cost is a dict ({input_cost, output_cost,
+        # total_cost}), not a scalar. float() on a dict raises TypeError, which
+        # would abort the span loop below (losing llm/tool call metrics), so we
+        # extract total_cost defensively before converting.
+        cost = getattr(mlflow_trace.info, "cost", None)
+        if isinstance(cost, dict):
+            cost = cost.get("total_cost")
+        if cost:
+            _agent_cost.add(float(cost))
+
+        spans = mlflow_trace.data.spans if mlflow_trace.data else []
+        llm_calls = 0
+        for span in spans:
+            span_type = span.span_type
+            if span_type == SpanType.TOOL:
+                _agent_tool_calls.add(1, {"tool": span.name or "unknown"})
+            elif span_type in (SpanType.LLM, SpanType.CHAT_MODEL):
+                llm_calls += 1
+        if llm_calls:
+            _agent_llm_calls.add(llm_calls)
+
+        logger.info(
+            f"Agent metrics recorded: input_tokens={input_tokens}, "
+            f"output_tokens={output_tokens}, llm_calls={llm_calls}, cost={cost}"
+        )
+    except Exception as e:
+        logger.warning(f"Failed to record agent metrics from MLflow trace: {e}")
+
 
 # Tracer exporter
 zipkin_endpoint = os.getenv("ZIPKIN_ENDPOINT")
