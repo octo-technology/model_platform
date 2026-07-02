@@ -135,6 +135,8 @@ const API = (() => {
     // ── Agent Infos (compliance metadata for agentic models) ────
     agentInfos: {
       listForProject: (projectName) => get(`/agent_infos/${enc(projectName)}/list`),
+      get: (projectName, agentName, version) =>
+        get(`/agent_infos/${enc(projectName)}/${enc(agentName)}/${enc(version)}`),
       aiActCard: (projectName, agentName, version) =>
         get(`/agent_infos/${enc(projectName)}/${enc(agentName)}/${enc(version)}/ai_act_card`),
       acceptRiskLevel: (projectName, agentName, version, riskLevel) =>

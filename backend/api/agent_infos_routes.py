@@ -16,6 +16,7 @@ from backend.domain.ports.user_handler import UserHandler
 from backend.domain.use_cases.agent_info_usecases import search_agent_infos
 from backend.domain.use_cases.auth_usecases import get_current_user, get_user_adapter
 from backend.domain.use_cases.user_usecases import user_can_perform_action_for_project
+from backend.infrastructure.agent_info_sqlite_db_handler import AgentInfoDoesntExistError
 
 router = APIRouter()
 
@@ -45,6 +46,28 @@ def list_for_project(
     )
     agents = db_handler.list_agent_infos_for_project(project_name)
     return JSONResponse(content=[a.to_json() for a in agents])
+
+
+@router.get("/{project_name}/{agent_name}/{agent_version}")
+def get_agent_info(
+    project_name: str,
+    agent_name: str,
+    agent_version: str,
+    db_handler: AgentInfoDbHandler = Depends(get_agent_info_db_handler),
+    current_user: dict = Depends(get_current_user),
+    user_adapter: UserHandler = Depends(get_user_adapter),
+) -> JSONResponse:
+    user_can_perform_action_for_project(
+        current_user,
+        project_name=project_name,
+        action_name=inspect.currentframe().f_code.co_name,
+        user_adapter=user_adapter,
+    )
+    try:
+        agent = db_handler.get_agent_info(agent_name, agent_version, project_name)
+    except AgentInfoDoesntExistError:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    return JSONResponse(content=agent.to_json())
 
 
 @router.post("/{project_name}/{agent_name}/{agent_version}/accept_risk_level")
