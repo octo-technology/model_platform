@@ -1688,6 +1688,37 @@ tbody td.actions {
   flex-shrink: 0;
 }
 
+/* Distinguishes agent results from model results in search */
+.kind-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.kind-badge-model {
+  color: var(--text-2);
+  background: var(--bg-2);
+  border: 1px solid var(--border-1);
+}
+
+.kind-badge-agent {
+  color: var(--cyan);
+  background: rgba(0,163,190,0.12);
+  border: 1px solid rgba(0,163,190,0.28);
+}
+
+.search-result-card-clickable {
+  cursor: pointer;
+}
+
+.search-result-card-clickable:hover {
+  border-color: rgba(0,163,190,0.4);
+}
+
 .search-result-project-link {
   display: inline-flex;
   align-items: center;

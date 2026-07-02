@@ -134,6 +134,11 @@ const API = (() => {
 
     // ── Agent Infos (compliance metadata for agentic models) ────
     agentInfos: {
+      search: (query, projectName) => {
+        let url = `/agent_infos/search?query=${enc(query)}`;
+        if (projectName) url += `&project_name=${enc(projectName)}`;
+        return get(url);
+      },
       listForProject: (projectName) => get(`/agent_infos/${enc(projectName)}/list`),
       get: (projectName, agentName, version) =>
         get(`/agent_infos/${enc(projectName)}/${enc(agentName)}/${enc(version)}`),
