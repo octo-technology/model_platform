@@ -2,7 +2,16 @@
 
 Subclass of K8SModelDeployment that injects the env vars needed by agents:
 - MLFLOW_TRACKING_URI: so mlflow.langchain.autolog can send traces back
-- MAMMOUTH_API_KEY / DB config: hardcoded MVP defaults (move to K8s Secret later)
+- Non-secret deployment config (LLM base URL/model names, target DB host, ...):
+  read from AgentInfo.env_vars, itself synced from the `deployment_env` MLflow tag
+  set at agent registration (see register_agent.py and agent_info_usecases.py).
+- Secrets (API keys, passwords): NEVER stored in code, DB, or MLflow tags. Passed in
+  at deploy time (CLI/API `secret_values`) and pushed straight to a K8s Secret named
+  `<project>-<agent>-secrets` via the Kubernetes API — this class never persists them
+  anywhere else. If no `secret_values` are given (e.g. redeploying an existing agent),
+  the existing Secret is left untouched. The Secret is referenced via envFrom with
+  optional=True, so a deployment still succeeds (with those env vars simply absent)
+  if it doesn't exist yet.
 """
 
 import time
@@ -13,29 +22,50 @@ from loguru import logger
 
 from backend.infrastructure.k8s_model_deployment_adapter import K8SModelDeployment
 
-# MVP-only hardcoded values. Move to K8s Secret in the project namespace later.
-_MVP_HARDCODED_ENV = {
-    "MAMMOUTH_API_KEY": "sk-4bMRoytWgpbwF0lp2Hs94w",
-    "MAMMOUTH_BASE_URL": "https://api.mammouth.ai/v1",
-    "MAMMOUTH_AGENT_MODEL": "gpt-4.1",
-    "MAMMOUTH_REFLECT_MODEL": "codestral-2508",
-    "MAMMOUTH_TEMPERATURE": "0",
-    # Pointer to the e-commerce Postgres running on the host machine.
-    # `host.minikube.internal` resolves to the host's IP from inside a minikube pod.
-    "PG_HOST": "host.minikube.internal",
-    "PG_PORT": "5432",
-    "PG_DB": "ecommerce",
-    "PG_USER": "chatbot",
-    "PG_PASSWORD": "chatbot",
-}
-
 
 class K8SAgentDeployment(K8SModelDeployment):
     """K8s deployment for an agent. Reuses the ML deployment pattern but
     overrides the deployment spec to inject agent-specific env vars."""
 
+    def __init__(
+        self,
+        project_name: str,
+        model_name: str,
+        model_version: str,
+        dashboard_uid: str,
+        env_vars: dict[str, str] | None = None,
+        secret_values: dict[str, str] | None = None,
+    ):
+        super().__init__(project_name, model_name, model_version, dashboard_uid)
+        self.env_vars = env_vars or {}
+        self.secret_values = secret_values or {}
+        self.secret_name = f"{self.project_name}-{self.model_name}-secrets"
+
+    def _create_or_update_secret(self):
+        """Push secret_values straight to a K8s Secret — never persisted anywhere else.
+
+        Called only when secret_values were actually provided at deploy time; if the
+        caller didn't pass any (e.g. redeploying an existing agent), any Secret already
+        present in the namespace is left untouched."""
+        secret = client.V1Secret(
+            metadata=client.V1ObjectMeta(name=self.secret_name),
+            string_data=self.secret_values,
+        )
+        try:
+            self.service_api_instance.read_namespaced_secret(self.secret_name, self.namespace)
+            self.service_api_instance.replace_namespaced_secret(self.secret_name, self.namespace, secret)
+            logger.info(f"✅ Secret {self.secret_name} updated")
+        except ApiException as e:
+            if e.status == 404:
+                self.service_api_instance.create_namespaced_secret(self.namespace, secret)
+                logger.info(f"✅ Secret {self.secret_name} created")
+            else:
+                logger.error(f"⚠️ Error while creating/updating secret {self.secret_name}: {e}")
+
     def _create_model_service_deployment(self):
         """Same shape as parent but with additional env vars for agents."""
+        if self.secret_values:
+            self._create_or_update_secret()
         mlflow_tracking_uri = f"http://{self.namespace}.{self.namespace}.svc.cluster.local:5000"
 
         env_vars = [
@@ -45,8 +75,9 @@ class K8SAgentDeployment(K8SModelDeployment):
             ),
             client.V1EnvVar(name="MLFLOW_TRACKING_URI", value=mlflow_tracking_uri),
         ]
-        for key, value in _MVP_HARDCODED_ENV.items():
+        for key, value in self.env_vars.items():
             env_vars.append(client.V1EnvVar(name=key, value=value))
+        env_from = [client.V1EnvFromSource(secret_ref=client.V1SecretEnvSource(name=self.secret_name, optional=True))]
 
         deployment = client.V1Deployment(
             metadata=client.V1ObjectMeta(
@@ -74,6 +105,7 @@ class K8SAgentDeployment(K8SModelDeployment):
                                 image_pull_policy="IfNotPresent",
                                 ports=[client.V1ContainerPort(container_port=self.port)],
                                 env=env_vars,
+                                env_from=env_from,
                             )
                         ],
                         restart_policy="Always",

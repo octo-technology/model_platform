@@ -154,7 +154,8 @@ const API = (() => {
     agents: {
       list:       (proj) => get(`/${proj}/agents/list`),
       versions:   (proj, agent) => get(`/${proj}/agents/${agent}/versions`),
-      deploy:     (proj, agent, ver) => get(`/${proj}/agents/deploy/${agent}/${ver}`),
+      deploy:     (proj, agent, ver, secrets = {}) =>
+        post(`/${proj}/agents/deploy/${agent}/${ver}`, { body: { secrets } }),
       undeploy:   (proj, agent, ver) => get(`/${proj}/agents/undeploy/${agent}/${ver}`),
       taskStatus: (proj, taskId) => get(`/${proj}/agents/task-status/${taskId}`),
     },

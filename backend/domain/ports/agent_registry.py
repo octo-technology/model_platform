@@ -42,3 +42,12 @@ class AgentRegistry(ABC):
           - run_tags: dict[str, str]
         """
         pass
+
+    @abstractmethod
+    def get_deployment_config(self, agent_name: str, agent_version: str) -> dict[str, str]:
+        """Return the `deployment_config.json` artifact for this specific run/version, or {}.
+
+        Non-secret env vars only (LLM base URL/model names, target DB host/port/name).
+        Per-version (unlike registered-model tags, which are shared across all versions),
+        so different versions of the same agent can point at different infra."""
+        pass

@@ -433,11 +433,14 @@ const ProjectDetailPage = (() => {
         const row = btn.closest('tr');
         const version = row.querySelector(`select.version-select-agent[data-agent="${agentName}"]`).value;
 
+        const secrets = await openAgentSecretsModal(agentName, version);
+        if (secrets === null) return; // user cancelled the deploy entirely
+
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner spinner-sm"></span>';
 
         try {
-          const result = await API.agents.deploy(projectName, agentName, version);
+          const result = await API.agents.deploy(projectName, agentName, version, secrets);
           const taskId = result.task_id || null;
           btn.innerHTML = 'Deploying…';
 
@@ -453,6 +456,56 @@ const ProjectDetailPage = (() => {
           btn.innerHTML = 'Deploy';
           btn.disabled = false;
         }
+      });
+    });
+  }
+
+  // Prompts for secret env vars (LLM API key, DB password, ...) to push to the
+  // agent's K8s Secret at deploy time. Never sent anywhere but this one deploy
+  // call — the platform does not persist these values. Leave blank when
+  // redeploying an agent whose Secret already exists in-cluster.
+  // Resolves to a {KEY: value} object, or `null` if the user cancelled the deploy.
+  function openAgentSecretsModal(agentName, version) {
+    return new Promise(resolve => {
+      const { close } = Modal.open({
+        title: `Deploy ${agentName} v${version}`,
+        body: `
+          <p style="color:var(--text-2);font-size:13px;line-height:1.6;margin-bottom:12px;">
+            Optional: secrets (LLM API key, DB password…) for this agent, one <code>KEY=value</code> per line.
+            Pushed straight to a K8s Secret — never stored by the platform. Leave blank to keep the
+            existing Secret (e.g. when redeploying a new version of an already-configured agent).
+          </p>
+          <div class="form-group">
+            <textarea class="form-input" id="agent-secrets-input" rows="4" style="resize:vertical;font-family:monospace"
+              placeholder="MAMMOUTH_API_KEY=sk-...&#10;PG_PASSWORD=..."></textarea>
+          </div>
+          <p id="agent-secrets-error" style="color:var(--red-light);font-size:12px;display:none;"></p>
+        `,
+        footer: `
+          <button class="btn btn-secondary" id="modal-cancel">Cancel</button>
+          <button class="btn btn-primary" id="modal-deploy">Deploy</button>
+        `,
+        onClose: () => resolve(null),
+      });
+
+      document.getElementById('modal-cancel').addEventListener('click', () => { close(); resolve(null); });
+      document.getElementById('modal-deploy').addEventListener('click', () => {
+        const raw = document.getElementById('agent-secrets-input').value;
+        const secrets = {};
+        for (const line of raw.split('\n')) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
+          const eq = trimmed.indexOf('=');
+          if (eq <= 0) {
+            document.getElementById('agent-secrets-error').textContent =
+              `Invalid line (expected KEY=value): "${trimmed}"`;
+            document.getElementById('agent-secrets-error').style.display = 'block';
+            return;
+          }
+          secrets[trimmed.slice(0, eq).trim()] = trimmed.slice(eq + 1).trim();
+        }
+        close();
+        resolve(secrets);
       });
     });
   }
