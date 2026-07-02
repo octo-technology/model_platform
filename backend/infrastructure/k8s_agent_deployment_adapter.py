@@ -3,8 +3,11 @@
 Subclass of K8SModelDeployment that injects the env vars needed by agents:
 - MLFLOW_TRACKING_URI: so mlflow.langchain.autolog can send traces back
 - Non-secret deployment config (LLM base URL/model names, target DB host, ...):
-  read from AgentInfo.env_vars, itself synced from the `deployment_env` MLflow tag
-  set at agent registration (see register_agent.py and agent_info_usecases.py).
+  read via AgentRegistry.get_deployment_config from the per-version `deployment_config.json`
+  artifact logged at registration (see register_agent.py and mlflow_agent_registry_adapter.py).
+  Deliberately NOT read from the platform DB (AgentInfo) — that entity is for L2
+  governance/visibility, and config here needs to vary per version, not be shared
+  across all versions of an agent the way registered-model tags are.
 - Secrets (API keys, passwords): NEVER stored in code, DB, or MLflow tags. Passed in
   at deploy time (CLI/API `secret_values`) and pushed straight to a K8s Secret named
   `<project>-<agent>-secrets` via the Kubernetes API — this class never persists them
