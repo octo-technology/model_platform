@@ -98,10 +98,14 @@ create-backend-secret:
 	@echo "\nOnce the monitoring chart is installed (via make k8s-infra), get Grafana admin password with:"
 	@echo "  kubectl --namespace monitoring get secrets kube-prometheus-stack-grafana -o jsonpath=\"{.data.admin-password}\" | base64 -d ; echo"
 
+k8s-mlflow-local:
+	minikube image build -t ghcr.io/octo-technology/model-platform/mlflow:latest infrastructure/registry/
+
 k8s-backend-local:
 	eval $$(minikube docker-env) && \
 	docker build -t model-platform-backend:local -f backend/Dockerfile .
 	kubectl apply -f infrastructure/k8s/backend-configmap.yaml
+	kubectl patch configmap backend-config -n model-platform --type=merge -p '{"data":{"MLFLOW_IMAGE_PULL_POLICY":"IfNotPresent"}}'
 	@if [ -f infrastructure/k8s/backend-secret.yaml ]; then \
 		kubectl apply -f infrastructure/k8s/backend-secret.yaml; \
 	else \
@@ -129,7 +133,7 @@ k8s-infra: k8s-network-conf k8s-pgsql k8s-monitoring
 
 k8s-modelplatform: k8s-backend k8s-frontend
 
-k8s-modelplatform-local:  k8s-frontend-local k8s-backend-local
+k8s-modelplatform-local: k8s-mlflow-local k8s-frontend-local k8s-backend-local
 
 dev-back:
 	uv run python -m backend

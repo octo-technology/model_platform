@@ -23,11 +23,13 @@ def _make_model_info(**kwargs):
     return ModelInfo(**defaults)
 
 
-def _make_governance(tags=None, params=None, metrics=None):
+def _make_governance(tags=None, params=None, metrics=None, signature=None, flavors=None):
     return {
         "tags": tags or {},
         "params": params or {},
         "metrics": metrics or {},
+        "signature": signature,
+        "flavors": flavors or [],
     }
 
 
@@ -85,14 +87,12 @@ class TestEvaluateDeterministicCompliance:
         assert evaluate_deterministic_compliance(model_info, governance) == COMPLIANCE_COMPLIANT
 
     def test_all_mandatory_with_signature_returns_compliant(self):
-        import json
-
         model_info = _make_model_info(risk_level="limited", model_card="card")
-        history = json.dumps([{"signature": {"inputs": "col1", "outputs": "col2"}}])
         governance = _make_governance(
-            tags={"mlflow.user": "bob", "mlflow.log-model.history": history},
+            tags={"mlflow.user": "bob"},
             metrics={"f1": 0.85},
             params={},
+            signature={"inputs": "col1", "outputs": "col2"},
         )
         assert evaluate_deterministic_compliance(model_info, governance) == COMPLIANCE_COMPLIANT
 

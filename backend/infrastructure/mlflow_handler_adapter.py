@@ -86,6 +86,14 @@ class MLFlowHandlerAdapter(RegistryHandler):
                     from backend.domain.use_cases.compliance_usecases import evaluate_project_compliance
 
                     evaluate_project_compliance(project.name, registry, model_info_db_handler)
+                    # Copy run metadata to model version tags and registered model tags for MLflow UI visibility
+                    for model in registry.list_all_models():
+                        for mv in registry.list_model_versions(model["name"]):
+                            registry.sync_run_data_to_model_version_tags(model["name"], mv["version"])
+                        latest_versions = model.get("latest_versions", [])
+                        if latest_versions:
+                            latest = max(latest_versions, key=lambda v: int(v["version"]))
+                            registry.sync_run_data_to_registered_model_tags(model["name"], latest["version"])
                 except Exception as e:
                     logger.warning(f"Could not sync model_infos for project {project.name}: {e}")
 
