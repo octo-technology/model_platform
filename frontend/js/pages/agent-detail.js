@@ -10,7 +10,7 @@ const AgentDetailPage = (() => {
 
   function renderDetail(container, project, a) {
     const title      = `${escHtml(a.agent_name)} <span class="badge badge-neutral mono" style="font-size:13px;vertical-align:middle">v${escHtml(a.agent_version)}</span>`;
-    const riskHtml   = riskBadge(a.risk_level);
+    const riskHtml   = `<span style="vertical-align:middle;display:inline-flex">${riskBadge(a.risk_level)}</span>`;
     const tools      = a.tools || [];
     const guardrails = a.guardrails || null;
 
@@ -48,8 +48,8 @@ const AgentDetailPage = (() => {
                   ${infoRow('Max iterations',a.max_iterations != null ? String(a.max_iterations) : '—')}
                   ${infoRow('Risk level',    riskBadge(a.risk_level), true)}
                   ${infoRow('Suggested risk',riskBadge(a.suggested_risk_level), true)}
-                  ${infoRow('Deterministic compliance', complianceBadge(a.deterministic_compliance))}
-                  ${infoRow('LLM compliance',           complianceBadge(a.llm_compliance))}
+                  ${infoRow('Deterministic compliance', complianceBadge(a.deterministic_compliance), true)}
+                  ${infoRow('LLM compliance',           complianceBadge(a.llm_compliance), true)}
                   ${infoRow('ACT review',    a.act_review   ? `<span style="white-space:pre-wrap;font-size:12px">${escHtml(a.act_review)}</span>` : '—', true)}
                 </tbody>
               </table>
@@ -103,10 +103,7 @@ const AgentDetailPage = (() => {
               <span class="card-title">Guardrails</span>
             </div>
             <div style="padding:16px 20px">
-              ${guardrails
-                ? `<pre style="margin:0;white-space:pre-wrap;font-family:var(--font-mono);font-size:13px;color:var(--text-1);background:var(--bg-1);padding:12px 16px;border-radius:6px;border:1px solid var(--border-0)">${escHtml(String(guardrails))}</pre>`
-                : `<span style="color:var(--text-2);font-size:13px">No guardrails configured.</span>`
-              }
+              ${guardrails ? guardrailsHTML(guardrails) : `<span style="color:var(--text-2);font-size:13px">No guardrails configured.</span>`}
             </div>
           </div>
 
@@ -149,6 +146,25 @@ const AgentDetailPage = (() => {
     if (status === 'partially_compliant') return `<span class="badge badge-orange">Partial</span>`;
     if (status === 'non_compliant')       return `<span class="badge badge-red">Non-compliant</span>`;
     return `<span class="badge badge-neutral">${escHtml(status)}</span>`;
+  }
+
+  function guardrailsHTML(guardrails) {
+    const preStyle = 'margin:0;white-space:pre-wrap;font-family:var(--font-mono);font-size:13px;color:var(--text-1);background:var(--bg-1);padding:12px 16px;border-radius:6px;border:1px solid var(--border-0)';
+    let parsed = null;
+    try {
+      parsed = JSON.parse(guardrails);
+    } catch (_) { /* not JSON, fall through to raw text */ }
+
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      const rows = Object.entries(parsed).map(([key, value]) => `
+        <tr>
+          <td style="width:200px;color:var(--text-2);font-size:13px;padding:10px 20px;vertical-align:top">${escHtml(key)}</td>
+          <td style="padding:10px 20px;font-family:var(--font-mono);font-size:13px">${escHtml(typeof value === 'string' ? value : JSON.stringify(value))}</td>
+        </tr>`).join('');
+      return `<div class="table-wrap"><table><thead><tr><th>Name</th><th>Value</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    }
+
+    return `<pre style="${preStyle}">${escHtml(String(guardrails))}</pre>`;
   }
 
   function renderMarkdown(md) {
