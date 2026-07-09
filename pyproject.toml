@@ -11,9 +11,6 @@ dependencies = [
     "pandera[notebooks]>=0.29.0",
     "papermill>=2.7.0",
     "shap>=0.51.0",
-    "langchain>=1.3.1",
-    "langgraph>=1.2.1",
-    "psycopg>=3.3.4",
 ]
 
 [project.scripts]
