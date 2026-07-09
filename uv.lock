@@ -2487,12 +2487,6 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "ipykernel" },
-<<<<<<< HEAD
-=======
-    { name = "langchain" },
-    { name = "langchain-openai" },
-    { name = "langgraph" },
->>>>>>> dfb25ea (Feat: Frontend agent feat and agent registry in Backend + MLFlow)
     { name = "loguru" },
     { name = "pandera" },
     { name = "papermill" },
