@@ -81,7 +81,7 @@ unfixable = ["E712"]
 
 include = ["*.py"]
 exclude = ["**/Applications/**", "**/tests/**", "**/docs/**", "**/__init__.py"]
-per-file-ignores = { }
+per-file-ignores = { "demos/agentic/**/prompts.py" = ["E501"] }
 
 # Same as Black.
 line-length = 120
