@@ -389,7 +389,7 @@ const ProjectDetailPage = (() => {
     if (!models || models.length === 0) {
       return `
         ${sectionHeader}
-        <p style="color:var(--text-2);font-size:13px;padding:8px 0 24px 0">No ML models found. Register models in MLflow to see them here.</p>
+        ${emptyHTML('No ML models found', 'Register models in MLflow to see them here.')}
       `;
     }
 
@@ -427,7 +427,7 @@ const ProjectDetailPage = (() => {
     if (!agents || agents.length === 0) {
       return `
         ${sectionHeader}
-        <p style="color:var(--text-2);font-size:13px;padding:8px 0">No agentic models found. Register an agent in MLflow with the tag <code>model_type=agent</code> to see it here.</p>
+        ${emptyHTML('No agentic models found', 'Register an agent in MLflow with the tag <code>model_type=agent</code> to see it here.')}
       `;
     }
 
@@ -747,7 +747,7 @@ const ProjectDetailPage = (() => {
     if (!models || models.length === 0) {
       return `
         ${sectionHeader}
-        <p style="color:var(--text-2);font-size:13px;padding:8px 0 24px 0">No ML deployments. Deploy a model from the Available AIs tab.</p>
+        ${emptyHTML('No ML deployments', 'Deploy a model from the Available AIs tab.')}
       `;
     }
 
@@ -801,7 +801,7 @@ const ProjectDetailPage = (() => {
     if (!agents || agents.length === 0) {
       return `
         ${sectionHeader}
-        <p style="color:var(--text-2);font-size:13px;padding:8px 0">No agent deployments yet.</p>
+        ${emptyHTML('No agent deployments', 'Deploy an agent from the Available AIs tab.')}
       `;
     }
 
