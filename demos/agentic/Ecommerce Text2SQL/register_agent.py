@@ -1,18 +1,25 @@
-"""Register the e-commerce text2sql agent into the platform's MLflow registry.
+"""Register the e-commerce text2sql agent into a platform project's MLflow registry.
 
 Usage:
-    export MLFLOW_TRACKING_URI=http://localhost:5000
-    python register_agent.py
+    PROJECT_NAME=Credit-Risk-Assessment python register_agent.py
 
-The model_type=agent tag is what the platform's sync uses to discover agents.
+Defaults the tracking URI to http://model-platform.com/registry/{PROJECT_NAME}/
+(same convention as the ML notebooks in demos/notebooks/).
+
+The model_type=agent tag is what the platform's agent sync uses to discover agents.
 """
 
 import os
+import sys
 
 import mlflow
 from mlflow import MlflowClient
 
-from .config import MAMMOUTH_AGENT_MODEL, MAMMOUTH_REFLECT_MODEL
+# Make this script runnable from anywhere by resolving paths relative to the file.
+_DEMO_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, _DEMO_DIR)
+
+from config import MAMMOUTH_AGENT_MODEL, MAMMOUTH_REFLECT_MODEL  # noqa: E402
 
 MODEL_NAME = "ecommerce_text2sql"
 EXPERIMENT_NAME = "agents"
@@ -28,25 +35,36 @@ PIP_REQUIREMENTS = [
 
 
 def main() -> None:
-    tracking_uri = os.environ.get("MLFLOW_TRACKING_URI", "http://localhost:5000")
+    project_name = os.environ.get("PROJECT_NAME", "Credit-Risk-Assessment")
+    tracking_uri = os.environ.get(
+        "MLFLOW_TRACKING_URI",
+        f"http://model-platform.com/registry/{project_name}/",
+    )
+
+    print(f"MLflow tracking URI : {tracking_uri}", flush=True)
     mlflow.set_tracking_uri(tracking_uri)
+    print("Setting experiment...", flush=True)
     mlflow.set_experiment(EXPERIMENT_NAME)
+    print("Experiment set", flush=True)
 
     with mlflow.start_run(run_name=f"register-{MODEL_NAME}") as run:
         logged = mlflow.pyfunc.log_model(
             name="agent",
-            python_model="agent.py",
+            python_model=os.path.join(_DEMO_DIR, "agent.py"),
             code_paths=[
-                "config.py",
-                "database_adapters.py",
-                "database_utils.py",
-                "prompts.py",
-                "security.py",
-                "tools.py",
-                "__init__.py",
+                os.path.join(_DEMO_DIR, f)
+                for f in [
+                    "config.py",
+                    "database_adapters.py",
+                    "database_utils.py",
+                    "prompts.py",
+                    "security.py",
+                    "tools.py",
+                    "__init__.py",
+                ]
             ],
             pip_requirements=PIP_REQUIREMENTS,
-            input_example={"input": [{"role": "user", "content": "Combien de clients avons-nous ?"}]},
+            input_example={"input": [{"role": "user", "content": "Salut comment ca va ?"}]},
         )
         print(f"Logged model URI: {logged.model_uri}")
         print(f"Run ID: {run.info.run_id}")

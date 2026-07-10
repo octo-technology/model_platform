@@ -132,6 +132,22 @@ const API = (() => {
         }),
     },
 
+    // ── Agent Infos (compliance metadata for agentic models) ────
+    agentInfos: {
+      listForProject: (projectName) => get(`/agent_infos/${enc(projectName)}/list`),
+      aiActCard: (projectName, agentName, version) =>
+        get(`/agent_infos/${enc(projectName)}/${enc(agentName)}/${enc(version)}/ai_act_card`),
+      acceptRiskLevel: (projectName, agentName, version, riskLevel) =>
+        post(`/agent_infos/${enc(projectName)}/${enc(agentName)}/${enc(version)}/accept_risk_level`, {
+          body: { risk_level: riskLevel },
+        }),
+    },
+
+    // ── Deployed agents (live agentic deployments) ──────────────
+    deployedAgents: {
+      list: (proj) => get(`/${proj}/deployed_agents/list`),
+    },
+
     // ── Compliance ──────────────────────────────────────────────
     compliance: {
       dashboard: () => get('/compliance/dashboard'),

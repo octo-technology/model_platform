@@ -1,5 +1,6 @@
-// Project detail page with 4 tabs:
-// Settings · Available Models · Public Registry · Deployed Models
+// Project detail page with 5 tabs:
+// Settings · Available AIs · Public Registry · Deployed AIs · Batch Predictions
+// Available/Deployed AIs each contain two sections: ML Models and Agentic Models.
 const ProjectDetailPage = (() => {
 
   const ROLES = ['VIEWER', 'DEVELOPER', 'MAINTAINER', 'ADMIN'];
@@ -29,7 +30,7 @@ const ProjectDetailPage = (() => {
             </button>
             <button class="tab-btn" data-tab="models">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="9" height="9"/><rect x="13" y="2" width="9" height="9"/><rect x="13" y="13" width="9" height="9"/><rect x="2" y="13" width="9" height="9"/></svg>
-              Available Models
+              Available AIs
             </button>
             <button class="tab-btn" data-tab="registry">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -37,7 +38,7 @@ const ProjectDetailPage = (() => {
             </button>
             <button class="tab-btn" data-tab="deployed">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-              Deployed Models
+              Deployed AIs
             </button>
             <button class="tab-btn" data-tab="batch">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
@@ -323,21 +324,20 @@ const ProjectDetailPage = (() => {
     });
   }
 
-  // ── Available Models Tab ─────────────────────────────────────
+  // ── Available AIs Tab (ML Models + Agentic Models) ───────────
 
   async function loadModels(projectName, panel) {
     panel.innerHTML = loadingHTML();
     try {
-      const [models, modelInfos] = await Promise.all([
-        API.models.list(projectName),
+      // Fetch ML models, their compliance, and agents in parallel
+      // Agents may 404 if the backend doesn't expose them yet → fall back to []
+      const [models, modelInfos, agents] = await Promise.all([
+        API.models.list(projectName).catch(() => []),
         API.modelInfos.listForProject(projectName).catch(() => []),
+        API.agentInfos.listForProject(projectName).catch(() => []),
       ]);
-      if (!models || models.length === 0) {
-        panel.innerHTML = emptyHTML('No models found', 'Register models in MLflow to see them here.');
-        return;
-      }
 
-      // Build compliance lookup: "modelName:version" → { deterministic, llm }
+      // Build compliance lookup for ML models: "modelName:version" → { deterministic, llm }
       const complianceMap = {};
       for (const info of modelInfos) {
         complianceMap[`${info.model_name}:${info.model_version}`] = {
@@ -346,33 +346,56 @@ const ProjectDetailPage = (() => {
         };
       }
 
-      // Fetch all versions for each model in parallel
-      const modelsWithVersions = await Promise.all(
-        models.map(async m => {
-          try {
-            const versions = await API.models.versions(projectName, m.name);
-            return { ...m, all_versions: versions };
-          } catch {
-            return { ...m, all_versions: m.latest_versions || [] };
-          }
-        })
-      );
-      renderModels(projectName, modelsWithVersions, panel, complianceMap);
+      // Fetch all versions for each ML model in parallel
+      const modelsWithVersions = (models && models.length > 0)
+        ? await Promise.all(
+            models.map(async m => {
+              try {
+                const versions = await API.models.versions(projectName, m.name);
+                return { ...m, all_versions: versions };
+              } catch {
+                return { ...m, all_versions: m.latest_versions || [] };
+              }
+            })
+          )
+        : [];
+
+      renderAvailableAIs(projectName, modelsWithVersions, agents, panel, complianceMap);
     } catch (err) {
       panel.innerHTML = errorHTML(err.message);
     }
   }
 
-  function renderModels(projectName, models, panel, complianceMap) {
-    const rows = models.map(m => modelRow(m, projectName, 'available', complianceMap)).join('');
-
+  function renderAvailableAIs(projectName, models, agents, panel, complianceMap) {
     panel.innerHTML = `
+      ${renderMLModelsSection(projectName, models, complianceMap)}
+      ${renderAvailableAgentsSection(projectName, agents)}
+      <div id="deploy-status-area"></div>
+    `;
+    if (models.length > 0) {
+      attachModelEvents(projectName, panel, 'available', complianceMap);
+    }
+  }
+
+  function renderMLModelsSection(projectName, models, complianceMap) {
+    const sectionHeader = `
       <div class="section-toolbar">
         <div class="section-toolbar-left">
-          <span class="section-title">MLflow Registry</span>
+          <span class="section-title">ML Models</span>
           <span class="section-count">${models.length}</span>
         </div>
-      </div>
+      </div>`;
+
+    if (!models || models.length === 0) {
+      return `
+        ${sectionHeader}
+        ${emptyHTML('No ML models found', 'Register models in MLflow to see them here.')}
+      `;
+    }
+
+    const rows = models.map(m => modelRow(m, projectName, 'available', complianceMap)).join('');
+    return `
+      ${sectionHeader}
       <div class="table-wrap">
         <table>
           <thead>
@@ -389,10 +412,58 @@ const ProjectDetailPage = (() => {
           <tbody id="models-tbody">${rows}</tbody>
         </table>
       </div>
-      <div id="deploy-status-area"></div>
     `;
+  }
 
-    attachModelEvents(projectName, panel, 'available', complianceMap);
+  function renderAvailableAgentsSection(projectName, agents) {
+    const sectionHeader = `
+      <div class="section-toolbar" style="margin-top:24px">
+        <div class="section-toolbar-left">
+          <span class="section-title">Agentic Models</span>
+          <span class="section-count">${agents.length}</span>
+        </div>
+      </div>`;
+
+    if (!agents || agents.length === 0) {
+      return `
+        ${sectionHeader}
+        ${emptyHTML('No agentic models found', 'Register an agent in MLflow with the tag <code>model_type=agent</code> to see it here.')}
+      `;
+    }
+
+    const rows = agents.map(a => agentRow(a, projectName)).join('');
+    return `
+      ${sectionHeader}
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Agent name</th>
+              <th>Version</th>
+              <th>Risk level</th>
+              <th>Compliance</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  function agentRow(a, projectName) {
+    const name    = a.agent_name    || '—';
+    const version = a.agent_version || '—';
+    const risk    = a.risk_level    || '—';
+    const det     = a.deterministic_compliance || 'not_evaluated';
+    const llm     = a.llm_compliance || 'not_evaluated';
+    return `
+      <tr>
+        <td class="font-bold">${escHtml(name)}</td>
+        <td class="mono">${escHtml(String(version))}</td>
+        <td>${escHtml(risk)}</td>
+        <td>${complianceIcon(det, 'Det.')} ${complianceIcon(llm, 'LLM')}</td>
+      </tr>
+    `;
   }
 
   function complianceIcon(status, label) {
@@ -610,22 +681,74 @@ const ProjectDetailPage = (() => {
     }
   }
 
-  // ── Deployed Models Tab ──────────────────────────────────────
+  // ── Deployed AIs Tab (ML Models + Agentic Models) ────────────
 
   async function loadDeployed(projectName, panel) {
     panel.innerHTML = loadingHTML();
     try {
-      const models = await API.deployedModels.list(projectName);
-      renderDeployed(projectName, models, panel);
+      // Agents endpoint may 404 if not yet implemented → fall back to []
+      const [models, agents] = await Promise.all([
+        API.deployedModels.list(projectName).catch(() => []),
+        API.deployedAgents.list(projectName).catch(() => []),
+      ]);
+      renderDeployedAIs(projectName, models, agents, panel);
     } catch (err) {
       panel.innerHTML = errorHTML(err.message);
     }
   }
 
-  function renderDeployed(projectName, models, panel) {
+  function renderDeployedAIs(projectName, models, agents, panel) {
+    panel.innerHTML = `
+      ${renderDeployedMLSection(projectName, models)}
+      ${renderDeployedAgentsSection(projectName, agents)}
+    `;
+
+    const refreshBtn = document.getElementById('refresh-deployed-btn');
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', () => loadDeployed(projectName, panel));
+    }
+
+    panel.querySelectorAll('.undeploy-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const modelName = btn.dataset.model;
+        const version   = btn.dataset.version;
+        const ok = await Modal.confirm({
+          title: 'Undeploy Model',
+          message: `Undeploy <strong>${modelName}</strong> v${version}?`,
+          confirmLabel: 'Undeploy',
+          danger: true,
+        });
+        if (ok) {
+          try {
+            await API.models.undeploy(projectName, modelName, version);
+            Toast.success(`${modelName} v${version} undeployed.`);
+            loadDeployed(projectName, panel);
+          } catch (err) { Toast.error(err.message); }
+        }
+      });
+    });
+  }
+
+  function renderDeployedMLSection(projectName, models) {
+    const sectionHeader = `
+      <div class="section-toolbar">
+        <div class="section-toolbar-left">
+          <span class="section-title">ML Models</span>
+          <span class="section-count">${(models || []).length}</span>
+        </div>
+        <button class="btn btn-secondary btn-sm" id="refresh-deployed-btn">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+          </svg>
+          Refresh
+        </button>
+      </div>`;
+
     if (!models || models.length === 0) {
-      panel.innerHTML = emptyHTML('No deployments', 'Deploy a model from the Available Models tab.');
-      return;
+      return `
+        ${sectionHeader}
+        ${emptyHTML('No ML deployments', 'Deploy a model from the Available AIs tab.')}
+      `;
     }
 
     const rows = models.map(m => {
@@ -656,49 +779,54 @@ const ProjectDetailPage = (() => {
         </tr>`;
     }).join('');
 
-    panel.innerHTML = `
-      <div class="section-toolbar">
-        <div class="section-toolbar-left">
-          <span class="section-title">Live Deployments</span>
-          <span class="section-count">${models.length}</span>
-        </div>
-        <button class="btn btn-secondary btn-sm" id="refresh-deployed-btn">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-          </svg>
-          Refresh
-        </button>
-      </div>
+    return `
+      ${sectionHeader}
       <div class="table-wrap">
         <table>
           <thead><tr><th>Model</th><th>Version</th><th>Deployed on</th><th>Endpoint</th><th>Deployment name</th><th>Status</th><th style="text-align:right">Actions</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>`;
+  }
 
-    document.getElementById('refresh-deployed-btn').addEventListener('click', () =>
-      loadDeployed(projectName, panel)
-    );
+  function renderDeployedAgentsSection(projectName, agents) {
+    const sectionHeader = `
+      <div class="section-toolbar" style="margin-top:24px">
+        <div class="section-toolbar-left">
+          <span class="section-title">Agentic Models</span>
+          <span class="section-count">${(agents || []).length}</span>
+        </div>
+      </div>`;
 
-    panel.querySelectorAll('.undeploy-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const modelName = btn.dataset.model;
-        const version   = btn.dataset.version;
-        const ok = await Modal.confirm({
-          title: 'Undeploy Model',
-          message: `Undeploy <strong>${modelName}</strong> v${version}?`,
-          confirmLabel: 'Undeploy',
-          danger: true,
-        });
-        if (ok) {
-          try {
-            await API.models.undeploy(projectName, modelName, version);
-            Toast.success(`${modelName} v${version} undeployed.`);
-            loadDeployed(projectName, panel);
-          } catch (err) { Toast.error(err.message); }
-        }
-      });
-    });
+    if (!agents || agents.length === 0) {
+      return `
+        ${sectionHeader}
+        ${emptyHTML('No agent deployments', 'Deploy an agent from the Available AIs tab.')}
+      `;
+    }
+
+    const rows = agents.map(a => {
+      const name       = a.name || a.agent_name || '—';
+      const version    = a.version || a.agent_version || '—';
+      const status     = a.status || 'unknown';
+      const deployDate = a.deployment_date ? new Date(a.deployment_date).toLocaleDateString() : '—';
+      return `
+        <tr>
+          <td class="font-bold">${escHtml(name)}</td>
+          <td class="mono">${escHtml(String(version))}</td>
+          <td>${escHtml(deployDate)}</td>
+          <td>${statusBadge(status)}</td>
+        </tr>`;
+    }).join('');
+
+    return `
+      ${sectionHeader}
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Agent</th><th>Version</th><th>Deployed on</th><th>Status</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
   }
 
   // ── Batch Predictions Tab ────────────────────────────────────

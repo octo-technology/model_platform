@@ -1,9 +1,8 @@
 """LangChain tool factory for the SQL agent pipeline."""
 
+from database_utils import format_rows
 from langchain_core.tools import tool
-
-from .database_utils import format_rows
-from .security import is_read_only_query
+from security import is_read_only_query
 
 
 def validate_sql(query: str) -> str:

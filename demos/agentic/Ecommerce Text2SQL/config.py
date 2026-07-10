@@ -4,7 +4,8 @@ import os
 
 from dotenv import load_dotenv
 
-load_dotenv()
+# Look for a .env file next to this config.py, regardless of CWD
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
 
 
 def _get_env(name: str, default: str) -> str:
