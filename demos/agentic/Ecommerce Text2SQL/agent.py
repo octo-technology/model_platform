@@ -5,6 +5,7 @@ The platform handles tracing (mlflow.langchain.autolog) and registration externa
 """
 
 import json
+import os
 import uuid
 from typing import Annotated, TypedDict
 
@@ -28,6 +29,11 @@ from prompts import AGENT_SYSTEM_PROMPT, REFLECTION_SYSTEM_PROMPT
 from tools import make_tools
 
 MAX_REFLECTIONS = 2
+
+# Enable LangChain auto-tracing when MLFLOW_TRACKING_URI is set.
+if os.environ.get("MLFLOW_TRACKING_URI"):
+    mlflow.set_experiment(os.environ.get("MLFLOW_EXPERIMENT_NAME", "ecommerce_text2sql_exp"))
+    mlflow.langchain.autolog()
 
 
 class AgentState(TypedDict):

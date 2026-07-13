@@ -52,7 +52,22 @@ class K8SDeploymentClusterAdapter(DeploymentClusterHandler, K8SDeployment):
 
     def list_deployments_for_project(self, project_name: str) -> list[ModelDeployment]:
         project_name = sanitize_project_name(project_name)
-        label_selector = f"project_name={project_name},type notin (model_registry)"
+        # Exclude both model_registry pods AND agent deployments
+        label_selector = f"project_name={project_name},type notin (model_registry, agent)"
+        deployments = self.apps_api_instance.list_namespaced_deployment(
+            namespace=project_name, label_selector=label_selector
+        )
+        deployment_list = []
+        for deployment in deployments.items:
+            labels = deployment.metadata.labels
+            labels["deployment_name"] = deployment.metadata.name
+            labels["status"] = self._resolve_deployment_status(deployment.status)
+            deployment_list.append(ModelDeployment(**labels))
+        return deployment_list
+
+    def list_agent_deployments_for_project(self, project_name: str) -> list[ModelDeployment]:
+        project_name = sanitize_project_name(project_name)
+        label_selector = f"project_name={project_name},type=agent"
         deployments = self.apps_api_instance.list_namespaced_deployment(
             namespace=project_name, label_selector=label_selector
         )

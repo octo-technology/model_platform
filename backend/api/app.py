@@ -14,10 +14,12 @@ from loguru import logger
 
 from backend.api import (
     agent_infos_routes,
+    agents_routes,
     auth_routes,
     batch_routes,
     compliance_report_routes,
     demo_routes,
+    deployed_agents_routes,
     deployed_models_routes,
     health_check,
     hugging_face_routes,
@@ -115,6 +117,10 @@ def create_app() -> FastAPI:
     app.include_router(hugging_face_routes.router, prefix="/hugging_face", tags=["Registre"])
     app.include_router(model_infos_routes.router, prefix="/model_infos", tags=["Model Infos"])
     app.include_router(agent_infos_routes.router, prefix="/agent_infos", tags=["Agent Infos"])
+    app.include_router(agents_routes.router, prefix="/{project_name}/agents", tags=["Agents"])
+    app.include_router(
+        deployed_agents_routes.router, prefix="/{project_name}/deployed_agents", tags=["Deployed Agents"]
+    )
     app.include_router(llm_routes.router, prefix="/ai", tags=["AI Assist"])
     app.include_router(compliance_report_routes.router, prefix="/compliance", tags=["Compliance Report"])
     app.include_router(batch_routes.router, prefix="/{project_name}/batch", tags=["Batch Predictions"])
