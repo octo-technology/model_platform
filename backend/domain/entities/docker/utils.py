@@ -2,12 +2,13 @@ import os
 import re
 import shutil
 import subprocess
+import tempfile
 from datetime import datetime
 
 from loguru import logger
 
 from backend import PROJECT_DIR
-from backend.domain.entities.docker.dockerfile_template import DockerfileTemplate
+from backend.domain.entities.docker.dockerfile_template import AGENT_BASE_IMAGE, DockerfileTemplate
 from backend.domain.use_cases.files_management import create_tmp_artefacts_folder, remove_directory
 from backend.infrastructure.mlflow_model_registry_adapter import MLFlowModelRegistryAdapter
 
@@ -33,7 +34,7 @@ def get_build_platform() -> str:
         logger.warning("Could not detect Docker daemon architecture")
 
 
-def build_image_from_context(context_dir: str, image_name: str) -> int:
+def build_image_from_context(context_dir: str, image_name: str, dockerfile_path: str | None = None) -> int:
     # Créer un nom de fichier de log basé sure le nom de l'image
     # Remplacer les caractères non autorisés dans les noms de fichiers
     safe_image_name = image_name.replace("/", "_").replace(":", "_")
@@ -45,6 +46,10 @@ def build_image_from_context(context_dir: str, image_name: str) -> int:
 
     # Préparer la commande docker
     cmd = ["docker", "build", "-t", image_name]
+    if dockerfile_path:
+        # Needed whenever the Dockerfile isn't named "Dockerfile" inside context_dir
+        # (e.g. agent-base.Dockerfile), which is otherwise docker build's default lookup.
+        cmd.extend(["-f", dockerfile_path])
 
     # Ajouter l'option platform si nécessaire
     try:
@@ -150,7 +155,7 @@ def prepare_docker_context(
 
 
 def build_docker_image_from_context_path(
-    context_path: str, image_name: str, project_name: str, model_name: str, version: str
+    context_path: str, image_name: str, project_name: str, model_name: str, version: str, is_agent: bool = False
 ) -> int:
     """
     Builds a Docker image from the specified context path and image name.
@@ -158,9 +163,14 @@ def build_docker_image_from_context_path(
     Args:
         context_path (str): The path to the Docker context.
         image_name (str): The name of the Docker image to build.
+        is_agent (bool): Whether this image is for an agent, in which case the build reuses the
+            pre-built `agent-base` image (langgraph/langchain/mlflow/fastapi/otel already installed)
+            instead of a bare Python image.
     """
+    use_agent_base_image = is_agent and ensure_agent_base_image()
     dockerfile = DockerfileTemplate(
         python_version="3.9",
+        use_agent_base_image=use_agent_base_image,
     )
     dockerfile.generate_dockerfile(context_path, image_name, project_name, model_name, version)
     logger.info(f"Starting docker build in {context_path}")
@@ -182,12 +192,17 @@ def clean_build_context(context_path: str) -> None:
     remove_directory(context_path)
 
 
+def _local_docker_image_exists(image_name: str) -> bool:
+    """Whether an image tag is present in the local Docker daemon (no registry pull attempted)."""
+    result = subprocess.run(["docker", "images", "-q", image_name], capture_output=True, text=True)
+    return bool(result.stdout.strip())
+
+
 def check_docker_image_exists(image_name: str) -> bool:
     docker_host = os.environ.get("DOCKER_HOST")
     logger.info(f"Checking if Docker image '{image_name}' exists with batch support (DOCKER_HOST={docker_host})")
     try:
-        result = subprocess.run(["docker", "images", "-q", image_name], capture_output=True, text=True)
-        if not result.stdout.strip():
+        if not _local_docker_image_exists(image_name):
             logger.info(f"Docker image '{image_name}' does not exist")
             return False
 
@@ -206,6 +221,41 @@ def check_docker_image_exists(image_name: str) -> bool:
         return False
 
 
+def ensure_agent_base_image() -> bool:
+    """
+    Makes sure the shared `agent-base` image (langgraph/langchain/mlflow/fastapi/otel already
+    installed, see infrastructure/docker/agent-base.Dockerfile) exists in the local Docker daemon,
+    building it once if missing so agent Dockerfiles can `FROM` it
+    (DockerfileTemplate.use_agent_base_image) and reuse uv's package cache instead of
+    re-downloading the same heavy deps on every single agent deploy.
+
+    Built lazily here rather than requiring a manual pre-build step, so agent deployment stays
+    self-service even on a fresh environment — slower on the first agent deploy of the session
+    only. `make k8s-agent-base-local` pre-warms it ahead of time to avoid paying that cost live.
+    If the build itself fails (e.g. no network), we fall back to the plain python image instead
+    of blocking the deployment on what is purely a speed optimization.
+    """
+    if _local_docker_image_exists(AGENT_BASE_IMAGE):
+        return True
+
+    dockerfile_path = os.path.join(PROJECT_DIR, "infrastructure", "docker", "agent-base.Dockerfile")
+    if not os.path.isfile(dockerfile_path):
+        logger.warning(f"Agent base Dockerfile not found at {dockerfile_path}, using the plain python image instead")
+        return False
+
+    logger.info(f"Agent base image '{AGENT_BASE_IMAGE}' not found, building it once (future deploys reuse it)...")
+    tmp_root = os.path.join(PROJECT_DIR, "tmp")
+    os.makedirs(tmp_root, exist_ok=True)
+    build_context = tempfile.mkdtemp(dir=tmp_root, prefix="agent_base_build_")
+    status = build_image_from_context(build_context, AGENT_BASE_IMAGE, dockerfile_path=dockerfile_path)
+    if status == 0:
+        logger.warning(
+            f"Failed to build agent base image '{AGENT_BASE_IMAGE}', falling back to the plain "
+            "python image for this build (slower, but the deployment will still succeed)"
+        )
+    return status == 1
+
+
 def sanitize_name(project_name: str) -> str:
     """Nettoie et format le nom pour être valid dans Kubernetes."""
     sanitized_name = re.sub(r"[^a-z0-9-]", "-", project_name.lower())
@@ -215,7 +265,7 @@ def sanitize_name(project_name: str) -> str:
 
 
 def build_model_docker_image(
-    registry: MLFlowModelRegistryAdapter, project_name: str, model_name: str, version: str
+    registry: MLFlowModelRegistryAdapter, project_name: str, model_name: str, version: str, is_agent: bool = False
 ) -> int:
     """
     Generates and builds a Docker image for the specified model and version.
@@ -225,6 +275,7 @@ def build_model_docker_image(
         project_name: The name of the project.
         model_name (str): The name of the model.
         version (str): The version of the model.
+        is_agent (bool): Whether this is an agent image (uses the pre-built agent-base image).
 
     Returns:
         str: The name of the built Docker image.
@@ -233,7 +284,12 @@ def build_model_docker_image(
     context_path: str = prepare_docker_context(registry, project_name, model_name, version)
     image_name: str = sanitize_name(f"{project_name}_{model_name}_{version}_ctr")
     build_status = build_docker_image_from_context_path(
-        context_path, image_name, sanitize_name(project_name), sanitize_name(model_name), sanitize_name(version)
+        context_path,
+        image_name,
+        sanitize_name(project_name),
+        sanitize_name(model_name),
+        sanitize_name(version),
+        is_agent=is_agent,
     )
     if build_status:
         # clean_build_context(context_path)

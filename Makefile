@@ -101,6 +101,17 @@ create-backend-secret:
 k8s-mlflow-local:
 	minikube image build -t ghcr.io/octo-technology/model-platform/mlflow:latest infrastructure/registry/
 
+# Pre-warms the shared agent-base image (langgraph/mlflow/fastapi already installed) into
+# minikube's Docker daemon, so the first agent deploy doesn't pay that build cost live.
+# Optional: the backend also builds it on demand (backend/domain/entities/docker/utils.py::
+# ensure_agent_base_image) if it's still missing by the time an agent gets deployed.
+# Uses `docker build` via minikube's docker-env (like k8s-backend-local/k8s-frontend-local)
+# rather than `minikube image build -f`, which resolves -f relative to the uploaded build
+# context instead of the given path and fails to find the Dockerfile as a result.
+k8s-agent-base-local:
+	eval $$(minikube docker-env) && \
+	docker build -t agent-base:latest -f infrastructure/docker/agent-base.Dockerfile infrastructure/docker/
+
 k8s-backend-local:
 	eval $$(minikube docker-env) && \
 	docker build -t model-platform-backend:local -f backend/Dockerfile .
@@ -133,7 +144,7 @@ k8s-infra: k8s-network-conf k8s-pgsql k8s-monitoring
 
 k8s-modelplatform: k8s-backend k8s-frontend
 
-k8s-modelplatform-local: k8s-mlflow-local k8s-frontend-local k8s-backend-local
+k8s-modelplatform-local: k8s-mlflow-local k8s-agent-base-local k8s-frontend-local k8s-backend-local
 
 dev-back:
 	uv run python -m backend

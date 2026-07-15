@@ -43,7 +43,7 @@ def deploy_agent(
     if not k8s_deployment.check_if_model_deployment_exists(project_name, agent_name, version):
         # Reuse the ML model docker builder — the MLflow pyfunc/ResponsesAgent
         # builds the same way as any other registered model
-        build_status = build_model_docker_image(registry, project_name, agent_name, version)
+        build_status = build_model_docker_image(registry, project_name, agent_name, version, is_agent=True)
         logger.info(f"Build status for agent {project_name}/{agent_name}:{version}: {build_status}")
         if build_status == 1:
             # Per-version deployment_config.json artifact (see mlflow_agent_registry_adapter.py) —
