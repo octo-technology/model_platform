@@ -402,7 +402,7 @@ const ProjectDetailPage = (() => {
   }
 
   function attachAgentDeployEvents(projectName, panel, agentComplianceMap) {
-    // Update compliance badge when the version dropdown changes
+    // Update compliance + risk badge when the version dropdown changes
     panel.querySelectorAll('.version-select-agent').forEach(sel => {
       sel.addEventListener('change', () => {
         const agentName = sel.dataset.agent;
@@ -411,8 +411,19 @@ const ProjectDetailPage = (() => {
         if (!cell) return;
         const c = (agentComplianceMap || {})[`${agentName}:${version}`];
         cell.innerHTML = c
-          ? `${complianceIcon(c.deterministic, 'Det.')} ${complianceIcon(c.llm, 'LLM')}`
-          : `${complianceIcon('not_evaluated', 'Det.')} ${complianceIcon('not_evaluated', 'LLM')}`;
+          ? `${riskBadge(c.risk_level)} ${complianceIcon(c.deterministic, 'Det.')} ${complianceIcon(c.llm, 'LLM')}`
+          : `${riskBadge(null)} ${complianceIcon('not_evaluated', 'Det.')} ${complianceIcon('not_evaluated', 'LLM')}`;
+      });
+    });
+
+    // Open the agent detail page (name link uses the currently selected version)
+    panel.querySelectorAll('.agent-name-link').forEach(link => {
+      link.addEventListener('click', e => {
+        e.preventDefault();
+        const agentName = link.dataset.agent;
+        const row = link.closest('tr');
+        const version = row.querySelector(`select.version-select-agent[data-agent="${agentName}"]`).value;
+        App.navigateTo('agent', { project: projectName, name: agentName, version });
       });
     });
 
@@ -570,12 +581,14 @@ const ProjectDetailPage = (() => {
     const firstVersion = versionNumbers.length > 0 ? versionNumbers[0] : '';
     const firstCompliance = (agentComplianceMap || {})[`${name}:${firstVersion}`];
     const initialBadge = firstCompliance
-      ? `${complianceIcon(firstCompliance.deterministic, 'Det.')} ${complianceIcon(firstCompliance.llm, 'LLM')}`
-      : `${complianceIcon('not_evaluated', 'Det.')} ${complianceIcon('not_evaluated', 'LLM')}`;
+      ? `${riskBadge(firstCompliance.risk_level)} ${complianceIcon(firstCompliance.deterministic, 'Det.')} ${complianceIcon(firstCompliance.llm, 'LLM')}`
+      : `${riskBadge(null)} ${complianceIcon('not_evaluated', 'Det.')} ${complianceIcon('not_evaluated', 'LLM')}`;
 
     return `
       <tr>
-        <td class="font-bold">${escHtml(name)}</td>
+        <td class="font-bold">
+          <a href="#" class="agent-name-link" data-agent="${escHtml(name)}" data-project="${escHtml(projectName)}">${escHtml(name)}</a>
+        </td>
         <td style="font-size:12px;color:var(--text-2)">${escHtml(aliasesDisplay)}</td>
         <td class="mono">${escHtml(String(latest))}</td>
         <td>${escHtml(registered)}</td>
@@ -594,6 +607,13 @@ const ProjectDetailPage = (() => {
         </td>
       </tr>
     `;
+  }
+
+  function riskBadge(risk) {
+    if (!risk) return `<span class="badge badge-neutral" title="Risk level — not set">—</span>`;
+    const map = { unacceptable: 'badge-error', high: 'badge-red', limited: 'badge-orange', minimal: 'badge-green' };
+    const cls = map[String(risk).toLowerCase()] || 'badge-neutral';
+    return `<span class="badge ${cls}" title="Risk level">${escHtml(risk)}</span>`;
   }
 
   function complianceIcon(status, label) {

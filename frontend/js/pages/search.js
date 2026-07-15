@@ -19,7 +19,7 @@ const SearchPage = (() => {
         <div class="page-header">
           <div class="page-title-group">
             <div class="page-eyebrow">Platform</div>
-            <h1 class="page-title">Model Search</h1>
+            <h1 class="page-title">Model & Agent Search</h1>
           </div>
         </div>
 
@@ -35,7 +35,7 @@ const SearchPage = (() => {
                 class="search-hero-input"
                 id="search-main-input"
                 type="text"
-                placeholder="Search model cards, risk levels, model names…"
+                placeholder="Search model & agent cards, risk levels, names…"
                 autocomplete="off"
                 spellcheck="false"
                 value="${escHtml(initialQuery)}"
@@ -125,7 +125,14 @@ const SearchPage = (() => {
     area.innerHTML = `<div class="loading-screen"><span class="spinner"></span><span>Searching…</span></div>`;
 
     try {
-      const results = await API.modelInfos.search(query, currentProjectFilter || undefined);
+      const [modelResults, agentResults] = await Promise.all([
+        API.modelInfos.search(query, currentProjectFilter || undefined).catch(() => []),
+        API.agentInfos.search(query, currentProjectFilter || undefined).catch(() => []),
+      ]);
+      const results = [
+        ...(modelResults || []).map(r => ({ ...r, _kind: 'model' })),
+        ...(agentResults || []).map(r => ({ ...r, _kind: 'agent' })),
+      ];
       renderResults(area, results, query);
     } catch (err) {
       area.innerHTML = `
@@ -161,34 +168,47 @@ const SearchPage = (() => {
     `;
 
     // Wire project links → navigate to project
+    // (stopPropagation so this doesn't also trigger the parent agent card's click handler)
     area.querySelectorAll('[data-nav-project]').forEach(el => {
       el.addEventListener('click', e => {
         e.preventDefault();
+        e.stopPropagation();
         App.navigateTo('project', { name: el.dataset.navProject });
+      });
+    });
+
+    // Wire agent result cards → navigate to the agent detail page
+    area.querySelectorAll('[data-nav-agent]').forEach(el => {
+      el.addEventListener('click', e => {
+        e.preventDefault();
+        App.navigateTo('agent', {
+          project: el.dataset.navAgentProject,
+          name: el.dataset.navAgent,
+          version: el.dataset.navAgentVersion,
+        });
       });
     });
   }
 
   function renderResultCard(r, query) {
+    return r._kind === 'agent' ? renderAgentResultCard(r, query) : renderModelResultCard(r, query);
+  }
+
+  function renderModelResultCard(r, query) {
     const modelName    = r.model_name    || '—';
     const modelVersion = r.model_version || '—';
     const projectName  = r.project_name  || '—';
     const riskLevel    = (r.risk_level || '').toLowerCase();
     const modelCard    = r.model_card    || '';
 
-    const riskMeta = RISK_META[riskLevel] || null;
-    const riskBadge = riskMeta
-      ? `<span class="risk-badge ${riskMeta.cls}">${riskMeta.label}</span>`
-      : riskLevel
-        ? `<span class="risk-badge risk-unknown">${escHtml(r.risk_level)}</span>`
-        : '';
-
+    const riskBadge = renderRiskBadge(r.risk_level, riskLevel);
     const cardExcerpt = modelCard ? highlightSnippet(modelCard, query, 200) : '';
 
     return `
       <div class="search-result-card">
         <div class="search-result-header">
           <div class="search-result-identity">
+            <span class="kind-badge kind-badge-model" title="ML model">Model</span>
             <span class="search-result-name">${escHtml(modelName)}</span>
             <span class="search-result-version mono">v${escHtml(String(modelVersion))}</span>
           </div>
@@ -202,6 +222,46 @@ const SearchPage = (() => {
         </div>
         ${cardExcerpt ? `<div class="search-result-excerpt">${cardExcerpt}</div>` : ''}
       </div>`;
+  }
+
+  function renderAgentResultCard(r, query) {
+    const agentName    = r.agent_name    || '—';
+    const agentVersion = r.agent_version || '—';
+    const projectName  = r.project_name  || '—';
+    const riskLevel    = (r.risk_level || '').toLowerCase();
+    const agentCard    = r.agent_card || r.description || '';
+
+    const riskBadge = renderRiskBadge(r.risk_level, riskLevel);
+    const cardExcerpt = agentCard ? highlightSnippet(agentCard, query, 200) : '';
+
+    return `
+      <div class="search-result-card search-result-card-clickable"
+           data-nav-agent="${escHtml(agentName)}"
+           data-nav-agent-project="${escHtml(projectName)}"
+           data-nav-agent-version="${escHtml(String(agentVersion))}">
+        <div class="search-result-header">
+          <div class="search-result-identity">
+            <span class="kind-badge kind-badge-agent" title="Agentic model">Agent</span>
+            <span class="search-result-name">${escHtml(agentName)}</span>
+            <span class="search-result-version mono">v${escHtml(String(agentVersion))}</span>
+          </div>
+          <div class="search-result-meta">
+            ${riskBadge}
+            <a href="#" class="search-result-project-link" data-nav-project="${escHtml(projectName)}">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+              ${escHtml(projectName)}
+            </a>
+          </div>
+        </div>
+        ${cardExcerpt ? `<div class="search-result-excerpt">${cardExcerpt}</div>` : ''}
+      </div>`;
+  }
+
+  function renderRiskBadge(rawRiskLevel, riskLevel) {
+    const riskMeta = RISK_META[riskLevel] || null;
+    if (riskMeta) return `<span class="risk-badge ${riskMeta.cls}">${riskMeta.label}</span>`;
+    if (riskLevel) return `<span class="risk-badge risk-unknown">${escHtml(rawRiskLevel)}</span>`;
+    return '';
   }
 
   // Returns a safe HTML snippet of `text` around the first occurrence of `query`,
@@ -248,8 +308,8 @@ const SearchPage = (() => {
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
         </div>
-        <div class="search-empty-title">Search your models</div>
-        <div class="search-empty-desc">Full-text search across model cards and risk levels of all your projects.</div>
+        <div class="search-empty-title">Search your models & agents</div>
+        <div class="search-empty-desc">Full-text search across model cards, agent cards and risk levels of all your projects.</div>
         <div class="search-empty-tips">
           <div class="search-tip-item">
             <span class="search-tip-icon">
@@ -261,7 +321,7 @@ const SearchPage = (() => {
             <span class="search-tip-icon">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="9" height="9"/><rect x="13" y="2" width="9" height="9"/><rect x="13" y="13" width="9" height="9"/><rect x="2" y="13" width="9" height="9"/></svg>
             </span>
-            Search by use case, domain, or model card content
+            Search by use case, domain, or model/agent card content
           </div>
           <div class="search-tip-item">
             <span class="search-tip-icon">

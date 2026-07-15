@@ -3,13 +3,43 @@ import logging
 
 import psycopg2
 
-from backend.domain.entities.agent_info import AgentInfo
+from backend.domain.entities.agent_info import AgentInfo, AgentTool
 from backend.domain.ports.agent_info_db_handler import AgentInfoDbHandler
 from backend.infrastructure.agent_info_sqlite_db_handler import (
     AgentInfoAlreadyExistError,
     AgentInfoDoesntExistError,
-    map_rows_to_agent_infos,
 )
+
+
+def _map_pgsql_rows_to_agent_infos(rows: list) -> list[AgentInfo]:
+    """psycopg2 auto-decodes JSONB columns (tools, guardrails) into native Python
+    objects, unlike the sqlite handler's TEXT columns which hold JSON-encoded
+    strings and need an explicit json.loads (see map_rows_to_agent_infos)."""
+    result = []
+    for row in rows:
+        tools_raw = row[8] or []
+        tools = [AgentTool(**t) if isinstance(t, dict) else AgentTool(name=str(t)) for t in tools_raw]
+        result.append(
+            AgentInfo(
+                agent_name=row[1],
+                agent_version=row[2],
+                project_name=row[3],
+                description=row[4],
+                agent_type=row[5],
+                llm_provider=row[6],
+                llm_model=row[7],
+                tools=tools,
+                guardrails=row[9],
+                max_iterations=row[10],
+                agent_card=row[11],
+                risk_level=row[12],
+                deterministic_compliance=row[13] if row[13] is not None else "not_evaluated",
+                llm_compliance=row[14] if row[14] is not None else "not_evaluated",
+                act_review=row[15],
+                suggested_risk_level=row[16],
+            )
+        )
+    return result
 
 
 class AgentInfoPostgresDBHandler(AgentInfoDbHandler):
@@ -124,7 +154,7 @@ class AgentInfoPostgresDBHandler(AgentInfoDbHandler):
         finally:
             connection.close()
         if len(rows) == 1:
-            return map_rows_to_agent_infos(rows)[0]
+            return _map_pgsql_rows_to_agent_infos(rows)[0]
         raise AgentInfoDoesntExistError(
             message="AgentInfo doesn't exist",
             agent_name=agent_name,
@@ -140,7 +170,7 @@ class AgentInfoPostgresDBHandler(AgentInfoDbHandler):
             rows = cursor.fetchall()
         finally:
             connection.close()
-        return map_rows_to_agent_infos(rows)
+        return _map_pgsql_rows_to_agent_infos(rows)
 
     def update_agent_card(self, agent_name: str, agent_version: str, project_name: str, agent_card: str) -> bool:
         connection = self._connect()
@@ -270,4 +300,4 @@ class AgentInfoPostgresDBHandler(AgentInfoDbHandler):
             rows = cursor.fetchall()
         finally:
             connection.close()
-        return map_rows_to_agent_infos(rows)
+        return _map_pgsql_rows_to_agent_infos(rows)
