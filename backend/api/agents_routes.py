@@ -10,6 +10,7 @@ import uuid
 from fastapi import APIRouter, BackgroundTasks, Depends, Request
 from fastapi.responses import JSONResponse
 from loguru import logger
+from pydantic import BaseModel
 
 from backend.api.models_routes import (
     get_dashboard_handler,
@@ -27,6 +28,14 @@ from backend.domain.use_cases.deploy_agent import deploy_agent, remove_agent_dep
 from backend.domain.use_cases.user_usecases import user_can_perform_action_for_project
 
 router = APIRouter()
+
+
+class DeployAgentRequest(BaseModel):
+    """Optional secret values (LLM API key, DB password, ...) pushed straight to a
+    K8s Secret at deploy time — never persisted in the platform's own DB. Omit or
+    leave empty when redeploying an agent whose Secret already exists in-cluster."""
+
+    secrets: dict[str, str] = {}
 
 
 @router.get("/list")
@@ -75,13 +84,14 @@ def list_agent_versions(
     return JSONResponse(content=agent_registry.list_agent_versions(agent_name), media_type="application/json")
 
 
-@router.get("/deploy/{agent_name}/{version}")
+@router.post("/deploy/{agent_name}/{version}")
 def route_deploy_agent(
     project_name: str,
     agent_name: str,
     version: str,
     request: Request,
     background_tasks: BackgroundTasks,
+    payload: DeployAgentRequest = DeployAgentRequest(),
     registry_pool: RegistryHandler = Depends(get_registry_pool),
     tasks_status: dict = Depends(get_tasks_status),
     current_user: dict = Depends(get_current_user),
@@ -100,12 +110,24 @@ def route_deploy_agent(
     registry = registry_pool.get_registry_adapter(
         project_name, get_project_registry_tracking_uri(project_name, request)
     )
+    # Separate AgentRegistry to read this version's deployment_config.json artifact
+    agent_registry = registry_pool.get_agent_registry_adapter(
+        project_name, get_project_registry_tracking_uri(project_name, request)
+    )
     task_id = str(uuid.uuid4())
     tasks_status[task_id] = "queued"
     logger.debug(f"Deploying agent {agent_name}:{version} with task_id: {task_id}")
     decorated_task = track_task_status(task_id, tasks_status)(deploy_agent)
     background_tasks.add_task(
-        decorated_task, registry, project_name, agent_name, version, dashboard_handler, current_user["email"]
+        decorated_task,
+        registry,
+        project_name,
+        agent_name,
+        version,
+        dashboard_handler,
+        current_user["email"],
+        agent_registry,
+        payload.secrets,
     )
     return JSONResponse({"task_id": task_id, "status": "Agent deployment initiated"}, media_type="application/json")
 

@@ -9,10 +9,19 @@ Defaults the tracking URI to http://model-platform.com/registry/{PROJECT_NAME}/
 The model_type=agent tag is what the platform's agent sync uses to discover agents.
 All agent-specific metadata (agent card, tools, guardrails, LLM config, AI Act risk)
 is attached to the run so it shows up in the MLflow UI and gets picked up by the sync.
+
+The `deployment_config.json` artifact (logged on the run, so it's per-version —
+not shared across the whole agent like registered-model tags) carries non-secret
+deployment config (LLM base URL/model names, target DB host/port/name) that the
+platform injects as plain env vars when deploying this agent to K8s. Secrets (LLM
+API key, DB password) are NOT part of it — they're supplied at deploy time via the
+platform's UI/CLI (`mp agent deploy-agent --secret KEY=VALUE`), which pushes them
+straight to a K8s Secret and never persists them.
 """
 
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -25,6 +34,7 @@ sys.path.insert(0, _DEMO_DIR)
 
 from agent import MAX_REFLECTIONS  # noqa: E402
 from config import (  # noqa: E402
+    DB_CONFIG,
     MAMMOUTH_AGENT_MODEL,
     MAMMOUTH_BASE_URL,
     MAMMOUTH_REFLECT_MODEL,
@@ -57,6 +67,24 @@ GUARDRAILS = {
     "sql_read_only": "Whitelist SELECT/WITH + blacklist DML/DDL via security.is_read_only_query",
     "reflection_loop": f"LLM reviewer with max {MAX_REFLECTIONS} retries",
     "recursion_limit": 100,
+}
+
+# Non-secret deployment config, logged as a per-run (per-version) artifact and
+# injected as plain env vars by the platform at deploy time. Values default to the
+# demo's local dev setup (`config.py`); override via this script's own env when
+# registering a new version for a different target (e.g. a real Postgres instance
+# instead of the host-machine one used for the minikube demo) — each version can
+# have its own config since this lives on the run, not on the registered model.
+# MAMMOUTH_API_KEY / PG_PASSWORD are deliberately excluded — see module docstring.
+DEPLOYMENT_CONFIG = {
+    "MAMMOUTH_BASE_URL": MAMMOUTH_BASE_URL,
+    "MAMMOUTH_AGENT_MODEL": MAMMOUTH_AGENT_MODEL,
+    "MAMMOUTH_REFLECT_MODEL": MAMMOUTH_REFLECT_MODEL,
+    "MAMMOUTH_TEMPERATURE": str(MAMMOUTH_TEMPERATURE),
+    "PG_HOST": os.environ.get("AGENT_PG_HOST", "host.minikube.internal"),
+    "PG_PORT": str(DB_CONFIG["port"]),
+    "PG_DB": DB_CONFIG["dbname"],
+    "PG_USER": DB_CONFIG["user"],
 }
 
 PIP_REQUIREMENTS = [
@@ -135,6 +163,9 @@ def main() -> None:
         # System prompts en texte brut pour audit
         mlflow.log_text(AGENT_SYSTEM_PROMPT, "prompts/agent_system_prompt.txt")
         mlflow.log_text(REFLECTION_SYSTEM_PROMPT, "prompts/reflection_system_prompt.txt")
+        # Non-secret deployment config for THIS version — read by the platform via
+        # AgentRegistry.get_deployment_config at deploy time.
+        mlflow.log_dict(DEPLOYMENT_CONFIG, "deployment_config.json")
 
         # ── Agent (MLflow 3.x ResponsesAgent, models-from-code) ───────────────
         logged = mlflow.pyfunc.log_model(
@@ -163,6 +194,7 @@ def main() -> None:
 
     # ── Registered model tags (partagés entre versions, lus par la MP) ────────
     # La MP synchronise AgentInfo depuis ces tags via sync_agent_infos_for_project.
+    # (deployment_config.json, lui, est par run/version — voir plus haut.)
     client = MlflowClient(tracking_uri=tracking_uri)
     client.update_registered_model(name=MODEL_NAME, description=DESCRIPTION)
     client.set_registered_model_tag(MODEL_NAME, "model_type", "agent")
@@ -176,6 +208,13 @@ def main() -> None:
     client.set_registered_model_tag(MODEL_NAME, "guardrails", json.dumps(GUARDRAILS, ensure_ascii=False))
     client.set_registered_model_tag(MODEL_NAME, "max_iterations", str(MAX_REFLECTIONS))
     print(f"Tagged {MODEL_NAME} with model_type=agent and full metadata")
+    # Secret name must match K8SAgentDeployment.secret_name (sanitize_project_name on both parts).
+    sanitized_secret_name = re.sub(r"[^a-z0-9-]", "-", f"{project_name}-{MODEL_NAME}-secrets".lower())
+    print(
+        f"Reminder: create the K8s Secret before deploying — "
+        f"kubectl create secret generic {sanitized_secret_name} -n <namespace> "
+        f"--from-literal=MAMMOUTH_API_KEY=... --from-literal=PG_PASSWORD=..."
+    )
 
 
 if __name__ == "__main__":

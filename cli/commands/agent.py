@@ -1,6 +1,6 @@
 import typer
 
-from cli.utils.api_calls import get_and_print
+from cli.utils.api_calls import get_and_print, post_and_print
 
 
 def list_agents(project_name: str):
@@ -10,10 +10,28 @@ def list_agents(project_name: str):
     )
 
 
-def deploy_agent(project_name: str, agent_name: str = typer.Option(), agent_version: str = typer.Option()):
+def deploy_agent(
+    project_name: str,
+    agent_name: str = typer.Option(),
+    agent_version: str = typer.Option(),
+    secret: list[str] = typer.Option(
+        default=[],
+        help="Secret env var for the agent's K8s Secret, as KEY=VALUE. Repeatable. "
+        "Pushed straight to the cluster, never stored by the platform. Omit when redeploying "
+        "an agent whose Secret already exists.",
+    ),
+):
     """Deploy a new agent to a project"""
-    get_and_print(
+    secrets = {}
+    for item in secret:
+        if "=" not in item:
+            typer.echo(f"❌ Invalid --secret value (expected KEY=VALUE): {item}")
+            raise typer.Exit(code=1)
+        key, value = item.split("=", 1)
+        secrets[key] = value
+    post_and_print(
         f"/{project_name}/agents/deploy/{agent_name}/{agent_version}",
+        {"secrets": secrets},
         "❌ Error deploying agent",
         success_message="✅ Agent deployed successfully",
     )

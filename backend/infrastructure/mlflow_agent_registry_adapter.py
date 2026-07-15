@@ -5,6 +5,8 @@ through the AgentRegistry port. Reuses MLflowClientManager so it shares the
 connection pool with the ML model registry.
 """
 
+import json
+
 import httpx
 from loguru import logger
 from mlflow.entities.model_registry import ModelVersion
@@ -75,6 +77,23 @@ class MLFlowAgentRegistryAdapter(AgentRegistry):
             "registered_model_tags": dict(registered_model.tags or {}),
             "run_tags": run_tags,
         }
+
+    def get_deployment_config(self, agent_name: str, agent_version: str) -> dict[str, str]:
+        try:
+            run_id = self._get_run_id(agent_name, agent_version)
+            if not run_id:
+                return {}
+            response = httpx.get(
+                f"{self.mlflow_client_manager.tracking_uri}/get-artifact",
+                params={"run_id": run_id, "path": "deployment_config.json"},
+                timeout=2.0,
+            )
+            if response.status_code == 200:
+                return json.loads(response.text)
+            return {}
+        except Exception as e:
+            logger.warning(f"Could not fetch deployment_config for {agent_name} v{agent_version}: {e}")
+            return {}
 
     def _get_run_id(self, agent_name: str, agent_version: str) -> str | None:
         for v in self.list_agent_versions(agent_name):
