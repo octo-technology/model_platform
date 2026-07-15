@@ -31,7 +31,9 @@ class GrafanaDashboardAdapter(DashboardHandler):
     CONFIGMAP_NAMESPACE = "monitoring"
     DASHBOARD_LABEL_KEY = "grafana_dashboard"
     DASHBOARD_LABEL_VALUE = "1"
-    TEMPLATE_PATH = Path(__file__).parent.parent / "domain" / "entities" / "grafana" / "predictions_dashboard.json"
+    _GRAFANA_DIR = Path(__file__).parent.parent / "domain" / "entities" / "grafana"
+    TEMPLATE_PATH = _GRAFANA_DIR / "predictions_dashboard.json"
+    AGENT_TEMPLATE_PATH = _GRAFANA_DIR / "agents_dashboard.json"
 
     def __init__(self):
         self._load_k8s_config()
@@ -62,17 +64,32 @@ class GrafanaDashboardAdapter(DashboardHandler):
         return sanitized_name[:33] + "-" + hashlib.shake_256(bytes(sanitized_name, "utf-8")).hexdigest(3)
 
     def create_dashboard(
-        self, project_name: str, model_name: str, version: str, service_name: str, dashboard_uid: str
+        self,
+        project_name: str,
+        model_name: str,
+        version: str,
+        service_name: str,
+        dashboard_uid: str,
+        is_agent: bool = False,
     ) -> bool:
         try:
-            if not self.TEMPLATE_PATH.exists():
-                logger.error(f"Grafana dashboard template not found at {self.TEMPLATE_PATH}")
+            # Agents serve traffic on /agent_predict and live in their own Grafana
+            # folder; models keep the prediction template. The expr substitution
+            # below is template-agnostic, so only the source file and labels differ.
+            template_path = self.AGENT_TEMPLATE_PATH if is_agent else self.TEMPLATE_PATH
+            if not template_path.exists():
+                logger.error(f"Grafana dashboard template not found at {template_path}")
                 return False
 
-            with open(self.TEMPLATE_PATH, "r") as f:
+            with open(template_path, "r") as f:
                 dashboard_json = json.load(f)
 
-            dashboard_title = f"Predictions: {project_name}/{model_name}:{version}"
+            if is_agent:
+                dashboard_title = f"Agent: {project_name}/{model_name}:{version}"
+                grafana_folder = "Agent Monitoring"
+            else:
+                dashboard_title = f"Predictions: {project_name}/{model_name}:{version}"
+                grafana_folder = "Model Predictions"
 
             dashboard_json["uid"] = dashboard_uid
             dashboard_json["title"] = dashboard_title
@@ -100,8 +117,11 @@ class GrafanaDashboardAdapter(DashboardHandler):
                     elif "kube_pod_container_status_restarts_total" in expr:
                         expr = expr.replace('container="{CONTAINER}"', container_pattern)
 
-                    # http metrics need a job filter
-                    if "http_" in expr:
+                    # http (transport) and agent (business) metrics are per-job:
+                    # scope them to this deployment by injecting the job filter.
+                    # Template exprs for these metrics must carry a `{...}` brace
+                    # (use `{}` when there is no label) so the filter can be added.
+                    if "http_" in expr or "agent_" in expr:
                         expr = expr.replace("{", f'{{job="{service_name}", ', 1)
 
                     target["expr"] = expr
@@ -120,7 +140,7 @@ class GrafanaDashboardAdapter(DashboardHandler):
                         "app": "grafana",
                     },
                     annotations={
-                        "grafana_folder": "Model Predictions",
+                        "grafana_folder": grafana_folder,
                     },
                 ),
                 data={dashboard_filename: json.dumps(dashboard_json, indent=2)},
