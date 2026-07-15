@@ -384,6 +384,87 @@ def test_deployed_model_returns_predictions():
     raise AssertionError("Could not get prediction from model within 2 minutes")
 
 
+@pytest.mark.order(7.1)
+def test_deployed_model_metrics_endpoint_accessible():
+    """Test that the deployed model exposes a /metrics endpoint for Prometheus scraping."""
+    _skip_if_mlflow_not_ready()
+    deployment_name = sanitize_ressource_name(f"{PROJECT_NAME}-{MODEL_NAME}-{MODEL_VERSION}-deployment")
+    metrics_url = f"http://{MP_HOSTNAME}/deploy/{PROJECT_NAME}/{deployment_name}/metrics"
+
+    timeout = time.time() + 120
+    start = time.time()
+    last_status = None
+    last_body = None
+    while time.time() < timeout:
+        try:
+            response = requests.get(metrics_url, timeout=10)
+            last_status = response.status_code
+            last_body = response.text
+            if response.status_code == 200:
+                assert "text/plain" in response.headers.get(
+                    "content-type", ""
+                ), f"Expected text/plain content-type, got {response.headers.get('content-type')}"
+                assert len(response.text) > 0, "Metrics endpoint returned empty body"
+                # Verify Prometheus exposition format (should contain # HELP or # TYPE lines)
+                has_prometheus_format = any(
+                    line.startswith("# HELP") or line.startswith("# TYPE") for line in response.text.splitlines()
+                )
+                assert (
+                    has_prometheus_format
+                ), f"Metrics endpoint did not return Prometheus format.\nFirst 500 chars:\n{response.text[:500]}"
+                return
+        except (requests.ConnectionError, requests.Timeout) as exc:
+            last_status = f"error: {exc}"
+        time.sleep(5)
+
+    print(f"[DEBUG] Metrics endpoint failed after {time.time() - start:.1f}s; last_status={last_status}")
+    if last_body:
+        print(f"[DEBUG] Last response body:\n{last_body[:1000]}")
+    _dump_deployment_debug_info(deployment_name)
+    raise AssertionError(f"Metrics endpoint did not respond with 200 within 2 minutes (last: {last_status})")
+
+
+@pytest.mark.order(7.2)
+def test_deployed_model_metrics_contain_predict_label():
+    """Test that /metrics contains http_target='/predict' after a prediction was made.
+
+    The PrometheusAdapter queries Prometheus with:
+        http_server_duration_milliseconds_count{job="...", http_target="/predict"}
+
+    If root_path leaks into the http_target label, this PromQL query will match nothing
+    and the platform will report no metrics for the deployed model.
+    """
+    _skip_if_mlflow_not_ready()
+    deployment_name = sanitize_ressource_name(f"{PROJECT_NAME}-{MODEL_NAME}-{MODEL_VERSION}-deployment")
+    metrics_url = f"http://{MP_HOSTNAME}/deploy/{PROJECT_NAME}/{deployment_name}/metrics"
+
+    response = requests.get(metrics_url, timeout=30)
+    assert response.status_code == 200, f"Metrics endpoint returned {response.status_code}"
+
+    metrics_text = response.text
+
+    # Verify OpenTelemetry FastAPI instrumentation generated the expected metric
+    assert "http_server_duration_milliseconds" in metrics_text, (
+        "OpenTelemetry metric http_server_duration_milliseconds not found in /metrics output.\n"
+        f"First 1000 chars:\n{metrics_text[:1000]}"
+    )
+
+    # Verify the http_target label is "/predict" (what PrometheusAdapter filters on)
+    assert 'http_target="/predict"' in metrics_text, (
+        'Expected http_target="/predict" in metrics but not found.\n'
+        "This means the PrometheusAdapter PromQL queries will not match any data.\n"
+        "Likely cause: root_path is leaking into the metric labels.\n"
+        f"Full metrics:\n{metrics_text}"
+    )
+
+    # Regression check: root_path must NOT leak into http_target
+    assert 'http_target="/deploy/' not in metrics_text, (
+        "root_path is leaking into http_target label value.\n"
+        'PrometheusAdapter queries for http_target="/predict" will fail.\n'
+        f"Full metrics:\n{metrics_text}"
+    )
+
+
 @pytest.mark.order(8)
 def test_list_deployed_models():
     """Test that list deployed models shows the deployed model."""
