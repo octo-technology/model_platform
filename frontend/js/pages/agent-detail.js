@@ -56,6 +56,19 @@ const AgentDetailPage = (() => {
             </div>
           </div>
 
+          <!-- AI Act Card -->
+          <div class="card mb-4">
+            <div class="card-header">
+              <span class="card-title">AI Act Compliance Card</span>
+              <button class="btn btn-secondary btn-sm" id="agent-ai-act-btn">View AI Act Card</button>
+            </div>
+            <div style="padding:16px 20px">
+              <span style="color:var(--text-2);font-size:13px">
+                Fiche de conformité (Règlement UE 2024/1689) générée automatiquement à partir des métadonnées MLflow de l'agent.
+              </span>
+            </div>
+          </div>
+
           <!-- Agent Card -->
           <div class="card mb-4">
             <div class="card-header">
@@ -120,6 +133,51 @@ const AgentDetailPage = (() => {
       e.preventDefault();
       App.navigateTo('project', { name: project });
     });
+
+    document.getElementById('agent-ai-act-btn').addEventListener('click', () => {
+      showAiActCard(project, a.agent_name, a.agent_version);
+    });
+  }
+
+  async function showAiActCard(projectName, agentName, version) {
+    const { close } = Modal.open({
+      title: `AI Act Card — ${agentName} v${version}`,
+      body: `<div class="ai-act-loading"><span class="spinner"></span><span>Generating card…</span></div>`,
+      footer: `
+        <button class="btn btn-secondary" id="agent-ai-act-download" disabled>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+          </svg>
+          Download .md
+        </button>`,
+    });
+
+    try {
+      const data = await API.agentInfos.aiActCard(projectName, agentName, version);
+      const markdownContent = data.markdown || '';
+      const bodyEl = document.querySelector('#modal-container .modal-body');
+      if (bodyEl) {
+        bodyEl.innerHTML = `<div class="ai-act-md">${renderMarkdown(markdownContent)}</div>`;
+      }
+      const dlBtn = document.getElementById('agent-ai-act-download');
+      if (dlBtn) {
+        dlBtn.disabled = false;
+        dlBtn.addEventListener('click', () => downloadMarkdown(markdownContent, `ia-act-${projectName}-${agentName}-v${version}.md`));
+      }
+    } catch (err) {
+      const bodyEl = document.querySelector('#modal-container .modal-body');
+      if (bodyEl) bodyEl.innerHTML = `<p style="color:var(--red-light)">Error: ${escHtml(err.message)}</p>`;
+    }
+  }
+
+  function downloadMarkdown(content, filename) {
+    const blob = new Blob([content], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   // ── Helpers ────────────────────────────────────────────────────
