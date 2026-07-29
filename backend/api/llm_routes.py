@@ -39,8 +39,12 @@ class AnthropicKeyRequest(BaseModel):
     api_key: str
 
 
+class MammouthKeyRequest(BaseModel):
+    api_key: str
+
+
 class ProviderRequest(BaseModel):
-    provider: str  # "bedrock" | "anthropic"
+    provider: str  # "bedrock" | "anthropic" | "mammouth"
 
 
 class BedrockModelRequest(BaseModel):
@@ -90,6 +94,32 @@ def delete_credentials(
     platform_config_handler.delete("AWS_DEFAULT_REGION")
     os.environ.pop("AWS_BEARER_TOKEN_BEDROCK", None)
     os.environ.pop("AWS_DEFAULT_REGION", None)
+    return JSONResponse(content={"ok": True})
+
+
+@router.put("/mammouth_api_key")
+def set_mammouth_api_key(
+    body: MammouthKeyRequest,
+    current_user: dict = Depends(get_current_user),
+    platform_config_handler: PlatformConfigHandler = Depends(get_platform_config_handler),
+) -> JSONResponse:
+    """Store the Mammouth AI API key in the platform config. Admin only."""
+    if current_user.get("role") != Role.ADMIN:
+        raise HTTPException(status_code=403, detail="Admin role required.")
+    platform_config_handler.set("MAMMOUTH_API_KEY", body.api_key)
+    return JSONResponse(content={"ok": True})
+
+
+@router.delete("/mammouth_api_key")
+def delete_mammouth_api_key(
+    current_user: dict = Depends(get_current_user),
+    platform_config_handler: PlatformConfigHandler = Depends(get_platform_config_handler),
+) -> JSONResponse:
+    """Remove the Mammouth AI API key from the platform config. Admin only."""
+    if current_user.get("role") != Role.ADMIN:
+        raise HTTPException(status_code=403, detail="Admin role required.")
+    platform_config_handler.delete("MAMMOUTH_API_KEY")
+    os.environ.pop("MAMMOUTH_API_KEY", None)
     return JSONResponse(content={"ok": True})
 
 

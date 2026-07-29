@@ -262,6 +262,26 @@ const API = (() => {
           if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
           return r.json();
         }),
+      setMammouthApiKey: (apiKey) =>
+        fetch(`${API_BASE}/ai/mammouth_api_key`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${Auth.getToken()}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ api_key: apiKey }),
+        }).then(async r => {
+          if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+          return r.json();
+        }),
+      removeMammouthApiKey: () =>
+        fetch(`${API_BASE}/ai/mammouth_api_key`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${Auth.getToken()}` },
+        }).then(async r => {
+          if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+          return r.json();
+        }),
     },
 
     // ── Batch Predictions ──────────────────────────────────────

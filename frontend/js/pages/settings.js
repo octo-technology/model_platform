@@ -158,6 +158,11 @@ const SettingsPage = (() => {
             id="provider-btn-anthropic"
             data-provider="anthropic"
           >Anthropic API</button>
+          <button
+            class="btn btn-sm provider-toggle-btn ${provider === 'mammouth' ? 'provider-toggle-btn--active' : ''}"
+            id="provider-btn-mammouth"
+            data-provider="mammouth"
+          >Mammouth AI</button>
         </div>
       </div>
     `;
@@ -184,6 +189,9 @@ const SettingsPage = (() => {
     }
     if (provider === 'anthropic') {
       return available ? renderAnthropicConfigured() : renderAnthropicUnconfigured();
+    }
+    if (provider === 'mammouth') {
+      return available ? renderMammouthConfigured() : renderMammouthUnconfigured();
     }
     return '';
   }
@@ -305,6 +313,58 @@ const SettingsPage = (() => {
     `;
   }
 
+  function renderMammouthUnconfigured() {
+    return `
+      <div class="key-row" style="flex-direction:column;gap:12px;align-items:stretch">
+        <div class="key-input-group">
+          <label class="form-label">API Key</label>
+          <input
+            class="form-input key-input"
+            id="settings-mammouth-key-input"
+            type="password"
+            placeholder="Mammouth AI API key"
+            autocomplete="new-password"
+            name="mammouth-key-${Date.now()}"
+            spellcheck="false"
+          >
+        </div>
+        <div>
+          <button class="btn btn-primary btn-sm" id="settings-mammouth-key-save" style="white-space:nowrap">
+            Save API key
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderMammouthConfigured() {
+    return `
+      <div>
+        <div class="key-secured">
+          <span class="key-secured-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+          </span>
+          <div class="key-secured-content">
+            <div class="key-secured-value">••••••••••••••••••••</div>
+            <div class="key-secured-note">Stored securely · value never leaves the server</div>
+          </div>
+        </div>
+        <div class="key-secured-actions">
+          <button class="btn btn-secondary btn-sm btn-danger-soft" id="settings-mammouth-key-remove">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+            </svg>
+            Remove API key
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
   function bindEvents(provider, available, bedrockModels) {
     // Provider toggle
     document.querySelectorAll('.provider-toggle-btn[data-provider]').forEach(btn => {
@@ -405,6 +465,43 @@ const SettingsPage = (() => {
           try {
             await API.ai.removeApiKey();
             Toast.success('Anthropic API key removed.');
+            loadClaudeStatus();
+          } catch (err) {
+            Toast.error(err.message);
+            btn.disabled = false;
+            btn.innerHTML = 'Remove API key';
+          }
+        });
+      }
+    } else if (provider === 'mammouth') {
+      if (!available) {
+        const keyInput = document.getElementById('settings-mammouth-key-input');
+        const saveBtn  = document.getElementById('settings-mammouth-key-save');
+
+        saveBtn.addEventListener('click', async () => {
+          const apiKey = keyInput.value.trim();
+          if (!apiKey) { Toast.error('Please enter an API key.'); return; }
+
+          saveBtn.disabled = true;
+          saveBtn.innerHTML = '<span class="spinner spinner-sm"></span>';
+          try {
+            await API.ai.setMammouthApiKey(apiKey);
+            Toast.success('Mammouth AI API key saved.');
+            loadClaudeStatus();
+          } catch (err) {
+            Toast.error(err.message);
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = 'Save API key';
+          }
+        });
+      } else {
+        document.getElementById('settings-mammouth-key-remove').addEventListener('click', async () => {
+          const btn = document.getElementById('settings-mammouth-key-remove');
+          btn.disabled = true;
+          btn.innerHTML = '<span class="spinner spinner-sm"></span>';
+          try {
+            await API.ai.removeMammouthApiKey();
+            Toast.success('Mammouth AI API key removed.');
             loadClaudeStatus();
           } catch (err) {
             Toast.error(err.message);

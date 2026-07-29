@@ -557,11 +557,14 @@ const GovernancePage = (() => {
   }
 
   function wrapStatusSections(html) {
-    // Split on every <h3> opening tag; lookahead keeps the tag in the next part
-    const parts = html.split(/(?=<h3>)/);
+    // Split on every <h2>/<h3> opening tag; lookahead keeps the tag in the next part.
+    // <h2> (numbered section titles like "1. Classification...") must be its own split
+    // point too, otherwise it gets swallowed into the previous <h3> status div.
+    const parts = html.split(/(?=<h2>|<h3>)/);
     if (parts.length <= 1) return html;
     return parts.map((part, i) => {
       if (i === 0) return part;
+      if (part.startsWith('<h2>')) return part;
       // Inspect only the few chars right after <h3> to detect status emojis
       const head = part.slice(4, 12);
       let sectionCls = '';
