@@ -19,6 +19,7 @@ from backend.domain.ports.user_handler import UserHandler
 from backend.domain.use_cases.agent_ai_act_usecases import generate_agent_ai_act_card
 from backend.domain.use_cases.agent_info_usecases import search_agent_infos
 from backend.domain.use_cases.auth_usecases import get_current_user, get_user_adapter
+from backend.domain.use_cases.compliance_usecases import evaluate_project_compliance_for_agents
 from backend.domain.use_cases.user_usecases import user_can_perform_action_for_project
 from backend.infrastructure.agent_info_sqlite_db_handler import AgentInfoDoesntExistError
 
@@ -122,6 +123,29 @@ def accept_risk_level(
         raise HTTPException(status_code=400, detail=f"Invalid risk level: {body.risk_level}")
     db_handler.update_risk_level(agent_name, agent_version, project_name, level)
     return JSONResponse(content={"status": "ok", "risk_level": level})
+
+
+@router.post("/{project_name}/evaluate_compliance")
+def route_evaluate_agent_compliance(
+    project_name: str,
+    request: Request,
+    registry_pool: RegistryHandler = Depends(get_registry_pool),
+    db_handler: AgentInfoDbHandler = Depends(get_agent_info_db_handler),
+    current_user: dict = Depends(get_current_user),
+    user_adapter: UserHandler = Depends(get_user_adapter),
+) -> JSONResponse:
+    """Recalculate deterministic compliance for all agents in a project."""
+    user_can_perform_action_for_project(
+        current_user,
+        project_name=project_name,
+        action_name=inspect.currentframe().f_code.co_name,
+        user_adapter=user_adapter,
+    )
+    agent_registry: AgentRegistry = registry_pool.get_agent_registry_adapter(
+        project_name, get_project_registry_tracking_uri(project_name, request)
+    )
+    results = evaluate_project_compliance_for_agents(project_name, agent_registry, db_handler)
+    return JSONResponse(content={"results": results})
 
 
 @router.get("/search")

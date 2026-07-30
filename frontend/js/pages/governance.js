@@ -1,10 +1,32 @@
-// Governance page — model audit trail, version history, deployment events
+// Governance page — model & agent audit trail, version history, deployment events
 const GovernancePage = (() => {
 
+  // Per-kind adapters so the AI Act / review / risk-suggestion UI works for both
+  // models and agents without duplicating the modal logic.
+  const ENTITY_ADAPTERS = {
+    model: {
+      label: 'Model',
+      aiActCard:        (proj, name, ver) => API.modelInfos.aiActCard(proj, name, ver),
+      actReview:        (proj, name, ver) => API.ai.actReview(proj, name, ver),
+      suggestRiskLevel: (proj, name, ver) => API.ai.suggestRiskLevel(proj, name, ver),
+      acceptRiskLevel:  (proj, name, ver, level) => API.modelInfos.acceptRiskLevel(proj, name, ver, level),
+      evaluateCompliance: (proj) => API.compliance.evaluateProject(proj),
+    },
+    agent: {
+      label: 'Agent',
+      aiActCard:        (proj, name, ver) => API.agentInfos.aiActCard(proj, name, ver),
+      actReview:        (proj, name, ver) => API.ai.agentActReview(proj, name, ver),
+      suggestRiskLevel: (proj, name, ver) => API.ai.agentSuggestRiskLevel(proj, name, ver),
+      acceptRiskLevel:  (proj, name, ver, level) => API.agentInfos.acceptRiskLevel(proj, name, ver, level),
+      evaluateCompliance: (proj) => API.agentInfos.evaluateCompliance(proj),
+    },
+  };
+
   let aiAvailable = false;
-  let aiCache = {}; // key: "modelName:version" → { actReview, llmCompliance, deterministicCompliance }
-  let modelCardCache = {}; // key: "modelName:version" → markdown string
-  let riskCache = {}; // key: "modelName:version" → { riskLevel, suggestedRiskLevel }
+  let aiCache = { model: {}, agent: {} }; // kind → "name:version" → { actReview, llmCompliance, deterministicCompliance }
+  let modelCardCache = {}; // key: "modelName:version" → markdown string (models only)
+  let agentCardCache = {}; // key: "agentName:version" → markdown string (agents only)
+  let riskCache = { model: {}, agent: {} }; // kind → "name:version" → { riskLevel, suggestedRiskLevel }
 
   function render(container) {
     container.innerHTML = `
@@ -144,21 +166,22 @@ const GovernancePage = (() => {
     content.innerHTML = `<div class="loading-screen"><span class="spinner"></span><span>Loading governance data…</span></div>`;
 
     try {
-      const [data, list] = await Promise.all([
+      const [data, list, agentList] = await Promise.all([
         API.projects.governance(projectName),
         API.modelInfos.listForProject(projectName).catch(() => []),
+        API.agentInfos.listForProject(projectName).catch(() => []),
       ]);
 
-      aiCache = {};
-      riskCache = {};
+      aiCache = { model: {}, agent: {} };
+      riskCache = { model: {}, agent: {} };
       for (const item of list) {
         const k = `${item.model_name}:${item.model_version}`;
-        aiCache[k] = {
+        aiCache.model[k] = {
           actReview: item.act_review,
           deterministicCompliance: item.deterministic_compliance || 'not_evaluated',
           llmCompliance: item.llm_compliance || 'not_evaluated',
         };
-        riskCache[k] = {
+        riskCache.model[k] = {
           riskLevel: item.risk_level || null,
           suggestedRiskLevel: item.suggested_risk_level || null,
         };
@@ -166,8 +189,20 @@ const GovernancePage = (() => {
           modelCardCache[k] = item.model_card;
         }
       }
+      for (const item of agentList) {
+        const k = `${item.agent_name}:${item.agent_version}`;
+        aiCache.agent[k] = {
+          actReview: item.act_review,
+          deterministicCompliance: item.deterministic_compliance || 'not_evaluated',
+          llmCompliance: item.llm_compliance || 'not_evaluated',
+        };
+        riskCache.agent[k] = {
+          riskLevel: item.risk_level || null,
+          suggestedRiskLevel: item.suggested_risk_level || null,
+        };
+      }
 
-      renderGovernance(projectName, data, content);
+      renderGovernance(projectName, data, agentList, content);
     } catch (err) {
       content.innerHTML = `
         <div class="empty-state">
@@ -177,7 +212,7 @@ const GovernancePage = (() => {
     }
   }
 
-  function renderGovernance(projectName, data, content) {
+  function renderGovernance(projectName, data, agentList, content) {
     const entries = data.project_governance || data.project_gouvernance || (Array.isArray(data) ? data : []);
 
     const versions = entries.flatMap(e => {
@@ -196,8 +231,26 @@ const GovernancePage = (() => {
       if (note) modelCardCache[`${modelName}:${v.version}`] = note;
     });
 
+    Object.values(modelGroups).forEach(versionList => versionList.sort((a, b) => Number(b.version) - Number(a.version)));
+
     const modelSections = Object.entries(modelGroups)
-      .map(([modelName, versionList]) => renderModelSection(modelName, versionList, projectName, aiCache))
+      .map(([modelName, versionList]) => renderModelSection(modelName, versionList, projectName, aiCache.model))
+      .join('');
+
+    agentCardCache = {};
+    const agentGroups = {};
+    (agentList || []).forEach(a => {
+      if (!agentGroups[a.agent_name]) agentGroups[a.agent_name] = [];
+      agentGroups[a.agent_name].push(a);
+      if (a.agent_card) {
+        agentCardCache[`${a.agent_name}:${a.agent_version}`] = a.agent_card;
+      }
+    });
+
+    Object.values(agentGroups).forEach(versionList => versionList.sort((a, b) => Number(b.agent_version) - Number(a.agent_version)));
+
+    const agentSections = Object.entries(agentGroups)
+      .map(([agentName, versionList]) => renderAgentSection(agentName, versionList, projectName))
       .join('');
 
     content.innerHTML = `
@@ -219,7 +272,12 @@ const GovernancePage = (() => {
         </div>
       </div>
 
+      <div class="page-eyebrow" style="margin-bottom:8px">Models</div>
       ${modelSections || `<div class="empty-state" style="padding:40px 0"><div class="empty-state-title">No model versions found</div></div>`}
+
+      <div class="page-eyebrow" style="margin:28px 0 8px">Agents</div>
+      ${agentSections || `<div class="empty-state" style="padding:40px 0"><div class="empty-state-title">No agent versions found</div></div>`}
+
       ${renderEventsSection(deploymentEvents)}
     `;
 
@@ -251,7 +309,10 @@ const GovernancePage = (() => {
       btn.disabled = true;
       btn.innerHTML = '<span class="spinner spinner-sm"></span> Evaluating…';
       try {
-        await API.compliance.evaluateProject(projectName);
+        await Promise.all([
+          ENTITY_ADAPTERS.model.evaluateCompliance(projectName),
+          ENTITY_ADAPTERS.agent.evaluateCompliance(projectName),
+        ]);
         Toast.success('Compliance re-evaluated.');
         loadGovernanceData(projectName);
       } catch (err) {
@@ -270,27 +331,33 @@ const GovernancePage = (() => {
         return;
       }
 
+      const agentCardBtn = e.target.closest('.agent-card-btn');
+      if (agentCardBtn) {
+        openAgentCardModal(agentCardBtn.dataset.project, agentCardBtn.dataset.model, agentCardBtn.dataset.version);
+        return;
+      }
+
       const aiActBtn = e.target.closest('.ai-act-btn');
       if (aiActBtn) {
-        openAiActModal(aiActBtn.dataset.project, aiActBtn.dataset.model, aiActBtn.dataset.version, false);
+        openAiActModal(aiActBtn.dataset.kind, aiActBtn.dataset.project, aiActBtn.dataset.model, aiActBtn.dataset.version);
         return;
       }
 
       const directReviewBtn = e.target.closest('.ai-direct-review-btn');
       if (directReviewBtn) {
-        openDirectReviewModal(directReviewBtn.dataset.project, directReviewBtn.dataset.model, directReviewBtn.dataset.version);
+        openDirectReviewModal(directReviewBtn.dataset.kind, directReviewBtn.dataset.project, directReviewBtn.dataset.model, directReviewBtn.dataset.version);
         return;
       }
 
       const suggestRiskBtn = e.target.closest('.suggest-risk-btn');
       if (suggestRiskBtn) {
-        runSuggestRiskLevel(suggestRiskBtn.dataset.project, suggestRiskBtn.dataset.model, suggestRiskBtn.dataset.version);
+        runSuggestRiskLevel(suggestRiskBtn.dataset.kind, suggestRiskBtn.dataset.project, suggestRiskBtn.dataset.model, suggestRiskBtn.dataset.version);
         return;
       }
 
       const acceptRiskBtn = e.target.closest('.accept-risk-btn');
       if (acceptRiskBtn) {
-        acceptRiskLevel(acceptRiskBtn.dataset.project, acceptRiskBtn.dataset.model, acceptRiskBtn.dataset.version, acceptRiskBtn.dataset.level);
+        acceptRiskLevel(acceptRiskBtn.dataset.kind, acceptRiskBtn.dataset.project, acceptRiskBtn.dataset.model, acceptRiskBtn.dataset.version, acceptRiskBtn.dataset.level);
         return;
       }
 
@@ -323,11 +390,37 @@ const GovernancePage = (() => {
     }
   }
 
+  // ── Agent Card Modal ──────────────────────────────────────────
+
+  function openAgentCardModal(projectName, agentName, version) {
+    const cardContent = agentCardCache[`${agentName}:${version}`];
+    const bodyHtml = cardContent
+      ? `<div class="ai-act-md">${renderMarkdown(cardContent)}</div>`
+      : `<p style="color:var(--text-2)">No agent card available for this version.</p>`;
+
+    Modal.open({
+      title: `Agent Card — ${agentName} v${version}`,
+      body: bodyHtml,
+      footer: cardContent ? `
+        <button class="btn btn-secondary btn-sm" id="agent-card-dl-btn">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+          </svg>
+          Download .md
+        </button>` : '',
+    });
+
+    const dlBtn = document.getElementById('agent-card-dl-btn');
+    if (dlBtn) {
+      dlBtn.addEventListener('click', () => downloadMarkdown(cardContent, `agent-card-${agentName}-v${version}.md`));
+    }
+  }
+
   // ── AI Act Modal ──────────────────────────────────────────────
 
-  async function openAiActModal(projectName, modelName, version) {
+  async function openAiActModal(kind, projectName, modelName, version) {
     const key = `${modelName}:${version}`;
-    const cached = aiCache[key];
+    const cached = aiCache[kind][key];
     const reviewBtnLabel = cached && cached.actReview ? 'Re-analyze' : 'Analyze with Claude';
 
     const aiReviewBtnHtml = aiAvailable ? `
@@ -353,7 +446,7 @@ const GovernancePage = (() => {
 
     let markdownContent = '';
     try {
-      const data = await API.modelInfos.aiActCard(projectName, modelName, version);
+      const data = await ENTITY_ADAPTERS[kind].aiActCard(projectName, modelName, version);
       markdownContent = data.markdown || '';
       const bodyEl = document.querySelector('#modal-container .modal-body');
       if (bodyEl) {
@@ -408,7 +501,7 @@ const GovernancePage = (() => {
 
       const reviewBtn = document.getElementById('ai-act-review-btn');
       if (reviewBtn) {
-        reviewBtn.addEventListener('click', () => runAiActReview(projectName, modelName, version, markdownContent));
+        reviewBtn.addEventListener('click', () => runAiActReview(kind, projectName, modelName, version, markdownContent));
       }
 
     } catch (err) {
@@ -417,7 +510,7 @@ const GovernancePage = (() => {
     }
   }
 
-  async function runAiActReview(projectName, modelName, version, originalMarkdown) {
+  async function runAiActReview(kind, projectName, modelName, version, originalMarkdown) {
     const key = `${modelName}:${version}`;
     const reviewBtn = document.getElementById('ai-act-review-btn');
     if (reviewBtn) {
@@ -426,15 +519,15 @@ const GovernancePage = (() => {
     }
 
     try {
-      const data = await API.ai.actReview(projectName, modelName, version);
+      const data = await ENTITY_ADAPTERS[kind].actReview(projectName, modelName, version);
       const review = data.review || '';
 
       // Update local cache (including LLM compliance from backend response)
-      aiCache[key] = aiCache[key] || { actReview: null };
-      aiCache[key].actReview = review;
+      aiCache[kind][key] = aiCache[kind][key] || { actReview: null };
+      aiCache[kind][key].actReview = review;
       if (data.llm_compliance) {
-        aiCache[key].llmCompliance = data.llm_compliance;
-        refreshLlmBadge(modelName, version);
+        aiCache[kind][key].llmCompliance = data.llm_compliance;
+        refreshLlmBadge(kind, modelName, version);
       }
 
       const bodyEl = document.querySelector('#modal-container .modal-body');
@@ -472,9 +565,9 @@ const GovernancePage = (() => {
 
   // ── Direct Review Modal (row button) ─────────────────────────
 
-  async function openDirectReviewModal(projectName, modelName, version) {
+  async function openDirectReviewModal(kind, projectName, modelName, version) {
     const key = `${modelName}:${version}`;
-    const cached = aiCache[key];
+    const cached = aiCache[kind][key];
     const hasCache = !!(cached && cached.actReview);
 
     const aiIconSvg = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>`;
@@ -517,14 +610,14 @@ const GovernancePage = (() => {
       if (bodyEl) bodyEl.innerHTML = loadingHtml;
 
       try {
-        const data = await API.ai.actReview(projectName, modelName, version);
+        const data = await ENTITY_ADAPTERS[kind].actReview(projectName, modelName, version);
         const review = data.review || '';
         currentReview = review;
-        aiCache[key] = aiCache[key] || { actReview: null };
-        aiCache[key].actReview = review;
+        aiCache[kind][key] = aiCache[kind][key] || { actReview: null };
+        aiCache[kind][key].actReview = review;
         if (data.llm_compliance) {
-          aiCache[key].llmCompliance = data.llm_compliance;
-          refreshLlmBadge(modelName, version);
+          aiCache[kind][key].llmCompliance = data.llm_compliance;
+          refreshLlmBadge(kind, modelName, version);
         }
         if (bodyEl) bodyEl.innerHTML = reviewHtml(review);
         const dl2 = dlBtn();
@@ -590,9 +683,9 @@ const GovernancePage = (() => {
     return `<span class="risk-badge ${m.cls}">${m.label}</span>`;
   }
 
-  function renderRiskCell(modelName, version, projectName) {
+  function renderRiskCell(kind, modelName, version, projectName) {
     const key = `${modelName}:${version}`;
-    const cached = riskCache[key];
+    const cached = riskCache[kind][key];
     const riskLevel = cached ? cached.riskLevel : null;
     const suggested = cached ? cached.suggestedRiskLevel : null;
 
@@ -607,6 +700,7 @@ const GovernancePage = (() => {
       html += `<span class="risk-suggestion" title="AI suggestion — not validated">${riskBadge(suggested)}<span class="risk-suggestion-tag">suggestion</span></span>`;
       html += `
         <button class="btn btn-secondary btn-xs accept-risk-btn"
+          data-kind="${kind}"
           data-project="${safeProj}"
           data-model="${safeModel}"
           data-version="${safeVer}"
@@ -624,6 +718,7 @@ const GovernancePage = (() => {
     if (aiAvailable && !riskLevel) {
       html += `
         <button class="btn btn-ai btn-xs suggest-risk-btn"
+          data-kind="${kind}"
           data-project="${safeProj}"
           data-model="${safeModel}"
           data-version="${safeVer}"
@@ -638,7 +733,7 @@ const GovernancePage = (() => {
     return html;
   }
 
-  async function runSuggestRiskLevel(projectName, modelName, version) {
+  async function runSuggestRiskLevel(kind, projectName, modelName, version) {
     const key = `${modelName}:${version}`;
     const cell = document.querySelector(`[data-risk-cell="${modelName}:${version}"]`);
     const btn = cell ? cell.querySelector('.suggest-risk-btn') : null;
@@ -648,22 +743,22 @@ const GovernancePage = (() => {
     }
 
     try {
-      const data = await API.ai.suggestRiskLevel(projectName, modelName, version);
+      const data = await ENTITY_ADAPTERS[kind].suggestRiskLevel(projectName, modelName, version);
       const level = data.suggested_risk_level;
       const justification = data.justification || '';
 
       if (level) {
-        riskCache[key] = riskCache[key] || { riskLevel: null, suggestedRiskLevel: null };
-        riskCache[key].suggestedRiskLevel = level;
+        riskCache[kind][key] = riskCache[kind][key] || { riskLevel: null, suggestedRiskLevel: null };
+        riskCache[kind][key].suggestedRiskLevel = level;
       }
 
       if (cell) {
-        cell.innerHTML = renderRiskCell(modelName, version, projectName);
+        cell.innerHTML = renderRiskCell(kind, modelName, version, projectName);
       }
 
       if (level && justification) {
         Toast.success(`Suggested risk: ${level.toUpperCase()}`);
-        openRiskSuggestionModal(projectName, modelName, version, level, justification);
+        openRiskSuggestionModal(kind, projectName, modelName, version, level, justification);
       } else {
         Toast.warning('Unable to determine risk level.');
       }
@@ -676,7 +771,7 @@ const GovernancePage = (() => {
     }
   }
 
-  async function acceptRiskLevel(projectName, modelName, version, level) {
+  async function acceptRiskLevel(kind, projectName, modelName, version, level) {
     const key = `${modelName}:${version}`;
     const cell = document.querySelector(`[data-risk-cell="${modelName}:${version}"]`);
     const btn = cell ? cell.querySelector('.accept-risk-btn') : null;
@@ -686,11 +781,11 @@ const GovernancePage = (() => {
     }
 
     try {
-      await API.modelInfos.acceptRiskLevel(projectName, modelName, version, level);
-      riskCache[key] = riskCache[key] || { riskLevel: null, suggestedRiskLevel: null };
-      riskCache[key].riskLevel = level;
+      await ENTITY_ADAPTERS[kind].acceptRiskLevel(projectName, modelName, version, level);
+      riskCache[kind][key] = riskCache[kind][key] || { riskLevel: null, suggestedRiskLevel: null };
+      riskCache[kind][key].riskLevel = level;
       if (cell) {
-        cell.innerHTML = renderRiskCell(modelName, version, projectName);
+        cell.innerHTML = renderRiskCell(kind, modelName, version, projectName);
       }
       Toast.success(`Risk level accepted: ${level.toUpperCase()}`);
       // Close modal if open
@@ -705,7 +800,7 @@ const GovernancePage = (() => {
     }
   }
 
-  function openRiskSuggestionModal(projectName, modelName, version, level, justification) {
+  function openRiskSuggestionModal(kind, projectName, modelName, version, level, justification) {
     const levelMeta = {
       unacceptable: { icon: '🚫', title: 'Unacceptable', desc: 'Prohibited system (Art. 5)', cls: 'risk-unacceptable' },
       high:         { icon: '⚠️', title: 'High', desc: 'Mandatory compliance (Art. 6 + Annex III)', cls: 'risk-high' },
@@ -748,7 +843,7 @@ const GovernancePage = (() => {
 
     const acceptBtn = document.getElementById('modal-accept-risk-btn');
     if (acceptBtn) {
-      acceptBtn.addEventListener('click', () => acceptRiskLevel(projectName, modelName, version, level));
+      acceptBtn.addEventListener('click', () => acceptRiskLevel(kind, projectName, modelName, version, level));
     }
   }
 
@@ -772,10 +867,10 @@ const GovernancePage = (() => {
     return `<span class="badge ${cls}" title="${escHtml(label)}: ${escHtml(text)}">${escHtml(text)}</span>`;
   }
 
-  function refreshLlmBadge(modelName, version) {
+  function refreshLlmBadge(kind, modelName, version) {
     const cell = document.querySelector(`[data-llm-badge="${modelName}:${version}"]`);
     if (!cell) return;
-    const cached = aiCache[`${modelName}:${version}`];
+    const cached = aiCache[kind][`${modelName}:${version}`];
     const status = cached ? cached.llmCompliance : 'not_evaluated';
     cell.innerHTML = complianceBadge(status, 'LLM');
   }
@@ -824,6 +919,7 @@ const GovernancePage = (() => {
       const reviewLabel = cached && cached.actReview ? 'Re-analyze' : 'Analyze';
       const directReviewBtn = aiAvailable ? `
         <button class="btn btn-ai btn-xs ai-direct-review-btn"
+          data-kind="model"
           data-project="${safeProj}"
           data-model="${safeModel}"
           data-version="${safeVer}"
@@ -842,7 +938,7 @@ const GovernancePage = (() => {
           <td style="white-space:nowrap">${escHtml(created)}</td>
           <td style="max-width:180px;color:var(--text-1);font-size:11px">${escHtml(metrics)}</td>
           <td style="white-space:nowrap" data-risk-cell="${safeModel}:${safeVer}">
-            <div class="flex gap-1 items-center">${renderRiskCell(modelName, ver, projectName)}</div>
+            <div class="flex gap-1 items-center">${renderRiskCell('model', modelName, ver, projectName)}</div>
           </td>
           <td style="white-space:nowrap">${complianceBadge(detCompliance, 'Deterministic')}</td>
           <td style="white-space:nowrap" data-llm-badge="${safeModel}:${safeVer}">${complianceBadge(llmComplianceStatus, 'LLM')}</td>
@@ -861,6 +957,7 @@ const GovernancePage = (() => {
                 Model Card
               </button>` : ''}
               <button class="btn btn-secondary btn-xs ai-act-btn"
+                data-kind="model"
                 data-project="${safeProj}"
                 data-model="${safeModel}"
                 data-version="${safeVer}">
@@ -885,6 +982,102 @@ const GovernancePage = (() => {
           <thead>
             <tr>
               <th>Version</th><th>Run Name</th><th>User</th><th>Created</th><th>Metrics</th><th>Risk</th><th>Deterministic</th><th>LLM</th><th></th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }
+
+  function renderAgentSection(agentName, versions, projectName) {
+    return `
+      <div class="card mt-4">
+        <div class="card-header">
+          <span class="card-title">${escHtml(agentName)}</span>
+          <span class="section-count">${versions.length}</span>
+        </div>
+        ${renderAgentVersionsSection(versions, agentName, projectName)}
+      </div>`;
+  }
+
+  function renderAgentVersionsSection(versions, agentName, projectName) {
+    if (!versions || versions.length === 0) return '';
+
+    const rows = versions.map(a => {
+      const ver = a.agent_version || '—';
+      const safeProj  = escHtml(projectName || '');
+      const safeAgent = escHtml(agentName || '');
+      const safeVer   = escHtml(String(ver));
+
+      const cached = aiCache.agent[`${agentName}:${ver}`];
+      const detCompliance = cached ? cached.deterministicCompliance : (a.deterministic_compliance || 'not_evaluated');
+      const llmComplianceStatus = cached ? cached.llmCompliance : (a.llm_compliance || 'not_evaluated');
+      const hasAgentCard = !!agentCardCache[`${agentName}:${ver}`];
+
+      const reviewLabel = cached && cached.actReview ? 'Re-analyze' : 'Analyze';
+      const directReviewBtn = aiAvailable ? `
+        <button class="btn btn-ai btn-xs ai-direct-review-btn"
+          data-kind="agent"
+          data-project="${safeProj}"
+          data-model="${safeAgent}"
+          data-version="${safeVer}"
+          title="AI Act compliance analysis by Claude">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          ${reviewLabel}
+        </button>` : '';
+
+      return `
+        <tr>
+          <td class="mono">${safeVer}</td>
+          <td>${a.agent_type ? `<span class="badge badge-neutral">${escHtml(a.agent_type)}</span>` : '—'}</td>
+          <td>${a.llm_model ? `<span class="mono">${escHtml(a.llm_model)}</span>` : '—'}</td>
+          <td style="white-space:nowrap" data-risk-cell="${safeAgent}:${safeVer}">
+            <div class="flex gap-1 items-center">${renderRiskCell('agent', agentName, ver, projectName)}</div>
+          </td>
+          <td style="white-space:nowrap">${complianceBadge(detCompliance, 'Deterministic')}</td>
+          <td style="white-space:nowrap" data-llm-badge="${safeAgent}:${safeVer}">${complianceBadge(llmComplianceStatus, 'LLM')}</td>
+          <td>
+            <div class="flex gap-2 items-center" style="flex-wrap:wrap">
+              ${hasAgentCard ? `
+              <button class="btn btn-secondary btn-xs agent-card-btn"
+                data-project="${safeProj}"
+                data-model="${safeAgent}"
+                data-version="${safeVer}"
+                title="Voir l'agent card">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                </svg>
+                Agent Card
+              </button>` : ''}
+              <button class="btn btn-secondary btn-xs ai-act-btn"
+                data-kind="agent"
+                data-project="${safeProj}"
+                data-model="${safeAgent}"
+                data-version="${safeVer}">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                  <line x1="16" y1="13" x2="8" y2="13"/>
+                  <line x1="16" y1="17" x2="8" y2="17"/>
+                  <polyline points="10 9 9 9 8 9"/>
+                </svg>
+                AI Act Card
+              </button>
+              ${directReviewBtn}
+            </div>
+          </td>
+        </tr>`;
+    }).join('');
+
+    return `
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Version</th><th>Type</th><th>LLM model</th><th>Risk</th><th>Deterministic</th><th>LLM</th><th></th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>

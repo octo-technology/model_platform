@@ -6,14 +6,18 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from backend.api.agent_infos_routes import get_agent_info_db_handler
 from backend.api.models_routes import get_project_registry_tracking_uri, get_registry_pool
 from backend.domain.entities.role import Role
+from backend.domain.ports.agent_info_db_handler import AgentInfoDbHandler
+from backend.domain.ports.agent_registry import AgentRegistry
 from backend.domain.ports.model_info_db_handler import ModelInfoDbHandler
 from backend.domain.ports.model_registry import ModelRegistry
 from backend.domain.ports.platform_config_handler import PlatformConfigHandler
 from backend.domain.ports.registry_handler import RegistryHandler
 from backend.domain.ports.user_handler import UserHandler
 from backend.domain.use_cases import llm_usecases
+from backend.domain.use_cases.agent_ai_act_usecases import generate_agent_ai_act_card
 from backend.domain.use_cases.ai_act_usecases import generate_ai_act_card
 from backend.domain.use_cases.auth_usecases import get_current_user, get_user_adapter
 from backend.domain.use_cases.compliance_usecases import extract_llm_compliance_from_review
@@ -250,6 +254,90 @@ def suggest_risk_level(
         if result["suggested_risk_level"]:
             model_info_db_handler.update_suggested_risk_level(
                 model_name, version, project_name, result["suggested_risk_level"]
+            )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return JSONResponse(content=result)
+
+
+@router.post("/agent/{project_name}/{agent_name}/{version}/act_review")
+def agent_act_review(
+    project_name: str,
+    agent_name: str,
+    version: str,
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+    user_adapter: UserHandler = Depends(get_user_adapter),
+    agent_info_db_handler: AgentInfoDbHandler = Depends(get_agent_info_db_handler),
+    registry_pool: RegistryHandler = Depends(get_registry_pool),
+    platform_config_handler: PlatformConfigHandler = Depends(get_platform_config_handler),
+) -> JSONResponse:
+    """Review an agent's AI Act compliance card using Claude and return structured remarks."""
+    user_can_perform_action_for_project(
+        current_user,
+        project_name=project_name,
+        action_name=inspect.currentframe().f_code.co_name,
+        user_adapter=user_adapter,
+    )
+    if not llm_usecases.is_available(platform_config_handler):
+        raise HTTPException(status_code=503, detail="AI assist is not available: no LLM provider configured.")
+
+    agent_registry: AgentRegistry = registry_pool.get_agent_registry_adapter(
+        project_name, get_project_registry_tracking_uri(project_name, request)
+    )
+    try:
+        ai_act_markdown = generate_agent_ai_act_card(
+            agent_registry, agent_info_db_handler, project_name, agent_name, version
+        )
+        review = llm_usecases.review_ai_act_compliance(ai_act_markdown, platform_config_handler)
+        agent_info_db_handler.update_act_review(agent_name, version, project_name, review)
+        llm_status = extract_llm_compliance_from_review(review)
+        agent_info_db_handler.update_compliance_statuses(
+            agent_name=agent_name,
+            agent_version=version,
+            project_name=project_name,
+            llm_compliance=llm_status,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return JSONResponse(content={"review": review, "llm_compliance": llm_status})
+
+
+@router.post("/agent/{project_name}/{agent_name}/{version}/suggest_risk_level")
+def agent_suggest_risk_level(
+    project_name: str,
+    agent_name: str,
+    version: str,
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+    user_adapter: UserHandler = Depends(get_user_adapter),
+    agent_info_db_handler: AgentInfoDbHandler = Depends(get_agent_info_db_handler),
+    registry_pool: RegistryHandler = Depends(get_registry_pool),
+    platform_config_handler: PlatformConfigHandler = Depends(get_platform_config_handler),
+) -> JSONResponse:
+    """Suggest an AI Act risk level for an agent version using Claude."""
+    user_can_perform_action_for_project(
+        current_user,
+        project_name=project_name,
+        action_name=inspect.currentframe().f_code.co_name,
+        user_adapter=user_adapter,
+    )
+    if not llm_usecases.is_available(platform_config_handler):
+        raise HTTPException(status_code=503, detail="AI assist is not available: no LLM provider configured.")
+
+    agent_registry: AgentRegistry = registry_pool.get_agent_registry_adapter(
+        project_name, get_project_registry_tracking_uri(project_name, request)
+    )
+    try:
+        ai_act_markdown = generate_agent_ai_act_card(
+            agent_registry, agent_info_db_handler, project_name, agent_name, version
+        )
+        result = llm_usecases.suggest_risk_level(ai_act_markdown, platform_config_handler)
+        if result["suggested_risk_level"]:
+            agent_info_db_handler.update_suggested_risk_level(
+                agent_name, version, project_name, result["suggested_risk_level"]
             )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
