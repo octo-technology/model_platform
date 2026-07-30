@@ -1016,18 +1016,18 @@ const GovernancePage = (() => {
       </div>`;
   }
 
-  function renderAgentSection(agentName, versions, projectName) {
+  function renderAgentSection(agentName, versions, projectName, governanceInfo) {
     return `
       <div class="card mt-4">
         <div class="card-header">
           <span class="card-title">${escHtml(agentName)}</span>
           <span class="section-count">${versions.length}</span>
         </div>
-        ${renderAgentVersionsSection(versions, agentName, projectName)}
+        ${renderAgentVersionsSection(versions, agentName, projectName, governanceInfo)}
       </div>`;
   }
 
-  function renderAgentVersionsSection(versions, agentName, projectName) {
+  function renderAgentVersionsSection(versions, agentName, projectName, governanceInfo) {
     if (!versions || versions.length === 0) return '';
 
     const rows = versions.map(a => {
@@ -1036,12 +1036,16 @@ const GovernancePage = (() => {
       const safeAgent = escHtml(agentName || '');
       const safeVer   = escHtml(String(ver));
 
+      const govInfo = (governanceInfo || {})[`${agentName}:${ver}`];
+      const owner   = (govInfo && govInfo.owner) || '—';
+      const created = (govInfo && govInfo.createdAt) ? formatDate(govInfo.createdAt) : '—';
+
       const cached = aiCache.agent[`${agentName}:${ver}`];
       const detCompliance = cached ? cached.deterministicCompliance : (a.deterministic_compliance || 'not_evaluated');
       const llmComplianceStatus = cached ? cached.llmCompliance : (a.llm_compliance || 'not_evaluated');
       const hasAgentCard = !!agentCardCache[`${agentName}:${ver}`];
 
-      const reviewLabel = cached && cached.actReview ? 'Re-analyze' : 'Analyze';
+      const reviewLabel = 'Analyze';
       const directReviewBtn = aiAvailable ? `
         <button class="btn btn-ai btn-xs ai-direct-review-btn"
           data-kind="agent"
@@ -1058,15 +1062,17 @@ const GovernancePage = (() => {
       return `
         <tr>
           <td class="mono">${safeVer}</td>
-          <td>${a.agent_type ? `<span class="badge badge-neutral">${escHtml(a.agent_type)}</span>` : '—'}</td>
-          <td>${a.llm_model ? `<span class="mono">${escHtml(a.llm_model)}</span>` : '—'}</td>
-          <td style="white-space:nowrap" data-risk-cell="${safeAgent}:${safeVer}">
+          <td>${escHtml(owner)}</td>
+          <td style="white-space:nowrap">${escHtml(created)}</td>
+          <td class="gov-col-type">${a.agent_type ? `<span class="badge badge-neutral">${escHtml(a.agent_type)}</span>` : '—'}</td>
+          <td class="gov-col-llmmodel">${a.llm_model ? `<span class="mono">${escHtml(a.llm_model)}</span>` : '—'}</td>
+          <td class="gov-col-risk" data-risk-cell="${safeAgent}:${safeVer}">
             <div class="flex gap-1 items-center">${renderRiskCell('agent', agentName, ver, projectName)}</div>
           </td>
-          <td style="white-space:nowrap">${complianceBadge(detCompliance, 'Deterministic')}</td>
-          <td style="white-space:nowrap" data-llm-badge="${safeAgent}:${safeVer}">${complianceBadge(llmComplianceStatus, 'LLM')}</td>
-          <td>
-            <div class="flex gap-2 items-center" style="flex-wrap:wrap">
+          <td class="gov-col-compliant">${complianceBadge(detCompliance, 'Deterministic Compliance')}</td>
+          <td class="gov-col-llm" data-llm-badge="${safeAgent}:${safeVer}">${complianceBadge(llmComplianceStatus, 'LLM Compliance')}</td>
+          <td class="entity-actions-cell">
+            <div class="flex gap-2 items-center" style="flex-wrap:nowrap">
               ${hasAgentCard ? `
               <button class="btn btn-secondary btn-xs agent-card-btn"
                 data-project="${safeProj}"
@@ -1101,10 +1107,10 @@ const GovernancePage = (() => {
 
     return `
       <div class="table-wrap">
-        <table>
+        <table class="gov-versions-table">
           <thead>
             <tr>
-              <th>Version</th><th>Type</th><th>LLM model</th><th>Risk</th><th>Deterministic</th><th>LLM</th><th></th>
+              <th class="gov-col-version">Version</th><th class="gov-col-owner">Owner</th><th class="gov-col-created">Created</th><th class="gov-col-type">Type</th><th class="gov-col-llmmodel">LLM model</th><th class="gov-col-risk">Risk Level</th><th class="gov-col-compliant">Deterministic Compliance</th><th class="gov-col-llm">LLM Compliance</th><th></th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
