@@ -178,10 +178,12 @@ def evaluate_project_compliance_for_agents(
 
 
 def check_deployment_gate(
-    model_info: ModelInfo,
+    info: ModelInfo | AgentInfo,
     platform_config_handler: PlatformConfigHandler,
 ) -> tuple[bool, str]:
     """Check if deployment is allowed based on compliance statuses and gate policy.
+
+    Works for both models and agents: only reads the fields common to both entities.
 
     Returns (allowed, reason).
     """
@@ -190,8 +192,8 @@ def check_deployment_gate(
     if policy == GATE_POLICY_DISABLED:
         return True, ""
 
-    det = model_info.deterministic_compliance or COMPLIANCE_NOT_EVALUATED
-    llm = model_info.llm_compliance or COMPLIANCE_NOT_EVALUATED
+    det = info.deterministic_compliance or COMPLIANCE_NOT_EVALUATED
+    llm = info.llm_compliance or COMPLIANCE_NOT_EVALUATED
 
     passing_statuses = {COMPLIANCE_COMPLIANT, COMPLIANCE_PARTIALLY_COMPLIANT}
     det_ok = det in passing_statuses

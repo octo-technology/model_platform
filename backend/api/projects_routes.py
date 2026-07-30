@@ -7,6 +7,7 @@ from starlette.responses import FileResponse, JSONResponse
 from backend.api.models_routes import get_project_registry_tracking_uri, get_registry_pool
 from backend.domain.entities.project import Project
 from backend.domain.entities.role import Role
+from backend.domain.ports.agent_registry import AgentRegistry
 from backend.domain.ports.model_registry import ModelRegistry
 from backend.domain.ports.object_storage_handler import ObjectStorageHandler
 from backend.domain.ports.project_db_handler import ProjectDbHandler
@@ -169,7 +170,10 @@ def download_governance_route(
     registry: ModelRegistry = registry_pool.get_registry_adapter(
         project_name, get_project_registry_tracking_uri(project_name, request)
     )
-    zip_path = download_project_models_governance_information(project_name, registry)
+    agent_registry: AgentRegistry = registry_pool.get_agent_registry_adapter(
+        project_name, get_project_registry_tracking_uri(project_name, request)
+    )
+    zip_path = download_project_models_governance_information(project_name, registry, agent_registry)
 
     return FileResponse(zip_path, media_type="application/zip", filename=f"{project_name + 'governance'}.zip")
 
@@ -192,8 +196,11 @@ def governance_route(
     registry: ModelRegistry = registry_pool.get_registry_adapter(
         project_name, get_project_registry_tracking_uri(project_name, request)
     )
+    agent_registry: AgentRegistry = registry_pool.get_agent_registry_adapter(
+        project_name, get_project_registry_tracking_uri(project_name, request)
+    )
     try:
-        project_governance = return_project_models_governance_information(project_name, registry)
+        project_governance = return_project_models_governance_information(project_name, registry, agent_registry)
     except Exception as e:
         logger.exception(f"Error fetching governance data for project {project_name}")
         raise HTTPException(status_code=500, detail=str(e))

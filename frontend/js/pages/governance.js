@@ -216,7 +216,7 @@ const GovernancePage = (() => {
     const entries = data.project_governance || data.project_gouvernance || (Array.isArray(data) ? data : []);
 
     const versions = entries.flatMap(e => {
-      const info = e.model_information || e;
+      const info = e.model_information || (e.agent_information ? null : e);
       return info ? [info] : [];
     });
     const deploymentEvents = entries.flatMap(e => e.events || []);

@@ -3141,7 +3141,7 @@ mark.search-mark {
 
 .gdash-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 20px;
   position: relative;
   z-index: 1;
@@ -3490,7 +3490,8 @@ mark.search-mark {
 
 .gdash-project-card__stats {
   display: flex;
-  gap: 20px;
+  flex-wrap: wrap;
+  gap: 12px 20px;
   margin-bottom: 16px;
 }
 

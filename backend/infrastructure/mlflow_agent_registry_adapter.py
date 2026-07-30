@@ -6,14 +6,17 @@ connection pool with the ML model registry.
 """
 
 import json
+import os
 
 import httpx
+import mlflow
 from loguru import logger
 from mlflow.entities.model_registry import ModelVersion
 from mlflow.store.entities import PagedList
 
 from backend.domain.ports.agent_registry import AgentRegistry
 from backend.infrastructure.mlflow_client import MLflowClientManager
+from backend.utils import hash_directory
 
 
 class MLFlowAgentRegistryAdapter(AgentRegistry):
@@ -77,6 +80,20 @@ class MLFlowAgentRegistryAdapter(AgentRegistry):
             "registered_model_tags": dict(registered_model.tags or {}),
             "run_tags": run_tags,
         }
+
+    def download_agent_artifacts(self, agent_name: str, agent_version: str, destination_path: str) -> str:
+        mlflow.set_tracking_uri(self.mlflow_client_manager.tracking_uri)
+        agent_uri = f"models:/{agent_name}/{agent_version}"
+        logger.info(f"Downloading agent artefacts for agent_uri: {agent_uri}")
+        target_path = os.path.join(destination_path, "custom_agent")
+        os.makedirs(target_path, exist_ok=True)
+        mlflow.artifacts.download_artifacts(artifact_uri=agent_uri, dst_path=target_path)
+        hash_value = hash_directory(target_path)
+        hash_file_path = os.path.join(target_path, hash_value)
+        with open(hash_file_path, "w") as f:
+            f.write("")
+        logger.info(f"Downloaded agent artefacts to: {target_path}")
+        return target_path
 
     def get_deployment_config(self, agent_name: str, agent_version: str) -> dict[str, str]:
         try:

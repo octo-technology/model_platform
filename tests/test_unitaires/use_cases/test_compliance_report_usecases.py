@@ -4,9 +4,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from backend.domain.entities.agent_info import AgentInfo
 from backend.domain.entities.model_info import ModelInfo
 from backend.domain.entities.project import Project
 from backend.domain.use_cases.compliance_report_usecases import (
+    AgentVersionData,
     ModelVersionData,
     PlatformSummary,
     ProjectData,
@@ -60,6 +62,13 @@ def mock_model_info_db_handler():
 
 
 @pytest.fixture
+def mock_agent_info_db_handler():
+    handler = MagicMock()
+    handler.list_agent_infos_for_project.return_value = []
+    return handler
+
+
+@pytest.fixture
 def mock_registry_pool():
     pool = MagicMock()
     registry = MagicMock()
@@ -72,6 +81,12 @@ def mock_registry_pool():
         "run_id": "abc123",
     }
     pool.get_registry_adapter.return_value = registry
+
+    agent_registry = MagicMock()
+    agent_registry.list_all_agents.return_value = []
+    agent_registry.list_agent_versions.return_value = []
+    pool.get_agent_registry_adapter.return_value = agent_registry
+
     return pool
 
 
@@ -128,6 +143,34 @@ class TestComputeSummary:
         assert summary.total_versions == 3
         assert summary.risk_distribution == {"high": 2, "minimal": 1}
         assert summary.deterministic_distribution == {"compliant": 2, "non_compliant": 1}
+
+    def test_counts_agents(self):
+        data = [
+            ProjectData(
+                name="proj",
+                agents=[
+                    AgentVersionData(
+                        agent_name="a1",
+                        version="1",
+                        risk_level="limited",
+                        deterministic_compliance="compliant",
+                        llm_compliance="not_evaluated",
+                    ),
+                    AgentVersionData(
+                        agent_name="a1",
+                        version="2",
+                        risk_level="limited",
+                        deterministic_compliance="non_compliant",
+                        llm_compliance="compliant",
+                    ),
+                ],
+            )
+        ]
+        summary = _compute_summary(data)
+        assert summary.total_agents == 1
+        assert summary.total_agent_versions == 2
+        assert summary.risk_distribution == {"limited": 2}
+        assert summary.deterministic_distribution == {"compliant": 1, "non_compliant": 1}
 
 
 AI_ACT_CARD_SAMPLE = """\
@@ -275,13 +318,23 @@ class TestCollectPlatformData:
     @patch("backend.domain.use_cases.compliance_report_usecases.generate_ai_act_card")
     @patch("backend.domain.use_cases.compliance_report_usecases._get_project_models_versions")
     def test_collects_data(
-        self, mock_get_versions, mock_gen_card, mock_project_db_handler, mock_model_info_db_handler, mock_registry_pool
+        self,
+        mock_get_versions,
+        mock_gen_card,
+        mock_project_db_handler,
+        mock_model_info_db_handler,
+        mock_agent_info_db_handler,
+        mock_registry_pool,
     ):
         mock_get_versions.return_value = {"model_1": [{"version": "1"}, {"version": "2"}]}
         mock_gen_card.return_value = "# AI Act Card"
 
         data = _collect_platform_data(
-            mock_project_db_handler, mock_model_info_db_handler, mock_registry_pool, tracking_uri_builder
+            mock_project_db_handler,
+            mock_model_info_db_handler,
+            mock_agent_info_db_handler,
+            mock_registry_pool,
+            tracking_uri_builder,
         )
 
         assert len(data) == 2
@@ -293,17 +346,83 @@ class TestCollectPlatformData:
     @patch("backend.domain.use_cases.compliance_report_usecases.generate_ai_act_card")
     @patch("backend.domain.use_cases.compliance_report_usecases._get_project_models_versions")
     def test_resilience_on_registry_error(
-        self, mock_get_versions, mock_gen_card, mock_project_db_handler, mock_model_info_db_handler, mock_registry_pool
+        self,
+        mock_get_versions,
+        mock_gen_card,
+        mock_project_db_handler,
+        mock_model_info_db_handler,
+        mock_agent_info_db_handler,
+        mock_registry_pool,
     ):
         mock_registry_pool.get_registry_adapter.side_effect = Exception("Connection refused")
 
         data = _collect_platform_data(
-            mock_project_db_handler, mock_model_info_db_handler, mock_registry_pool, tracking_uri_builder
+            mock_project_db_handler,
+            mock_model_info_db_handler,
+            mock_agent_info_db_handler,
+            mock_registry_pool,
+            tracking_uri_builder,
         )
 
         assert len(data) == 2
         assert data[0].error is not None
         assert data[1].error is not None
+
+    @patch("backend.domain.use_cases.compliance_report_usecases.generate_agent_ai_act_card")
+    @patch("backend.domain.use_cases.compliance_report_usecases.generate_ai_act_card")
+    @patch("backend.domain.use_cases.compliance_report_usecases._get_project_models_versions")
+    def test_collects_agent_data(
+        self,
+        mock_get_versions,
+        mock_gen_card,
+        mock_gen_agent_card,
+        mock_project_db_handler,
+        mock_model_info_db_handler,
+        mock_agent_info_db_handler,
+        mock_registry_pool,
+    ):
+        mock_get_versions.return_value = {}
+        mock_gen_card.return_value = "# AI Act Card"
+        mock_gen_agent_card.return_value = "# Agent AI Act Card"
+
+        agent_registry = mock_registry_pool.get_agent_registry_adapter.return_value
+        agent_registry.list_all_agents.return_value = [{"name": "agent_1"}]
+        agent_registry.list_agent_versions.return_value = [{"version": "1"}]
+        agent_registry.get_agent_governance_information.return_value = {
+            "registered_model_tags": {"mlflow.user": "alice"},
+            "run_tags": {},
+        }
+
+        def list_agent_infos(project_name):
+            if project_name == "project_a":
+                return [
+                    AgentInfo(
+                        agent_name="agent_1",
+                        agent_version="1",
+                        project_name="project_a",
+                        risk_level="limited",
+                        deterministic_compliance="compliant",
+                        llm_compliance="not_evaluated",
+                        agent_card="Agent card content",
+                    )
+                ]
+            return []
+
+        mock_agent_info_db_handler.list_agent_infos_for_project.side_effect = list_agent_infos
+
+        data = _collect_platform_data(
+            mock_project_db_handler,
+            mock_model_info_db_handler,
+            mock_agent_info_db_handler,
+            mock_registry_pool,
+            tracking_uri_builder,
+        )
+
+        assert data[0].name == "project_a"
+        assert len(data[0].agents) == 1
+        assert data[0].agents[0].agent_name == "agent_1"
+        assert data[0].agents[0].risk_level == "limited"
+        assert data[0].agents[0].author == "alice"
 
 
 class TestGenerateReport:
@@ -317,6 +436,7 @@ class TestGenerateReport:
         mock_build,
         mock_project_db_handler,
         mock_model_info_db_handler,
+        mock_agent_info_db_handler,
         mock_registry_pool,
         mock_platform_config_handler,
     ):
@@ -327,6 +447,7 @@ class TestGenerateReport:
         result = generate_platform_compliance_report(
             mock_project_db_handler,
             mock_model_info_db_handler,
+            mock_agent_info_db_handler,
             mock_registry_pool,
             mock_platform_config_handler,
             tracking_uri_builder,
