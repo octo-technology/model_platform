@@ -671,6 +671,170 @@ tbody td {
   vertical-align: middle;
 }
 
+/* Action buttons column — fixed width so it lines up across the models/agents tables.
+   Wide enough for all three buttons (Model/Agent Card, AI Act Card, Analyze) on one row. */
+.entity-actions-cell {
+  width: 24%;
+}
+
+/* Governance versions tables (models/agents on Audit & Compliance).
+   table-layout:fixed (see .gov-versions-table) makes these widths authoritative instead
+   of mere hints — with auto layout the browser reflows each of the two independent
+   <table>s based on its own cell content, which drifts the columns apart even when the
+   declared widths match. Percentages (summing to 100%) rather than px keep both tables
+   aligned regardless of the card's actual rendered width, since both cards share it. */
+.gov-versions-table {
+  table-layout: fixed;
+  width: 100%;
+}
+.gov-col-version {
+  width: 8%;
+}
+.gov-col-owner {
+  width: 8%;
+}
+.gov-col-created {
+  width: 9%;
+}
+.gov-col-metrics {
+  width: 24%;
+}
+.gov-col-type {
+  width: 16%;
+}
+.gov-col-llmmodel {
+  width: 8%;
+}
+.gov-col-risk {
+  width: 7%;
+}
+.gov-col-compliant {
+  width: 10%;
+}
+.gov-col-llm {
+  width: 10%;
+}
+/* Body cells (badges, mono values) stay single-line; only the header label may wrap
+   onto a second line so a long name like "Deterministic Compliance" doesn't force the
+   column wider than its neighbour in the other table. Scoped to these status/risk badges
+   specifically — .badge is also reused elsewhere (e.g. Settings' free-text Scope pill)
+   where forcing a single line would be wrong. */
+thead .gov-col-compliant,
+thead .gov-col-llm {
+  white-space: normal;
+}
+.gov-col-risk .badge,
+.gov-col-compliant .badge,
+.gov-col-llm .badge,
+.compliance-cell .badge,
+.compliance-cell-agent .badge {
+  white-space: nowrap;
+}
+
+/* "Available AIs" tab (project detail): ML Models / Agentic Models tables share the
+   same column order, so the same fixed % widths keep them aligned column-for-column. */
+.avail-ai-table {
+  table-layout: fixed;
+  width: 100%;
+}
+.avail-col-name {
+  width: 17%;
+}
+.avail-col-aliases {
+  width: 8%;
+}
+.avail-col-version {
+  width: 8%;
+}
+.avail-col-registered {
+  width: 10%;
+}
+.avail-col-deploy {
+  width: 9%;
+}
+.avail-col-risk {
+  width: 8%;
+}
+.avail-col-det {
+  width: 9%;
+}
+.avail-col-llm {
+  width: 9%;
+}
+.avail-col-registry {
+  width: 10%;
+}
+.avail-col-action {
+  width: 12%;
+}
+.avail-col-risk .badge,
+.avail-col-det .badge,
+.avail-col-llm .badge {
+  white-space: nowrap;
+}
+/* Long header labels wrap onto a second line instead of overflowing into the next
+   column — same fix as the Audit & Compliance page's gov-col-compliant/gov-col-llm. */
+thead .avail-col-deploy,
+thead .avail-col-det,
+thead .avail-col-llm {
+  white-space: normal;
+}
+
+/* "Deployed AIs" tab (project detail): same idea — ML Models / Agentic Models tables
+   share the same column order, so identical fixed % widths keep them aligned. */
+.deployed-ai-table {
+  table-layout: fixed;
+  width: 100%;
+}
+.dep-col-name {
+  width: 10%;
+}
+.dep-col-version {
+  width: 6%;
+}
+.dep-col-date {
+  width: 9%;
+}
+.dep-col-endpoint {
+  width: 28%;
+}
+.dep-col-deployname {
+  width: 17%;
+}
+.dep-col-status {
+  width: 8%;
+}
+.dep-col-actions {
+  width: 22%;
+}
+
+/* Metrics chips (governance tables) */
+.metric-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.metric-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-1);
+  background: var(--bg-2);
+  border: 1px solid var(--border-1);
+  border-radius: var(--radius-xs);
+  padding: 1px 5px;
+  white-space: nowrap;
+  line-height: 1.5;
+}
+.metric-chip-key {
+  color: var(--text-2);
+}
+.metric-chip-key::after {
+  content: ':';
+}
+
 tbody td.mono {
   font-family: var(--font-mono);
   font-size: 12px;
@@ -2129,8 +2293,7 @@ mark.search-mark {
 
 .ai-act-md ul {
   margin: 6px 0 12px;
-  padding: 0;
-  list-style: none;
+  padding-left: 18px;
 }
 .ai-act-md ol {
   margin: 6px 0 12px;
@@ -2141,21 +2304,18 @@ mark.search-mark {
   line-height: 1.65;
 }
 .ai-act-md ul > li {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
+  list-style-type: '▸  ';
 }
-.ai-act-md ul > li::before {
-  content: '▸';
+.ai-act-md ul > li::marker {
   color: var(--text-3);
-  flex-shrink: 0;
   font-size: 9px;
 }
 /* Task-list checkboxes (marked.js GFM) */
-.ai-act-md ul > li:has(> input[type="checkbox"])::before { display: none; }
+.ai-act-md ul > li:has(> input[type="checkbox"]) { list-style: none; margin-left: -18px; }
 .ai-act-md ul > li input[type="checkbox"] {
   width: 13px; height: 13px;
-  flex-shrink: 0;
+  vertical-align: -1px;
+  margin-right: 4px;
   accent-color: var(--orange);
   cursor: default;
 }
@@ -2169,6 +2329,23 @@ mark.search-mark {
   border-radius: 3px;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.ai-act-md pre {
+  margin: 6px 0 12px;
+  padding: 12px 14px;
+  background: var(--bg-1);
+  border: 1px solid var(--border-1);
+  border-radius: var(--radius-sm);
+  overflow-x: auto;
+}
+.ai-act-md pre code {
+  background: none;
+  color: var(--text-1);
+  padding: 0;
+  border-radius: 0;
+  white-space: pre;
+  word-break: normal;
 }
 
 /* ── Status section wrappers (✅ / ⚠️ / ❌ h3 headings) ────── */

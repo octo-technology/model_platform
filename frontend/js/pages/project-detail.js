@@ -342,6 +342,7 @@ const ProjectDetailPage = (() => {
         complianceMap[`${info.model_name}:${info.model_version}`] = {
           deterministic: info.deterministic_compliance || 'not_evaluated',
           llm: info.llm_compliance || 'not_evaluated',
+          risk_level: info.risk_level,
         };
       }
 
@@ -407,12 +408,26 @@ const ProjectDetailPage = (() => {
       sel.addEventListener('change', () => {
         const agentName = sel.dataset.agent;
         const version = sel.value;
-        const cell = panel.querySelector(`.compliance-cell-agent[data-agent="${agentName}"]`);
-        if (!cell) return;
         const c = (agentComplianceMap || {})[`${agentName}:${version}`];
-        cell.innerHTML = c
-          ? `${riskBadge(c.risk_level)} ${complianceIcon(c.deterministic, 'Det.')} ${complianceIcon(c.llm, 'LLM')}`
-          : `${riskBadge(null)} ${complianceIcon('not_evaluated', 'Det.')} ${complianceIcon('not_evaluated', 'LLM')}`;
+
+        const riskCell = panel.querySelector(`.risk-cell-agent[data-agent="${agentName}"]`);
+        if (riskCell) riskCell.innerHTML = riskBadge(c ? c.risk_level : null);
+        const detCell = panel.querySelector(`.det-cell-agent[data-agent="${agentName}"]`);
+        if (detCell) detCell.innerHTML = complianceIcon(c ? c.deterministic : 'not_evaluated');
+        const llmCell = panel.querySelector(`.llm-cell-agent[data-agent="${agentName}"]`);
+        if (llmCell) llmCell.innerHTML = complianceIcon(c ? c.llm : 'not_evaluated');
+
+        const registryLink = panel.querySelector(`.registry-cell-agent[data-agent="${agentName}"] a`);
+        if (registryLink) {
+          const registryInfo = JSON.parse(sel.dataset.registryInfo || '{}')[version] || {};
+          registryLink.href = buildRegistryUrl(projectName, registryInfo.experimentId, registryInfo.modelId);
+        }
+
+        const aliasesCell = panel.querySelector(`.aliases-cell-agent[data-agent="${agentName}"]`);
+        if (aliasesCell) {
+          const aliasesByVersion = JSON.parse(sel.dataset.aliasesInfo || '{}');
+          aliasesCell.textContent = aliasesDisplayForVersion(aliasesByVersion, version);
+        }
       });
     });
 
@@ -554,16 +569,19 @@ const ProjectDetailPage = (() => {
     return `
       ${sectionHeader}
       <div class="table-wrap">
-        <table>
+        <table class="avail-ai-table">
           <thead>
             <tr>
-              <th>Model name</th>
-              <th>Aliases</th>
-              <th>Latest version</th>
-              <th>Registered</th>
-              <th>Version to deploy</th>
-              <th>Compliance</th>
-              <th style="text-align:right">Action</th>
+              <th class="avail-col-name">Model name</th>
+              <th class="avail-col-aliases">Aliases</th>
+              <th class="avail-col-version">Latest version</th>
+              <th class="avail-col-registered">Registered</th>
+              <th class="avail-col-deploy">Version to deploy</th>
+              <th class="avail-col-risk">Risk Level</th>
+              <th class="avail-col-det">Deterministic Compliance</th>
+              <th class="avail-col-llm">LLM Compliance</th>
+              <th class="avail-col-registry">Registry</th>
+              <th class="avail-col-action" style="text-align:right">Action</th>
             </tr>
           </thead>
           <tbody id="models-tbody">${rows}</tbody>
@@ -592,16 +610,19 @@ const ProjectDetailPage = (() => {
     return `
       ${sectionHeader}
       <div class="table-wrap">
-        <table>
+        <table class="avail-ai-table">
           <thead>
             <tr>
-              <th>Agent name</th>
-              <th>Aliases</th>
-              <th>Latest version</th>
-              <th>Registered</th>
-              <th>Version to deploy</th>
-              <th>Compliance</th>
-              <th style="text-align:right">Action</th>
+              <th class="avail-col-name">Agent name</th>
+              <th class="avail-col-aliases">Aliases</th>
+              <th class="avail-col-version">Latest version</th>
+              <th class="avail-col-registered">Registered</th>
+              <th class="avail-col-deploy">Version to deploy</th>
+              <th class="avail-col-risk">Risk Level</th>
+              <th class="avail-col-det">Deterministic Compliance</th>
+              <th class="avail-col-llm">LLM Compliance</th>
+              <th class="avail-col-registry">Registry</th>
+              <th class="avail-col-action" style="text-align:right">Action</th>
             </tr>
           </thead>
           <tbody id="agents-tbody">${rows}</tbody>
@@ -624,34 +645,52 @@ const ProjectDetailPage = (() => {
     const ts = a.creation_timestamp;
     const registered = ts ? new Date(ts).toLocaleDateString() : '—';
 
-    const aliases = a.aliases && typeof a.aliases === 'object' ? Object.keys(a.aliases) : (Array.isArray(a.aliases) ? a.aliases : []);
-    const aliasesDisplay = aliases.length > 0 ? aliases.join(', ') : '—';
+    // a.aliases is an alias→version map (e.g. {"champion": "5"}) — invert it to
+    // version→aliases so the Aliases column can show only the alias(es) that apply
+    // to whichever version is currently selected in "Version to deploy".
+    const aliasesByVersion = invertAliasMap(a.aliases);
+    const aliasesByVersionData = escHtml(JSON.stringify(aliasesByVersion));
 
     const versionOptions = versionNumbers.length > 0
       ? versionNumbers.map(v => `<option value="${escHtml(String(v))}">${escHtml(String(v))}</option>`).join('')
       : `<option value="">—</option>`;
 
+    const registryInfoByVersion = {};
+    versionObjects.forEach(v => {
+      if (typeof v === 'object' && v.version) {
+        registryInfoByVersion[String(v.version)] = { modelId: v.model_id || null, experimentId: v.experiment_id || null };
+      }
+    });
+    const registryInfoData = escHtml(JSON.stringify(registryInfoByVersion));
+
     const firstVersion = versionNumbers.length > 0 ? versionNumbers[0] : '';
     const firstCompliance = (agentComplianceMap || {})[`${name}:${firstVersion}`];
-    const initialBadge = firstCompliance
-      ? `${riskBadge(firstCompliance.risk_level)} ${complianceIcon(firstCompliance.deterministic, 'Det.')} ${complianceIcon(firstCompliance.llm, 'LLM')}`
-      : `${riskBadge(null)} ${complianceIcon('not_evaluated', 'Det.')} ${complianceIcon('not_evaluated', 'LLM')}`;
+    const initialRisk = riskBadge(firstCompliance ? firstCompliance.risk_level : null);
+    const initialDet  = complianceIcon(firstCompliance ? firstCompliance.deterministic : 'not_evaluated');
+    const initialLlm  = complianceIcon(firstCompliance ? firstCompliance.llm : 'not_evaluated');
+    const firstRegistryInfo = registryInfoByVersion[String(firstVersion)] || {};
+    const initialAliases = aliasesDisplayForVersion(aliasesByVersion, firstVersion);
 
     return `
       <tr>
-        <td class="font-bold">
+        <td class="font-bold avail-col-name">
           <a href="#" class="agent-name-link" data-agent="${escHtml(name)}" data-project="${escHtml(projectName)}">${escHtml(name)}</a>
         </td>
-        <td style="font-size:12px;color:var(--text-2)">${escHtml(aliasesDisplay)}</td>
-        <td class="mono">${escHtml(String(latest))}</td>
-        <td>${escHtml(registered)}</td>
-        <td>
-          <select class="form-select version-select-agent" style="width:90px;padding:4px 28px 4px 8px;" data-agent="${escHtml(name)}">
+        <td class="avail-col-aliases aliases-cell-agent" style="font-size:12px;color:var(--text-2)" data-agent="${escHtml(name)}">${escHtml(initialAliases)}</td>
+        <td class="mono avail-col-version">${escHtml(String(latest))}</td>
+        <td class="avail-col-registered">${escHtml(registered)}</td>
+        <td class="avail-col-deploy">
+          <select class="form-select version-select-agent" style="width:90px;padding:4px 28px 4px 8px;" data-agent="${escHtml(name)}" data-registry-info="${registryInfoData}" data-aliases-info="${aliasesByVersionData}">
             ${versionOptions}
           </select>
         </td>
-        <td class="compliance-cell-agent" data-agent="${escHtml(name)}">${initialBadge}</td>
-        <td class="actions">
+        <td class="avail-col-risk risk-cell-agent" data-agent="${escHtml(name)}">${initialRisk}</td>
+        <td class="avail-col-det det-cell-agent" data-agent="${escHtml(name)}">${initialDet}</td>
+        <td class="avail-col-llm llm-cell-agent" data-agent="${escHtml(name)}">${initialLlm}</td>
+        <td class="avail-col-registry registry-cell-agent" data-agent="${escHtml(name)}">
+          <a href="${escHtml(buildRegistryUrl(projectName, firstRegistryInfo.experimentId, firstRegistryInfo.modelId))}" target="_blank" rel="noopener" class="btn btn-secondary btn-xs">Registry</a>
+        </td>
+        <td class="actions avail-col-action">
           <button class="btn btn-primary btn-sm deploy-agent-btn"
                   data-agent="${escHtml(name)}"
                   data-project="${escHtml(projectName)}">
@@ -662,19 +701,21 @@ const ProjectDetailPage = (() => {
     `;
   }
 
-  function riskBadge(risk) {
-    if (!risk) return `<span class="badge badge-neutral" title="Risk level — not set">—</span>`;
+  function riskBadge(risk, label) {
+    const prefix = label ? `<span style="font-size:10px;color:var(--text-2);margin-right:4px">${escHtml(label)}</span>` : '';
+    if (!risk) return `${prefix}<span class="badge badge-neutral" title="Risk level — not set">—</span>`;
     const map = { unacceptable: 'badge-error', high: 'badge-red', limited: 'badge-orange', minimal: 'badge-green' };
     const cls = map[String(risk).toLowerCase()] || 'badge-neutral';
-    return `<span class="badge ${cls}" title="Risk level">${escHtml(risk)}</span>`;
+    return `${prefix}<span class="badge ${cls}" title="Risk level">${escHtml(risk)}</span>`;
   }
 
   function complianceIcon(status, label) {
     const prefix = label ? `<span style="font-size:10px;color:var(--text-2);margin-right:4px">${escHtml(label)}</span>` : '';
-    if (status === 'compliant') return `${prefix}<span class="badge badge-green" title="${escHtml(label || '')} — Compliant">Compliant</span>`;
-    if (status === 'partially_compliant') return `${prefix}<span class="badge badge-orange" title="${escHtml(label || '')} — Partially compliant">Partial</span>`;
-    if (status === 'non_compliant') return `${prefix}<span class="badge badge-red" title="${escHtml(label || '')} — Non-compliant">Non-compliant</span>`;
-    if (status === 'not_evaluated') return `${prefix}<span class="badge badge-neutral" title="${escHtml(label || '')} — Not evaluated">Not evaluated</span>`;
+    const titlePrefix = label ? `${escHtml(label)} — ` : '';
+    if (status === 'compliant') return `${prefix}<span class="badge badge-green" title="${titlePrefix}Compliant">Compliant</span>`;
+    if (status === 'partially_compliant') return `${prefix}<span class="badge badge-orange" title="${titlePrefix}Partially compliant">Partial</span>`;
+    if (status === 'non_compliant') return `${prefix}<span class="badge badge-red" title="${titlePrefix}Non-compliant">Non-compliant</span>`;
+    if (status === 'not_evaluated') return `${prefix}<span class="badge badge-neutral" title="${titlePrefix}Not evaluated">Not evaluated</span>`;
     return `${prefix}<span class="badge badge-neutral">—</span>`;
   }
 
@@ -694,34 +735,55 @@ const ProjectDetailPage = (() => {
     const ts = m.creation_timestamp;
     const registered = ts ? new Date(ts).toLocaleDateString() : '—';
 
-    const aliases = m.aliases && typeof m.aliases === 'object' ? Object.keys(m.aliases) : (Array.isArray(m.aliases) ? m.aliases : []);
-    const aliasesDisplay = aliases.length > 0 ? aliases.join(', ') : '—';
+    // m.aliases is an alias→version map (e.g. {"champion": "5"}) — invert it to
+    // version→aliases so the Aliases column can show only the alias(es) that apply
+    // to whichever version is currently selected in "Version to deploy".
+    const aliasesByVersion = invertAliasMap(m.aliases);
+    const aliasesByVersionData = escHtml(JSON.stringify(aliasesByVersion));
 
     const versionOptions = versionNumbers.length > 0
       ? versionNumbers.map(v => `<option value="${escHtml(String(v))}">${escHtml(String(v))}</option>`).join('')
       : `<option value="">—</option>`;
 
-    // Compliance badge for the first (latest) version
-    const complianceData = JSON.stringify(complianceMap || {}).replace(/"/g, '&quot;');
+    // Logged-model identifiers (experiment_id + model_id) per version, for the Registry
+    // link — kept as a data attribute so the version-change handler can look it up.
+    const registryInfoByVersion = {};
+    versionObjects.forEach(v => {
+      if (typeof v === 'object' && v.version) {
+        registryInfoByVersion[String(v.version)] = { modelId: v.model_id || null, experimentId: v.experiment_id || null };
+      }
+    });
+    const registryInfoData = escHtml(JSON.stringify(registryInfoByVersion));
+
+    // Compliance badges for the first (latest) version — one badge per column
     const firstVersion = versionNumbers.length > 0 ? versionNumbers[0] : '';
     const firstCompliance = (complianceMap || {})[`${name}:${firstVersion}`];
-    const initialBadge = firstCompliance
-      ? `${complianceIcon(firstCompliance.deterministic, 'Det.')} ${complianceIcon(firstCompliance.llm, 'LLM')}`
-      : `${complianceIcon('not_evaluated', 'Det.')} ${complianceIcon('not_evaluated', 'LLM')}`;
+    const initialRisk = riskBadge(firstCompliance ? firstCompliance.risk_level : null);
+    const initialDet  = complianceIcon(firstCompliance ? firstCompliance.deterministic : 'not_evaluated');
+    const initialLlm  = complianceIcon(firstCompliance ? firstCompliance.llm : 'not_evaluated');
+    const firstRegistryInfo = registryInfoByVersion[String(firstVersion)] || {};
+    const initialAliases = aliasesDisplayForVersion(aliasesByVersion, firstVersion);
 
     return `
       <tr>
-        <td class="font-bold">${escHtml(name)}</td>
-        <td style="font-size:12px;color:var(--text-2)">${escHtml(aliasesDisplay)}</td>
-        <td class="mono">${escHtml(String(latest))}</td>
-        <td>${escHtml(registered)}</td>
-        <td>
-          <select class="form-select version-select" style="width:90px;padding:4px 28px 4px 8px;" data-model="${escHtml(name)}">
+        <td class="font-bold avail-col-name">
+          <a href="#" class="model-name-link" data-model="${escHtml(name)}" data-project="${escHtml(projectName)}">${escHtml(name)}</a>
+        </td>
+        <td class="avail-col-aliases aliases-cell" style="font-size:12px;color:var(--text-2)" data-model="${escHtml(name)}">${escHtml(initialAliases)}</td>
+        <td class="mono avail-col-version">${escHtml(String(latest))}</td>
+        <td class="avail-col-registered">${escHtml(registered)}</td>
+        <td class="avail-col-deploy">
+          <select class="form-select version-select" style="width:90px;padding:4px 28px 4px 8px;" data-model="${escHtml(name)}" data-registry-info="${registryInfoData}" data-aliases-info="${aliasesByVersionData}">
             ${versionOptions}
           </select>
         </td>
-        <td class="compliance-cell" data-model="${escHtml(name)}">${initialBadge}</td>
-        <td class="actions">
+        <td class="avail-col-risk risk-cell" data-model="${escHtml(name)}">${initialRisk}</td>
+        <td class="avail-col-det det-cell" data-model="${escHtml(name)}">${initialDet}</td>
+        <td class="avail-col-llm llm-cell" data-model="${escHtml(name)}">${initialLlm}</td>
+        <td class="avail-col-registry registry-cell" data-model="${escHtml(name)}">
+          <a href="${escHtml(buildRegistryUrl(projectName, firstRegistryInfo.experimentId, firstRegistryInfo.modelId))}" target="_blank" rel="noopener" class="btn btn-secondary btn-xs">Registry</a>
+        </td>
+        <td class="actions avail-col-action">
           <button class="btn btn-primary btn-sm deploy-btn" data-model="${escHtml(name)}" data-project="${escHtml(projectName)}">
             Deploy
           </button>
@@ -736,12 +798,37 @@ const ProjectDetailPage = (() => {
       sel.addEventListener('change', () => {
         const modelName = sel.dataset.model;
         const version = sel.value;
-        const cell = panel.querySelector(`.compliance-cell[data-model="${modelName}"]`);
-        if (!cell) return;
         const c = (complianceMap || {})[`${modelName}:${version}`];
-        cell.innerHTML = c
-          ? `${complianceIcon(c.deterministic, 'Det.')} ${complianceIcon(c.llm, 'LLM')}`
-          : `${complianceIcon('not_evaluated', 'Det.')} ${complianceIcon('not_evaluated', 'LLM')}`;
+
+        const riskCell = panel.querySelector(`.risk-cell[data-model="${modelName}"]`);
+        if (riskCell) riskCell.innerHTML = riskBadge(c ? c.risk_level : null);
+        const detCell = panel.querySelector(`.det-cell[data-model="${modelName}"]`);
+        if (detCell) detCell.innerHTML = complianceIcon(c ? c.deterministic : 'not_evaluated');
+        const llmCell = panel.querySelector(`.llm-cell[data-model="${modelName}"]`);
+        if (llmCell) llmCell.innerHTML = complianceIcon(c ? c.llm : 'not_evaluated');
+
+        const registryLink = panel.querySelector(`.registry-cell[data-model="${modelName}"] a`);
+        if (registryLink) {
+          const registryInfo = JSON.parse(sel.dataset.registryInfo || '{}')[version] || {};
+          registryLink.href = buildRegistryUrl(projectName, registryInfo.experimentId, registryInfo.modelId);
+        }
+
+        const aliasesCell = panel.querySelector(`.aliases-cell[data-model="${modelName}"]`);
+        if (aliasesCell) {
+          const aliasesByVersion = JSON.parse(sel.dataset.aliasesInfo || '{}');
+          aliasesCell.textContent = aliasesDisplayForVersion(aliasesByVersion, version);
+        }
+      });
+    });
+
+    // Open the model detail page (name link uses the currently selected version)
+    panel.querySelectorAll('.model-name-link').forEach(link => {
+      link.addEventListener('click', e => {
+        e.preventDefault();
+        const modelName = link.dataset.model;
+        const row = link.closest('tr');
+        const version = row.querySelector(`select.version-select[data-model="${modelName}"]`).value;
+        App.navigateTo('model', { project: projectName, name: modelName, version });
       });
     });
 
@@ -986,14 +1073,14 @@ const ProjectDetailPage = (() => {
 
       return `
         <tr>
-          <td class="font-bold">${escHtml(name)}</td>
-          <td class="mono">${escHtml(String(version))}</td>
-          <td>${escHtml(deployDate)}</td>
-          <td>${endpointUrl ? `<a href="${escHtml(endpointUrl)}" target="_blank" rel="noopener" style="color:var(--cyan);font-size:12px;font-family:var(--font-mono)">${escHtml(endpointUrl)}</a>` : '—'}</td>
-          <td class="mono">${escHtml(deployName)}</td>
-          <td>${statusBadge(status)}</td>
-          <td class="actions">
-            <div class="flex gap-2 justify-end">
+          <td class="font-bold dep-col-name">${escHtml(name)}</td>
+          <td class="mono dep-col-version">${escHtml(String(version))}</td>
+          <td class="dep-col-date">${escHtml(deployDate)}</td>
+          <td class="dep-col-endpoint">${endpointUrl ? `<a href="${escHtml(endpointUrl)}" target="_blank" rel="noopener" style="color:var(--cyan);font-size:12px;font-family:var(--font-mono)">${escHtml(endpointUrl)}</a>` : '—'}</td>
+          <td class="mono dep-col-deployname">${escHtml(deployName)}</td>
+          <td class="dep-col-status">${statusBadge(status)}</td>
+          <td class="actions dep-col-actions">
+            <div class="flex gap-2 justify-end" style="flex-wrap:nowrap">
               ${docsUrl ? `<a href="${escHtml(docsUrl)}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">API Docs</a>` : ''}
               ${dashUrl ? `<a href="${escHtml(dashUrl)}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Dashboard</a>` : ''}
               <button class="btn btn-danger btn-sm undeploy-btn" data-model="${escHtml(name)}" data-version="${escHtml(String(version))}">Undeploy</button>
@@ -1005,8 +1092,8 @@ const ProjectDetailPage = (() => {
     return `
       ${sectionHeader}
       <div class="table-wrap">
-        <table>
-          <thead><tr><th>Model</th><th>Version</th><th>Deployed on</th><th>Endpoint</th><th>Deployment name</th><th>Status</th><th style="text-align:right">Actions</th></tr></thead>
+        <table class="deployed-ai-table">
+          <thead><tr><th class="dep-col-name">Model</th><th class="dep-col-version">Version</th><th class="dep-col-date">Deployed on</th><th class="dep-col-endpoint">Endpoint</th><th class="dep-col-deployname">Deployment name</th><th class="dep-col-status">Status</th><th class="dep-col-actions" style="text-align:right">Actions</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>`;
@@ -1036,17 +1123,19 @@ const ProjectDetailPage = (() => {
       const deployDate  = a.deployment_date ? new Date(a.deployment_date).toLocaleDateString() : '—';
       const baseUrl     = buildDashboardUrl(projectName, deployName);
       const endpointUrl = baseUrl ? `${baseUrl}/agent_predict` : '';
+      const docsUrl     = baseUrl ? `${baseUrl}/docs` : '';
       const dashUrl     = a.dashboard_url || baseUrl;
       return `
         <tr>
-          <td class="font-bold">${escHtml(name)}</td>
-          <td class="mono">${escHtml(String(version))}</td>
-          <td>${escHtml(deployDate)}</td>
-          <td>${endpointUrl ? `<a href="${escHtml(endpointUrl)}" target="_blank" rel="noopener" style="color:var(--cyan);font-size:12px;font-family:var(--font-mono)">${escHtml(endpointUrl)}</a>` : '—'}</td>
-          <td class="mono">${escHtml(deployName)}</td>
-          <td>${statusBadge(status)}</td>
-          <td class="actions">
-            <div class="flex gap-2 justify-end">
+          <td class="font-bold dep-col-name">${escHtml(name)}</td>
+          <td class="mono dep-col-version">${escHtml(String(version))}</td>
+          <td class="dep-col-date">${escHtml(deployDate)}</td>
+          <td class="dep-col-endpoint">${endpointUrl ? `<a href="${escHtml(endpointUrl)}" target="_blank" rel="noopener" style="color:var(--cyan);font-size:12px;font-family:var(--font-mono)">${escHtml(endpointUrl)}</a>` : '—'}</td>
+          <td class="mono dep-col-deployname">${escHtml(deployName)}</td>
+          <td class="dep-col-status">${statusBadge(status)}</td>
+          <td class="actions dep-col-actions">
+            <div class="flex gap-2 justify-end" style="flex-wrap:nowrap">
+              ${docsUrl ? `<a href="${escHtml(docsUrl)}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">API Docs</a>` : ''}
               ${dashUrl ? `<a href="${escHtml(dashUrl)}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Dashboard</a>` : ''}
               <button class="btn btn-danger btn-sm undeploy-agent-btn" data-agent="${escHtml(name)}" data-version="${escHtml(String(version))}">Undeploy</button>
             </div>
@@ -1057,8 +1146,8 @@ const ProjectDetailPage = (() => {
     return `
       ${sectionHeader}
       <div class="table-wrap">
-        <table>
-          <thead><tr><th>Agent</th><th>Version</th><th>Deployed on</th><th>Endpoint</th><th>Deployment name</th><th>Status</th><th style="text-align:right">Actions</th></tr></thead>
+        <table class="deployed-ai-table">
+          <thead><tr><th class="dep-col-name">Agent</th><th class="dep-col-version">Version</th><th class="dep-col-date">Deployed on</th><th class="dep-col-endpoint">Endpoint</th><th class="dep-col-deployname">Deployment name</th><th class="dep-col-status">Status</th><th class="dep-col-actions" style="text-align:right">Actions</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>`;
@@ -1356,6 +1445,45 @@ const ProjectDetailPage = (() => {
     const host = window.MP_HOST_NAME || '';
     if (!host || !deployName || deployName === '—') return '';
     return `http://${host}/deploy/${projectName}/${deployName}`;
+  }
+
+  // MLflow's registered-model `aliases` field is an alias→version map (e.g.
+  // {"champion": "5"}). Invert it to version→aliases so the Aliases column can show
+  // only the alias(es) pinned to whichever version is currently selected.
+  function invertAliasMap(aliases) {
+    const byVersion = {};
+    if (aliases && typeof aliases === 'object' && !Array.isArray(aliases)) {
+      Object.entries(aliases).forEach(([alias, version]) => {
+        const key = String(version);
+        (byVersion[key] = byVersion[key] || []).push(alias);
+      });
+    }
+    return byVersion;
+  }
+
+  function aliasesDisplayForVersion(aliasesByVersion, version) {
+    const aliases = (aliasesByVersion || {})[String(version)] || [];
+    return aliases.length > 0 ? aliases.join(', ') : '—';
+  }
+
+  // Mirrors backend.utils.sanitize_project_name — the /registry/<project>/ ingress path
+  // segment must match the project's k8s service name, not its display name.
+  function sanitizeProjectName(projectName) {
+    return String(projectName || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, '-')
+      .replace(/^-+/, '')
+      .replace(/-+$/, '');
+  }
+
+  // Links to the LoggedModel's page (MLflow 3.x) in the project's own MLflow instance,
+  // proxied at /registry/<project>/ (see infrastructure/k8s/nginx-configmap.yaml).
+  // Requires the experiment_id + model_id of the LoggedModel behind this registered
+  // version (see MLFlowModelRegistryAdapter._process_model_versions).
+  function buildRegistryUrl(projectName, experimentId, modelId) {
+    const host = window.MP_HOST_NAME || '';
+    if (!host || !experimentId || !modelId) return '';
+    return `http://${host}/registry/${sanitizeProjectName(projectName)}/#/experiments/${encodeURIComponent(experimentId)}/models/${encodeURIComponent(modelId)}`;
   }
 
   function loadingHTML(text = 'Loading…') {

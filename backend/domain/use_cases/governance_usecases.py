@@ -101,12 +101,17 @@ def _get_project_agents_versions(agent_registry: AgentRegistry):
 
 
 def extract_agent_governance_information(
-    agent_registry: AgentRegistry, project_name: str, agent_name: str, version: str
+    agent_registry: AgentRegistry,
+    project_name: str,
+    agent_name: str,
+    version: str,
+    creation_timestamp: int | None = None,
 ):
     """
     Extract agent governance information from the MLFlow Model Registry
     """
     information = agent_registry.get_agent_governance_information(agent_name, version)
+    information["creation_timestamp"] = creation_timestamp
     return {"agent_information": information, "events": _get_events_for_model(project_name, agent_name, version)}
 
 
@@ -143,7 +148,7 @@ def download_project_models_governance_information(
             for version in agent_versions[agent_name]:
                 version_name = version["version"]
                 agent_information = extract_agent_governance_information(
-                    agent_registry, project_name, agent_name, version_name
+                    agent_registry, project_name, agent_name, version_name, version.get("creation_timestamp")
                 )
                 _extract_agent_artifacts(agent_registry, project_name, agent_name, version_name, artifacts_path_tmp)
                 project_information.append(agent_information)
@@ -175,7 +180,7 @@ def return_project_models_governance_information(
             for version in agent_versions[agent_name]:
                 version_name = version["version"]
                 agent_information = extract_agent_governance_information(
-                    agent_registry, project_name, agent_name, version_name
+                    agent_registry, project_name, agent_name, version_name, version.get("creation_timestamp")
                 )
                 project_information.append(agent_information)
 

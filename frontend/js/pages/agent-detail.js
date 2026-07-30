@@ -157,7 +157,11 @@ const AgentDetailPage = (() => {
 
   function renderMarkdown(md) {
     if (typeof marked === 'undefined') return `<pre style="white-space:pre-wrap">${escHtml(md)}</pre>`;
-    return marked.parse(md, { breaks: false, gfm: true });
+    let html = marked.parse(md, { breaks: false, gfm: true });
+    return html
+      .replace(/<hr\s*\/?>/g, '')
+      .replace(/<table>/g, '<div class="ai-act-table-scroll"><table>')
+      .replace(/<\/table>/g, '</table></div>');
   }
 
   function loadingHTML(text = 'Loading…') {

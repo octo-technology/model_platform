@@ -61,6 +61,38 @@ def search_agent_infos(
     return agent_info_db_handler.search_agent_infos(query=query, project_name=project_name)
 
 
+def prune_stale_agent_infos(
+    project_name: str,
+    registry: AgentRegistry,
+    agent_info_db_handler: AgentInfoDbHandler,
+) -> None:
+    """Delete AgentInfo rows whose version no longer exists in the MLflow registry.
+
+    The local DB is only ever upserted into by sync_agent_infos_for_project, so a
+    version deleted directly in MLflow (outside the platform) is never reflected
+    here unless we actively cross-check and prune on read.
+    """
+    existing = agent_info_db_handler.list_agent_infos_for_project(project_name)
+    live_versions_by_agent: dict[str, set[str] | None] = {}
+    for info in existing:
+        if info.agent_name in live_versions_by_agent:
+            continue
+        try:
+            live_versions_by_agent[info.agent_name] = {
+                str(v["version"]) for v in registry.list_agent_versions(info.agent_name)
+            }
+        except Exception as e:
+            logger.warning(f"Could not list live versions for agent {info.agent_name}: {e}")
+            live_versions_by_agent[info.agent_name] = None
+
+    for info in existing:
+        live_versions = live_versions_by_agent.get(info.agent_name)
+        if live_versions is None:
+            continue  # registry lookup failed — don't prune on uncertain data
+        if info.agent_version not in live_versions:
+            agent_info_db_handler.delete_agent_info(info.agent_name, info.agent_version, project_name)
+
+
 def sync_agent_infos_for_project(
     project_name: str,
     registry: AgentRegistry,

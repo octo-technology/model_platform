@@ -45,6 +45,35 @@ class MLFlowAgentRegistryAdapter(AgentRegistry):
         versions: PagedList[ModelVersion] = self.mlflow_client.search_model_versions(f"name='{agent_name}'")
         return self._process_versions(versions.to_list())
 
+    def _logged_model_exists(self, model_id: str | None) -> bool:
+        """MLflow 3.x: a ModelVersion's registry entry survives deleting its
+        source LoggedModel (they're decoupled entities) — the version then
+        points at nothing. Treat that as effectively deleted."""
+        if not model_id:
+            return True  # no LoggedModel to check against (e.g. legacy version) — assume alive
+        try:
+            self.mlflow_client.get_logged_model(model_id)
+            return True
+        except Exception:
+            return False
+
+    def _get_logged_model_experiment_id(self, model_id: str) -> str | None:
+        """Best-effort lookup, isolated from _logged_model_exists so a failure here
+        never affects whether the version is considered alive."""
+        try:
+            return self.mlflow_client.get_logged_model(model_id).experiment_id
+        except Exception:
+            return None
+
+    @staticmethod
+    def _extract_model_id_from_source(source: str | None) -> str | None:
+        """ModelVersion.model_id is often unset even in MLflow 3.x (depends on how the
+        version was registered); the LoggedModel id is still recoverable from the
+        `models:/<model_id>` source URI when present."""
+        if source and source.startswith("models:/"):
+            return source[len("models:/") :]
+        return None
+
     def get_agent_card(self, agent_name: str, agent_version: str) -> str | None:
         try:
             run_id = self._get_run_id(agent_name, agent_version)
@@ -118,14 +147,21 @@ class MLFlowAgentRegistryAdapter(AgentRegistry):
                 return v.get("run_id")
         return None
 
-    @staticmethod
-    def _process_versions(versions: list[ModelVersion]) -> list[dict]:
-        return [
-            {
+    def _process_versions(self, versions: list[ModelVersion]) -> list[dict]:
+        processed = []
+        for v in versions:
+            model_id = getattr(v, "model_id", None)
+            if not self._logged_model_exists(model_id):
+                continue
+            entry = {
                 "name": v.name,
                 "version": v.version,
                 "creation_timestamp": v.creation_timestamp,
                 "run_id": v.run_id,
             }
-            for v in versions
-        ]
+            registry_model_id = model_id or self._extract_model_id_from_source(getattr(v, "source", None))
+            if registry_model_id:
+                entry["model_id"] = registry_model_id
+                entry["experiment_id"] = self._get_logged_model_experiment_id(registry_model_id)
+            processed.append(entry)
+        return processed

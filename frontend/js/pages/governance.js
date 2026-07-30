@@ -1,6 +1,10 @@
 // Governance page — model & agent audit trail, version history, deployment events
 const GovernancePage = (() => {
 
+  // Metrics chips only surface these core scoring metrics — the rest (dataset
+  // sizing, per-split default rates, etc.) is noise in this compact table view.
+  const DISPLAYED_METRIC_KEYS = ['accuracy', 'precision', 'recall', 'f1_score', 'auc_roc'];
+
   // Per-kind adapters so the AI Act / review / risk-suggestion UI works for both
   // models and agents without duplicating the modal logic.
   const ENTITY_ADAPTERS = {
@@ -237,6 +241,17 @@ const GovernancePage = (() => {
       .map(([modelName, versionList]) => renderModelSection(modelName, versionList, projectName, aiCache.model))
       .join('');
 
+    const agentGovernanceInfo = {};
+    entries.forEach(e => {
+      const info = e.agent_information;
+      if (!info) return;
+      const key = `${info.agent_name}:${info.agent_version}`;
+      agentGovernanceInfo[key] = {
+        createdAt: info.creation_timestamp || null,
+        owner: (info.run_tags && info.run_tags['mlflow.user']) || null,
+      };
+    });
+
     agentCardCache = {};
     const agentGroups = {};
     (agentList || []).forEach(a => {
@@ -250,7 +265,7 @@ const GovernancePage = (() => {
     Object.values(agentGroups).forEach(versionList => versionList.sort((a, b) => Number(b.agent_version) - Number(a.agent_version)));
 
     const agentSections = Object.entries(agentGroups)
-      .map(([agentName, versionList]) => renderAgentSection(agentName, versionList, projectName))
+      .map(([agentName, versionList]) => renderAgentSection(agentName, versionList, projectName, agentGovernanceInfo))
       .join('');
 
     content.innerHTML = `
@@ -419,23 +434,10 @@ const GovernancePage = (() => {
   // ── AI Act Modal ──────────────────────────────────────────────
 
   async function openAiActModal(kind, projectName, modelName, version) {
-    const key = `${modelName}:${version}`;
-    const cached = aiCache[kind][key];
-    const reviewBtnLabel = cached && cached.actReview ? 'Re-analyze' : 'Analyze with Claude';
-
-    const aiReviewBtnHtml = aiAvailable ? `
-      <button class="btn btn-ai btn-sm" id="ai-act-review-btn">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-        </svg>
-        ${reviewBtnLabel}
-      </button>` : '';
-
     const { close } = Modal.open({
       title: `AI Act Card — ${modelName} v${version}`,
       body: `<div class="ai-act-loading"><span class="spinner"></span><span>Generating card…</span></div>`,
       footer: `
-        ${aiReviewBtnHtml}
         <button class="btn btn-secondary" id="ai-act-download" disabled>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
@@ -458,8 +460,10 @@ const GovernancePage = (() => {
         mdWrapper.innerHTML = renderMarkdown(markdownContent);
         bodyEl.appendChild(mdWrapper);
 
-        // Build a TOC from h2 headings for easy section navigation
-        const h2s = Array.from(mdWrapper.querySelectorAll('h2'));
+        // Build a TOC from the top-level numbered h2 headings only (e.g. "3. Description et..."),
+        // skipping unnumbered h2 sub-headings so the bar doesn't turn into a pill dump.
+        const h2s = Array.from(mdWrapper.querySelectorAll('h2'))
+          .filter(h2 => /^\d+\.\s+/.test(h2.textContent.trim()));
         if (h2s.length > 1) {
           const toc = document.createElement('div');
           toc.className = 'ai-act-toc';
@@ -468,28 +472,11 @@ const GovernancePage = (() => {
             const fullLabel = h2.textContent.trim();
             const btn = document.createElement('button');
             btn.className = 'ai-act-toc-btn';
-            btn.textContent = fullLabel.replace(/^(\d+)\.\s+(.+)/, (_, n, rest) => `${n}. ${rest.split(' ').slice(0, 2).join(' ')}`);
-            btn.title = fullLabel;
+            btn.textContent = fullLabel;
             btn.addEventListener('click', () => h2.scrollIntoView({ behavior: 'smooth', block: 'start' }));
             toc.appendChild(btn);
           });
           bodyEl.insertBefore(toc, mdWrapper);
-        }
-
-        // Inject cached review immediately if available
-        if (cached && cached.actReview) {
-          const reviewSection = document.createElement('div');
-          reviewSection.className = 'ai-review-section';
-          reviewSection.innerHTML = `
-            <div class="ai-review-header">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-              </svg>
-              AI Act compliance analysis by Claude
-            </div>
-            <div class="ai-review-body ai-act-md">${renderMarkdown(cached.actReview)}</div>
-          `;
-          bodyEl.appendChild(reviewSection);
         }
       }
 
@@ -499,67 +486,9 @@ const GovernancePage = (() => {
         dlBtn.addEventListener('click', () => downloadMarkdown(markdownContent, `ia-act-${projectName}-${modelName}-v${version}.md`));
       }
 
-      const reviewBtn = document.getElementById('ai-act-review-btn');
-      if (reviewBtn) {
-        reviewBtn.addEventListener('click', () => runAiActReview(kind, projectName, modelName, version, markdownContent));
-      }
-
     } catch (err) {
       const bodyEl = document.querySelector('#modal-container .modal-body');
       if (bodyEl) bodyEl.innerHTML = `<p style="color:var(--red-light)">Error: ${escHtml(err.message)}</p>`;
-    }
-  }
-
-  async function runAiActReview(kind, projectName, modelName, version, originalMarkdown) {
-    const key = `${modelName}:${version}`;
-    const reviewBtn = document.getElementById('ai-act-review-btn');
-    if (reviewBtn) {
-      reviewBtn.disabled = true;
-      reviewBtn.innerHTML = '<span class="spinner spinner-sm"></span> Analyzing…';
-    }
-
-    try {
-      const data = await ENTITY_ADAPTERS[kind].actReview(projectName, modelName, version);
-      const review = data.review || '';
-
-      // Update local cache (including LLM compliance from backend response)
-      aiCache[kind][key] = aiCache[kind][key] || { actReview: null };
-      aiCache[kind][key].actReview = review;
-      if (data.llm_compliance) {
-        aiCache[kind][key].llmCompliance = data.llm_compliance;
-        refreshLlmBadge(kind, modelName, version);
-      }
-
-      const bodyEl = document.querySelector('#modal-container .modal-body');
-      if (bodyEl) {
-        const reviewHtml = `
-          <div class="ai-review-header">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-            </svg>
-            AI Act compliance analysis by Claude
-          </div>
-          <div class="ai-review-body ai-act-md">${renderMarkdown(review)}</div>
-        `;
-        const existingSection = bodyEl.querySelector('.ai-review-section');
-        if (existingSection) {
-          existingSection.innerHTML = reviewHtml;
-          existingSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        } else {
-          const reviewSection = document.createElement('div');
-          reviewSection.className = 'ai-review-section';
-          reviewSection.innerHTML = reviewHtml;
-          bodyEl.appendChild(reviewSection);
-          reviewSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-      }
-    } catch (err) {
-      Toast.error(`Analysis error: ${escHtml(err.message)}`);
-    } finally {
-      if (reviewBtn) {
-        reviewBtn.disabled = false;
-        reviewBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg> Re-analyze`;
-      }
     }
   }
 
@@ -641,9 +570,9 @@ const GovernancePage = (() => {
 
   function renderMarkdown(md) {
     if (typeof marked === 'undefined') return `<pre style="white-space:pre-wrap">${escHtml(md)}</pre>`;
-    md = md.replace(/\n+(\*{1,2}[^*\n\r]{1,80}\*{1,2})\n+/g, ' $1 ');
     let html = marked.parse(md, { breaks: false, gfm: true });
     html = html
+      .replace(/<hr\s*\/?>/g, '')
       .replace(/<table>/g, '<div class="ai-act-table-scroll"><table>')
       .replace(/<\/table>/g, '</table></div>');
     return wrapStatusSections(html);
@@ -891,20 +820,17 @@ const GovernancePage = (() => {
 
     const rows = versions.map(v => {
       const ver     = v.version || '—';
-      const runName = (v.tags && v.tags['mlflow.runName']) || '—';
       const user    = (v.tags && v.tags['mlflow.user'])    || '—';
-      const metrics = v.metrics ? Object.entries(v.metrics).map(([k, val]) => `${k}: ${val}`).join(', ') : '—';
+      const visibleMetrics = v.metrics
+        ? DISPLAYED_METRIC_KEYS.filter(k => v.metrics[k] != null).map(k => [k, v.metrics[k]])
+        : [];
+      const metricsHtml = visibleMetrics.length
+        ? `<div class="metric-chips">${visibleMetrics.map(([k, val]) =>
+            `<span class="metric-chip"><span class="metric-chip-key">${escHtml(k)}</span>${escHtml(String(val))}</span>`
+          ).join('')}</div>`
+        : '—';
 
-      let created = '—';
-      const historyRaw = v.tags && v.tags['mlflow.log-model.history'];
-      if (historyRaw) {
-        try {
-          const history = JSON.parse(historyRaw);
-          if (Array.isArray(history) && history[0] && history[0].utc_time_created) {
-            created = formatDate(history[0].utc_time_created);
-          }
-        } catch {}
-      }
+      const created = v.creation_timestamp ? formatDate(v.creation_timestamp) : '—';
 
       const safeProj  = escHtml(projectName || '');
       const safeModel = escHtml(modelName || '');
@@ -916,7 +842,7 @@ const GovernancePage = (() => {
       const llmComplianceStatus = cached ? cached.llmCompliance : 'not_evaluated';
       const hasModelCard = !!(v.tags && v.tags['mlflow.note.content']) || !!modelCardCache[`${modelName}:${ver}`];
 
-      const reviewLabel = cached && cached.actReview ? 'Re-analyze' : 'Analyze';
+      const reviewLabel = 'Analyze';
       const directReviewBtn = aiAvailable ? `
         <button class="btn btn-ai btn-xs ai-direct-review-btn"
           data-kind="model"
@@ -933,17 +859,16 @@ const GovernancePage = (() => {
       return `
         <tr>
           <td class="mono">${safeVer}</td>
-          <td>${escHtml(runName)}</td>
           <td>${escHtml(user)}</td>
           <td style="white-space:nowrap">${escHtml(created)}</td>
-          <td style="max-width:180px;color:var(--text-1);font-size:11px">${escHtml(metrics)}</td>
-          <td style="white-space:nowrap" data-risk-cell="${safeModel}:${safeVer}">
+          <td class="gov-col-metrics">${metricsHtml}</td>
+          <td class="gov-col-risk" data-risk-cell="${safeModel}:${safeVer}">
             <div class="flex gap-1 items-center">${renderRiskCell('model', modelName, ver, projectName)}</div>
           </td>
-          <td style="white-space:nowrap">${complianceBadge(detCompliance, 'Deterministic')}</td>
-          <td style="white-space:nowrap" data-llm-badge="${safeModel}:${safeVer}">${complianceBadge(llmComplianceStatus, 'LLM')}</td>
-          <td>
-            <div class="flex gap-2 items-center" style="flex-wrap:wrap">
+          <td class="gov-col-compliant">${complianceBadge(detCompliance, 'Deterministic Compliance')}</td>
+          <td class="gov-col-llm" data-llm-badge="${safeModel}:${safeVer}">${complianceBadge(llmComplianceStatus, 'LLM Compliance')}</td>
+          <td class="entity-actions-cell">
+            <div class="flex gap-2 items-center" style="flex-wrap:nowrap">
               ${hasModelCard ? `
               <button class="btn btn-secondary btn-xs model-card-btn"
                 data-project="${safeProj}"
@@ -978,10 +903,10 @@ const GovernancePage = (() => {
 
     return `
       <div class="table-wrap">
-        <table>
+        <table class="gov-versions-table">
           <thead>
             <tr>
-              <th>Version</th><th>Run Name</th><th>User</th><th>Created</th><th>Metrics</th><th>Risk</th><th>Deterministic</th><th>LLM</th><th></th>
+              <th class="gov-col-version">Version</th><th class="gov-col-owner">Owner</th><th class="gov-col-created">Created</th><th class="gov-col-metrics">Metrics</th><th class="gov-col-risk">Risk Level</th><th class="gov-col-compliant">Deterministic Compliance</th><th class="gov-col-llm">LLM Compliance</th><th></th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
@@ -989,18 +914,18 @@ const GovernancePage = (() => {
       </div>`;
   }
 
-  function renderAgentSection(agentName, versions, projectName) {
+  function renderAgentSection(agentName, versions, projectName, governanceInfo) {
     return `
       <div class="card mt-4">
         <div class="card-header">
           <span class="card-title">${escHtml(agentName)}</span>
           <span class="section-count">${versions.length}</span>
         </div>
-        ${renderAgentVersionsSection(versions, agentName, projectName)}
+        ${renderAgentVersionsSection(versions, agentName, projectName, governanceInfo)}
       </div>`;
   }
 
-  function renderAgentVersionsSection(versions, agentName, projectName) {
+  function renderAgentVersionsSection(versions, agentName, projectName, governanceInfo) {
     if (!versions || versions.length === 0) return '';
 
     const rows = versions.map(a => {
@@ -1009,12 +934,16 @@ const GovernancePage = (() => {
       const safeAgent = escHtml(agentName || '');
       const safeVer   = escHtml(String(ver));
 
+      const govInfo = (governanceInfo || {})[`${agentName}:${ver}`];
+      const owner   = (govInfo && govInfo.owner) || '—';
+      const created = (govInfo && govInfo.createdAt) ? formatDate(govInfo.createdAt) : '—';
+
       const cached = aiCache.agent[`${agentName}:${ver}`];
       const detCompliance = cached ? cached.deterministicCompliance : (a.deterministic_compliance || 'not_evaluated');
       const llmComplianceStatus = cached ? cached.llmCompliance : (a.llm_compliance || 'not_evaluated');
       const hasAgentCard = !!agentCardCache[`${agentName}:${ver}`];
 
-      const reviewLabel = cached && cached.actReview ? 'Re-analyze' : 'Analyze';
+      const reviewLabel = 'Analyze';
       const directReviewBtn = aiAvailable ? `
         <button class="btn btn-ai btn-xs ai-direct-review-btn"
           data-kind="agent"
@@ -1031,15 +960,17 @@ const GovernancePage = (() => {
       return `
         <tr>
           <td class="mono">${safeVer}</td>
-          <td>${a.agent_type ? `<span class="badge badge-neutral">${escHtml(a.agent_type)}</span>` : '—'}</td>
-          <td>${a.llm_model ? `<span class="mono">${escHtml(a.llm_model)}</span>` : '—'}</td>
-          <td style="white-space:nowrap" data-risk-cell="${safeAgent}:${safeVer}">
+          <td>${escHtml(owner)}</td>
+          <td style="white-space:nowrap">${escHtml(created)}</td>
+          <td class="gov-col-type">${a.agent_type ? `<span class="badge badge-neutral">${escHtml(a.agent_type)}</span>` : '—'}</td>
+          <td class="gov-col-llmmodel">${a.llm_model ? `<span class="mono">${escHtml(a.llm_model)}</span>` : '—'}</td>
+          <td class="gov-col-risk" data-risk-cell="${safeAgent}:${safeVer}">
             <div class="flex gap-1 items-center">${renderRiskCell('agent', agentName, ver, projectName)}</div>
           </td>
-          <td style="white-space:nowrap">${complianceBadge(detCompliance, 'Deterministic')}</td>
-          <td style="white-space:nowrap" data-llm-badge="${safeAgent}:${safeVer}">${complianceBadge(llmComplianceStatus, 'LLM')}</td>
-          <td>
-            <div class="flex gap-2 items-center" style="flex-wrap:wrap">
+          <td class="gov-col-compliant">${complianceBadge(detCompliance, 'Deterministic Compliance')}</td>
+          <td class="gov-col-llm" data-llm-badge="${safeAgent}:${safeVer}">${complianceBadge(llmComplianceStatus, 'LLM Compliance')}</td>
+          <td class="entity-actions-cell">
+            <div class="flex gap-2 items-center" style="flex-wrap:nowrap">
               ${hasAgentCard ? `
               <button class="btn btn-secondary btn-xs agent-card-btn"
                 data-project="${safeProj}"
@@ -1074,10 +1005,10 @@ const GovernancePage = (() => {
 
     return `
       <div class="table-wrap">
-        <table>
+        <table class="gov-versions-table">
           <thead>
             <tr>
-              <th>Version</th><th>Type</th><th>LLM model</th><th>Risk</th><th>Deterministic</th><th>LLM</th><th></th>
+              <th class="gov-col-version">Version</th><th class="gov-col-owner">Owner</th><th class="gov-col-created">Created</th><th class="gov-col-type">Type</th><th class="gov-col-llmmodel">LLM model</th><th class="gov-col-risk">Risk Level</th><th class="gov-col-compliant">Deterministic Compliance</th><th class="gov-col-llm">LLM Compliance</th><th></th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
@@ -1157,8 +1088,9 @@ const GovernancePage = (() => {
     try {
       const d = new Date(raw);
       if (isNaN(d)) return escHtml(String(raw));
-      return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) +
-        ' ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+      const pad = n => String(n).padStart(2, '0');
+      return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}` +
+        ` ${pad(d.getHours())}:${pad(d.getMinutes())}`;
     } catch { return escHtml(String(raw)); }
   }
 

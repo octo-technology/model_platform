@@ -75,7 +75,7 @@ class MLFlowHandlerAdapter(RegistryHandler):
         project_db_handler,
         model_info_db_handler,
     ) -> None:
-        from backend.domain.use_cases.model_info_usecases import sync_model_infos_for_project
+        from backend.domain.use_cases.model_info_usecases import prune_stale_model_infos, sync_model_infos_for_project
         from backend.utils import sanitize_project_name
 
         while self.running:
@@ -93,6 +93,7 @@ class MLFlowHandlerAdapter(RegistryHandler):
                 try:
                     registry = self.get_registry_adapter(project.name, tracking_uri)
                     sync_model_infos_for_project(project.name, registry, model_info_db_handler)
+                    prune_stale_model_infos(project.name, registry, model_info_db_handler)
                     # Evaluate deterministic compliance after sync
                     from backend.domain.use_cases.compliance_usecases import evaluate_project_compliance
 
@@ -123,7 +124,7 @@ class MLFlowHandlerAdapter(RegistryHandler):
         project_db_handler,
         agent_info_db_handler,
     ) -> None:
-        from backend.domain.use_cases.agent_info_usecases import sync_agent_infos_for_project
+        from backend.domain.use_cases.agent_info_usecases import prune_stale_agent_infos, sync_agent_infos_for_project
         from backend.utils import sanitize_project_name
 
         while self.running:
@@ -141,6 +142,7 @@ class MLFlowHandlerAdapter(RegistryHandler):
                 try:
                     agent_registry = self.get_agent_registry_adapter(project.name, tracking_uri)
                     sync_agent_infos_for_project(project.name, agent_registry, agent_info_db_handler)
+                    prune_stale_agent_infos(project.name, agent_registry, agent_info_db_handler)
                 except Exception as e:
                     logger.warning(f"Could not sync agent_infos for project {project.name}: {e}")
 
