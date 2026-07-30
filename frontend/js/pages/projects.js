@@ -103,17 +103,20 @@ const ProjectsPage = (() => {
   async function loadProjects() {
     try {
       const projects = await API.projects.list();
-      // Fetch deployed model count for each project in parallel
+      // Fetch deployed model + agent count for each project in parallel
       const enriched = await Promise.all(
         projects.map(async p => {
           const name = p.name || p.Name || '';
-          const [deployed, registryOk] = await Promise.allSettled([
+          const [deployedModels, deployedAgents, registryOk] = await Promise.allSettled([
             API.deployedModels.list(name),
+            API.deployedAgents.list(name),
             API.projects.registryStatus(name),
           ]);
+          const modelCount = deployedModels.status === 'fulfilled' && Array.isArray(deployedModels.value) ? deployedModels.value.length : 0;
+          const agentCount = deployedAgents.status === 'fulfilled' && Array.isArray(deployedAgents.value) ? deployedAgents.value.length : 0;
           return {
             ...p,
-            _deployed_count: deployed.status === 'fulfilled' && Array.isArray(deployed.value) ? deployed.value.length : 0,
+            _deployed_count: modelCount + agentCount,
             _registry_status: registryOk.status === 'fulfilled' ? registryOk.value : 'error',
           };
         })
