@@ -1016,6 +1016,102 @@ const GovernancePage = (() => {
       </div>`;
   }
 
+  function renderAgentSection(agentName, versions, projectName) {
+    return `
+      <div class="card mt-4">
+        <div class="card-header">
+          <span class="card-title">${escHtml(agentName)}</span>
+          <span class="section-count">${versions.length}</span>
+        </div>
+        ${renderAgentVersionsSection(versions, agentName, projectName)}
+      </div>`;
+  }
+
+  function renderAgentVersionsSection(versions, agentName, projectName) {
+    if (!versions || versions.length === 0) return '';
+
+    const rows = versions.map(a => {
+      const ver = a.agent_version || '—';
+      const safeProj  = escHtml(projectName || '');
+      const safeAgent = escHtml(agentName || '');
+      const safeVer   = escHtml(String(ver));
+
+      const cached = aiCache.agent[`${agentName}:${ver}`];
+      const detCompliance = cached ? cached.deterministicCompliance : (a.deterministic_compliance || 'not_evaluated');
+      const llmComplianceStatus = cached ? cached.llmCompliance : (a.llm_compliance || 'not_evaluated');
+      const hasAgentCard = !!agentCardCache[`${agentName}:${ver}`];
+
+      const reviewLabel = cached && cached.actReview ? 'Re-analyze' : 'Analyze';
+      const directReviewBtn = aiAvailable ? `
+        <button class="btn btn-ai btn-xs ai-direct-review-btn"
+          data-kind="agent"
+          data-project="${safeProj}"
+          data-model="${safeAgent}"
+          data-version="${safeVer}"
+          title="AI Act compliance analysis by Claude">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          ${reviewLabel}
+        </button>` : '';
+
+      return `
+        <tr>
+          <td class="mono">${safeVer}</td>
+          <td>${a.agent_type ? `<span class="badge badge-neutral">${escHtml(a.agent_type)}</span>` : '—'}</td>
+          <td>${a.llm_model ? `<span class="mono">${escHtml(a.llm_model)}</span>` : '—'}</td>
+          <td style="white-space:nowrap" data-risk-cell="${safeAgent}:${safeVer}">
+            <div class="flex gap-1 items-center">${renderRiskCell('agent', agentName, ver, projectName)}</div>
+          </td>
+          <td style="white-space:nowrap">${complianceBadge(detCompliance, 'Deterministic')}</td>
+          <td style="white-space:nowrap" data-llm-badge="${safeAgent}:${safeVer}">${complianceBadge(llmComplianceStatus, 'LLM')}</td>
+          <td>
+            <div class="flex gap-2 items-center" style="flex-wrap:wrap">
+              ${hasAgentCard ? `
+              <button class="btn btn-secondary btn-xs agent-card-btn"
+                data-project="${safeProj}"
+                data-model="${safeAgent}"
+                data-version="${safeVer}"
+                title="Voir l'agent card">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                </svg>
+                Agent Card
+              </button>` : ''}
+              <button class="btn btn-secondary btn-xs ai-act-btn"
+                data-kind="agent"
+                data-project="${safeProj}"
+                data-model="${safeAgent}"
+                data-version="${safeVer}">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                  <line x1="16" y1="13" x2="8" y2="13"/>
+                  <line x1="16" y1="17" x2="8" y2="17"/>
+                  <polyline points="10 9 9 9 8 9"/>
+                </svg>
+                AI Act Card
+              </button>
+              ${directReviewBtn}
+            </div>
+          </td>
+        </tr>`;
+    }).join('');
+
+    return `
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Version</th><th>Type</th><th>LLM model</th><th>Risk</th><th>Deterministic</th><th>LLM</th><th></th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }
+
   function renderEventsSection(events) {
     if (!events || events.length === 0) return '';
 
