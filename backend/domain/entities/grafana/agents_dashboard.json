@@ -202,7 +202,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(agent_tokens_total{}) by (token_type)",
+          "expr": "sum(increase(agent_tokens_total{}[$__range])) by (token_type)",
           "instant": false,
           "legendFormat": "{{token_type}}",
           "range": true,
@@ -268,7 +268,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(agent_cost_usd_total{})",
+          "expr": "sum(increase(agent_cost_usd_total{}[$__range]))",
           "instant": false,
           "legendFormat": "Cost",
           "range": true,
@@ -396,7 +396,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(agent_tool_calls_total{}) by (tool)",
+          "expr": "sum(increase(agent_tool_calls_total{}[$__range])) by (tool)",
           "instant": false,
           "legendFormat": "{{tool}}",
           "range": true,
@@ -781,7 +781,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(http_server_duration_milliseconds_count{http_target=~\".*/agent_predict\", http_status_code=\"200\"})",
+          "expr": "sum(increase(http_server_duration_milliseconds_count{http_target=~\".*/agent_predict\", http_status_code=\"200\"}[$__range]))",
           "hide": false,
           "instant": false,
           "legendFormat": "__auto",
@@ -852,7 +852,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(http_server_duration_milliseconds_count{http_target=~\".*/agent_predict\", http_status_code=~\"5..\"})",
+          "expr": "sum(increase(http_server_duration_milliseconds_count{http_target=~\".*/agent_predict\", http_status_code=~\"5..\"}[$__range]))",
           "hide": false,
           "instant": false,
           "legendFormat": "__auto",
