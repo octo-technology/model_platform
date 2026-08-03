@@ -467,19 +467,26 @@ const ProjectDetailPage = (() => {
   // Resolves to a {KEY: value} object, or `null` if the user cancelled the deploy.
   function openAgentSecretsModal(agentName, version) {
     return new Promise(resolve => {
+      const secretsRow = () => `
+        <div class="agent-secret-row" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <input class="form-input agent-secret-key" type="text" placeholder="key name" style="flex:1;font-family:monospace">
+          <span style="color:var(--text-2);">=</span>
+          <input class="form-input agent-secret-value" type="text" placeholder="key value" style="flex:2;font-family:monospace">
+          <button type="button" class="btn-icon agent-secret-remove" title="Remove" style="flex:0 0 auto;">&times;</button>
+        </div>
+      `;
+
       const { close } = Modal.open({
         title: `Deploy ${agentName} v${version}`,
         body: `
           <p style="color:var(--text-2);font-size:13px;line-height:1.6;margin-bottom:12px;">
-            Optional: secrets (LLM API key, DB password…) for this agent, one <code>KEY=value</code> per line.
-            Pushed straight to a K8s Secret — never stored by the platform. Leave blank to keep the
-            existing Secret (e.g. when redeploying a new version of an already-configured agent).
+            Optional: secrets (LLM API key, DB password…) for this agent. Pushed straight to a K8s
+            Secret — never stored by the platform. Leave blank to keep the existing Secret (e.g. when
+            redeploying a new version of an already-configured agent).
           </p>
-          <div class="form-group">
-            <textarea class="form-input" id="agent-secrets-input" rows="4" style="resize:vertical;font-family:monospace"
-              placeholder="MAMMOUTH_API_KEY=sk-...&#10;PG_PASSWORD=..."></textarea>
-          </div>
-          <p id="agent-secrets-error" style="color:var(--red-light);font-size:12px;display:none;"></p>
+          <div id="agent-secrets-rows">${secretsRow()}</div>
+          <button type="button" class="btn btn-secondary" id="agent-secret-add" style="font-size:13px;">+ Add variable</button>
+          <p id="agent-secrets-error" style="color:var(--red-light);font-size:12px;margin-top:8px;display:none;"></p>
         `,
         footer: `
           <button class="btn btn-secondary" id="modal-cancel">Cancel</button>
@@ -488,21 +495,43 @@ const ProjectDetailPage = (() => {
         onClose: () => resolve(null),
       });
 
+      const rowsContainer = document.getElementById('agent-secrets-rows');
+      const errorEl = document.getElementById('agent-secrets-error');
+
+      const attachRemoveHandler = row => {
+        row.querySelector('.agent-secret-remove').addEventListener('click', () => {
+          if (rowsContainer.children.length > 1) row.remove();
+          else {
+            row.querySelector('.agent-secret-key').value = '';
+            row.querySelector('.agent-secret-value').value = '';
+          }
+        });
+      };
+      attachRemoveHandler(rowsContainer.firstElementChild);
+
+      document.getElementById('agent-secret-add').addEventListener('click', () => {
+        rowsContainer.insertAdjacentHTML('beforeend', secretsRow());
+        attachRemoveHandler(rowsContainer.lastElementChild);
+      });
+
       document.getElementById('modal-cancel').addEventListener('click', () => { close(); resolve(null); });
       document.getElementById('modal-deploy').addEventListener('click', () => {
-        const raw = document.getElementById('agent-secrets-input').value;
         const secrets = {};
-        for (const line of raw.split('\n')) {
-          const trimmed = line.trim();
-          if (!trimmed) continue;
-          const eq = trimmed.indexOf('=');
-          if (eq <= 0) {
-            document.getElementById('agent-secrets-error').textContent =
-              `Invalid line (expected KEY=value): "${trimmed}"`;
-            document.getElementById('agent-secrets-error').style.display = 'block';
+        for (const row of rowsContainer.querySelectorAll('.agent-secret-row')) {
+          const key = row.querySelector('.agent-secret-key').value.trim();
+          const value = row.querySelector('.agent-secret-value').value.trim();
+          if (!key && !value) continue;
+          if (!key) {
+            errorEl.textContent = `Missing variable name for value "${value}"`;
+            errorEl.style.display = 'block';
             return;
           }
-          secrets[trimmed.slice(0, eq).trim()] = trimmed.slice(eq + 1).trim();
+          if (key in secrets) {
+            errorEl.textContent = `Duplicate variable name: "${key}"`;
+            errorEl.style.display = 'block';
+            return;
+          }
+          secrets[key] = value;
         }
         close();
         resolve(secrets);
