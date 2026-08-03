@@ -1,6 +1,7 @@
 # Philippe Stepniewski
 import pytest
 
+from backend.domain.entities.agent_info import AgentInfo, AgentTool
 from backend.domain.entities.model_info import ModelInfo
 from backend.domain.use_cases.compliance_usecases import (
     COMPLIANCE_COMPLIANT,
@@ -9,6 +10,7 @@ from backend.domain.use_cases.compliance_usecases import (
     COMPLIANCE_PARTIALLY_COMPLIANT,
     check_deployment_gate,
     evaluate_deterministic_compliance,
+    evaluate_deterministic_compliance_for_agent,
     extract_llm_compliance_from_review,
 )
 
@@ -21,6 +23,23 @@ def _make_model_info(**kwargs):
     }
     defaults.update(kwargs)
     return ModelInfo(**defaults)
+
+
+def _make_agent_info(**kwargs):
+    defaults = {
+        "agent_name": "test_agent",
+        "agent_version": "1",
+        "project_name": "test_project",
+    }
+    defaults.update(kwargs)
+    return AgentInfo(**defaults)
+
+
+def _make_agent_governance(registered_model_tags=None, run_tags=None):
+    return {
+        "registered_model_tags": registered_model_tags or {},
+        "run_tags": run_tags or {},
+    }
 
 
 def _make_governance(tags=None, params=None, metrics=None, signature=None, flavors=None):
@@ -95,6 +114,70 @@ class TestEvaluateDeterministicCompliance:
             signature={"inputs": "col1", "outputs": "col2"},
         )
         assert evaluate_deterministic_compliance(model_info, governance) == COMPLIANCE_COMPLIANT
+
+
+class TestEvaluateDeterministicComplianceForAgent:
+    def test_unacceptable_risk_returns_non_compliant(self):
+        agent_info = _make_agent_info(risk_level="unacceptable", description="does things", guardrails="be safe")
+        governance = _make_agent_governance(run_tags={"mlflow.user": "alice"})
+        assert evaluate_deterministic_compliance_for_agent(agent_info, governance) == COMPLIANCE_NON_COMPLIANT
+
+    def test_no_risk_level_returns_non_compliant(self):
+        agent_info = _make_agent_info(risk_level=None, description="does things", guardrails="be safe")
+        governance = _make_agent_governance(run_tags={"mlflow.user": "alice"})
+        assert evaluate_deterministic_compliance_for_agent(agent_info, governance) == COMPLIANCE_NON_COMPLIANT
+
+    def test_no_description_or_card_returns_non_compliant(self):
+        agent_info = _make_agent_info(risk_level="high", description=None, agent_card=None, guardrails="be safe")
+        governance = _make_agent_governance(run_tags={"mlflow.user": "alice"})
+        assert evaluate_deterministic_compliance_for_agent(agent_info, governance) == COMPLIANCE_NON_COMPLIANT
+
+    def test_agent_card_counts_as_description(self):
+        agent_info = _make_agent_info(
+            risk_level="high", description=None, agent_card="# Agent card", guardrails="be safe"
+        )
+        governance = _make_agent_governance(run_tags={"mlflow.user": "alice"})
+        assert evaluate_deterministic_compliance_for_agent(agent_info, governance) == COMPLIANCE_PARTIALLY_COMPLIANT
+
+    def test_no_guardrails_returns_non_compliant(self):
+        agent_info = _make_agent_info(risk_level="high", description="does things", guardrails=None)
+        governance = _make_agent_governance(run_tags={"mlflow.user": "alice"})
+        assert evaluate_deterministic_compliance_for_agent(agent_info, governance) == COMPLIANCE_NON_COMPLIANT
+
+    def test_no_author_returns_non_compliant(self):
+        agent_info = _make_agent_info(risk_level="high", description="does things", guardrails="be safe")
+        governance = _make_agent_governance()
+        assert evaluate_deterministic_compliance_for_agent(agent_info, governance) == COMPLIANCE_NON_COMPLIANT
+
+    def test_all_mandatory_no_recommended_returns_partially_compliant(self):
+        agent_info = _make_agent_info(risk_level="high", description="does things", guardrails="be safe")
+        governance = _make_agent_governance(run_tags={"mlflow.user": "alice"})
+        assert evaluate_deterministic_compliance_for_agent(agent_info, governance) == COMPLIANCE_PARTIALLY_COMPLIANT
+
+    def test_all_mandatory_with_tools_returns_compliant(self):
+        agent_info = _make_agent_info(
+            risk_level="high",
+            description="does things",
+            guardrails="be safe",
+            tools=[AgentTool(name="search")],
+        )
+        governance = _make_agent_governance(run_tags={"mlflow.user": "alice"})
+        assert evaluate_deterministic_compliance_for_agent(agent_info, governance) == COMPLIANCE_COMPLIANT
+
+    def test_all_mandatory_with_llm_model_returns_compliant(self):
+        agent_info = _make_agent_info(
+            risk_level="limited",
+            description="does things",
+            guardrails="be safe",
+            llm_model="claude-haiku-4-5",
+        )
+        governance = _make_agent_governance(run_tags={"mlflow.user": "bob"})
+        assert evaluate_deterministic_compliance_for_agent(agent_info, governance) == COMPLIANCE_COMPLIANT
+
+    def test_registered_model_tags_used_for_author(self):
+        agent_info = _make_agent_info(risk_level="high", description="does things", guardrails="be safe")
+        governance = _make_agent_governance(registered_model_tags={"mlflow.user": "alice"})
+        assert evaluate_deterministic_compliance_for_agent(agent_info, governance) == COMPLIANCE_PARTIALLY_COMPLIANT
 
 
 class TestExtractLlmCompliance:

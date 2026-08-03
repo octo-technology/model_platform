@@ -148,6 +148,7 @@ const API = (() => {
         post(`/agent_infos/${enc(projectName)}/${enc(agentName)}/${enc(version)}/accept_risk_level`, {
           body: { risk_level: riskLevel },
         }),
+      evaluateCompliance: (projectName) => post(`/agent_infos/${enc(projectName)}/evaluate_compliance`),
     },
 
     // ── Agents (registry + deploy / undeploy) ───────────────────
@@ -198,6 +199,10 @@ const API = (() => {
         post(`/ai/${enc(proj)}/${enc(model)}/${enc(ver)}/act_review`),
       suggestRiskLevel: (proj, model, ver) =>
         post(`/ai/${enc(proj)}/${enc(model)}/${enc(ver)}/suggest_risk_level`),
+      agentActReview: (proj, agent, ver) =>
+        post(`/ai/agent/${enc(proj)}/${enc(agent)}/${enc(ver)}/act_review`),
+      agentSuggestRiskLevel: (proj, agent, ver) =>
+        post(`/ai/agent/${enc(proj)}/${enc(agent)}/${enc(ver)}/suggest_risk_level`),
       setCredentials: (apiKey, region) =>
         fetch(`${API_BASE}/ai/credentials`, {
           method: 'PUT',
@@ -256,6 +261,26 @@ const API = (() => {
         }),
       removeApiKey: () =>
         fetch(`${API_BASE}/ai/api_key`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${Auth.getToken()}` },
+        }).then(async r => {
+          if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+          return r.json();
+        }),
+      setMammouthApiKey: (apiKey) =>
+        fetch(`${API_BASE}/ai/mammouth_api_key`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${Auth.getToken()}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ api_key: apiKey }),
+        }).then(async r => {
+          if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+          return r.json();
+        }),
+      removeMammouthApiKey: () =>
+        fetch(`${API_BASE}/ai/mammouth_api_key`, {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${Auth.getToken()}` },
         }).then(async r => {

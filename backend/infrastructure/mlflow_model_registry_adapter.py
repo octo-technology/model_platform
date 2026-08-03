@@ -49,34 +49,64 @@ class MLFlowModelRegistryAdapter(ModelRegistry):
         all_model_versions: PagedList[ModelVersion] = self.mlflow_client.search_model_versions(f"name='{model_name}'")
         return self._process_model_versions(all_model_versions.to_list())
 
-    @staticmethod
-    def _process_mlflow_list(mlflow_registered_model_list: list[RegisteredModel]) -> list[dict[str, str | int]]:
+    def _process_mlflow_list(self, mlflow_registered_model_list: list[RegisteredModel]) -> list[dict[str, str | int]]:
         processed_list = [
             {
                 "name": model.name,
                 "creation_timestamp": model.creation_timestamp,
                 "aliases": model.aliases,
-                "latest_versions": MLFlowModelRegistryAdapter._process_model_versions(model.latest_versions),
+                "latest_versions": self._process_model_versions(model.latest_versions),
             }
             for model in mlflow_registered_model_list
         ]
         processed_list.sort(key=lambda x: x["creation_timestamp"], reverse=True)
         return processed_list
 
+    def _logged_model_exists(self, model_id: str | None) -> bool:
+        """MLflow 3.x: a ModelVersion's registry entry survives deleting its
+        source LoggedModel (they're decoupled entities) — the version then
+        points at nothing. Treat that as effectively deleted."""
+        if not model_id:
+            return True  # no LoggedModel to check against (e.g. legacy version) — assume alive
+        try:
+            self.mlflow_client.get_logged_model(model_id)
+            return True
+        except Exception:
+            return False
+
+    def _get_logged_model_experiment_id(self, model_id: str) -> str | None:
+        """Best-effort lookup, isolated from _logged_model_exists so a failure here
+        never affects whether the version is considered alive."""
+        try:
+            return self.mlflow_client.get_logged_model(model_id).experiment_id
+        except Exception:
+            return None
+
     @staticmethod
-    def _process_model_versions(model_version: list[ModelVersion]) -> list[dict]:
+    def _extract_model_id_from_source(source: str | None) -> str | None:
+        """ModelVersion.model_id is often unset even in MLflow 3.x (depends on how the
+        version was registered); the LoggedModel id is still recoverable from the
+        `models:/<model_id>` source URI when present."""
+        if source and source.startswith("models:/"):
+            return source[len("models:/") :]
+        return None
+
+    def _process_model_versions(self, model_version: list[ModelVersion]) -> list[dict]:
         processed_versions = []
         for version in model_version:
+            model_id = getattr(version, "model_id", None)
+            if not self._logged_model_exists(model_id):
+                continue
             entry = {
                 "name": version.name,
                 "version": version.version,
                 "creation_timestamp": version.creation_timestamp,
                 "run_id": version.run_id,
             }
-            # MLflow 3.x: ModelVersion has model_id pointing to a LoggedModel
-            model_id = getattr(version, "model_id", None)
-            if model_id:
-                entry["model_id"] = model_id
+            registry_model_id = model_id or self._extract_model_id_from_source(getattr(version, "source", None))
+            if registry_model_id:
+                entry["model_id"] = registry_model_id
+                entry["experiment_id"] = self._get_logged_model_experiment_id(registry_model_id)
             processed_versions.append(entry)
         return processed_versions
 

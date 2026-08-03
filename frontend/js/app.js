@@ -17,6 +17,8 @@ const App = (() => {
       window.location.hash = `#project/${encodeURIComponent(params.name)}`;
     } else if (route === 'agent') {
       window.location.hash = `#agent/${encodeURIComponent(params.project)}/${encodeURIComponent(params.name)}/${encodeURIComponent(params.version)}`;
+    } else if (route === 'model') {
+      window.location.hash = `#model/${encodeURIComponent(params.project)}/${encodeURIComponent(params.name)}/${encodeURIComponent(params.version)}`;
     } else {
       window.location.hash = `#${route}`;
     }
@@ -37,7 +39,7 @@ const App = (() => {
     }
 
     currentRoute = base;
-    if (base === 'agent' && rest.length >= 3) {
+    if ((base === 'agent' || base === 'model') && rest.length >= 3) {
       currentParams = {
         project: decodeURIComponent(rest[0]),
         name:    decodeURIComponent(rest[1]),
@@ -76,6 +78,12 @@ const App = (() => {
         showSidebar();
         updateNavActive('projects');
         AgentDetailPage.render(container, currentParams);
+        break;
+
+      case 'model':
+        showSidebar();
+        updateNavActive('projects');
+        ModelDetailPage.render(container, currentParams);
         break;
 
       case 'dashboard':

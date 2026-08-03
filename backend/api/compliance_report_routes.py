@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from loguru import logger
 from starlette.responses import FileResponse
 
+from backend.api.agent_infos_routes import get_agent_info_db_handler
 from backend.api.models_routes import (
     get_model_info_db_handler,
     get_platform_config_handler,
@@ -13,6 +14,7 @@ from backend.api.models_routes import (
 )
 from backend.api.projects_routes import get_project_db_handler
 from backend.domain.entities.role import Role
+from backend.domain.ports.agent_info_db_handler import AgentInfoDbHandler
 from backend.domain.ports.model_info_db_handler import ModelInfoDbHandler
 from backend.domain.ports.platform_config_handler import PlatformConfigHandler
 from backend.domain.ports.project_db_handler import ProjectDbHandler
@@ -32,6 +34,7 @@ def get_compliance_dashboard(
     current_user: dict = Depends(get_current_user),
     project_db_handler: ProjectDbHandler = Depends(get_project_db_handler),
     model_info_db_handler: ModelInfoDbHandler = Depends(get_model_info_db_handler),
+    agent_info_db_handler: AgentInfoDbHandler = Depends(get_agent_info_db_handler),
     registry_pool: RegistryHandler = Depends(get_registry_pool),
     platform_config_handler: PlatformConfigHandler = Depends(get_platform_config_handler),
 ):
@@ -46,6 +49,7 @@ def get_compliance_dashboard(
     return get_platform_dashboard_data(
         project_db_handler=project_db_handler,
         model_info_db_handler=model_info_db_handler,
+        agent_info_db_handler=agent_info_db_handler,
         registry_pool=registry_pool,
         platform_config_handler=platform_config_handler,
         tracking_uri_builder=tracking_uri_builder,
@@ -58,6 +62,7 @@ def download_platform_compliance_report(
     current_user: dict = Depends(get_current_user),
     project_db_handler: ProjectDbHandler = Depends(get_project_db_handler),
     model_info_db_handler: ModelInfoDbHandler = Depends(get_model_info_db_handler),
+    agent_info_db_handler: AgentInfoDbHandler = Depends(get_agent_info_db_handler),
     registry_pool: RegistryHandler = Depends(get_registry_pool),
     platform_config_handler: PlatformConfigHandler = Depends(get_platform_config_handler),
 ) -> FileResponse:
@@ -72,6 +77,7 @@ def download_platform_compliance_report(
     pdf_path = generate_platform_compliance_report(
         project_db_handler=project_db_handler,
         model_info_db_handler=model_info_db_handler,
+        agent_info_db_handler=agent_info_db_handler,
         registry_pool=registry_pool,
         platform_config_handler=platform_config_handler,
         tracking_uri_builder=tracking_uri_builder,

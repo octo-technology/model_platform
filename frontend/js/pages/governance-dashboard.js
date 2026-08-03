@@ -67,6 +67,8 @@ const GovernanceDashboardPage = (() => {
           ${kpiCard('Projects', s.total_projects, kpiIconProject())}
           ${kpiCard('Models', s.total_models, kpiIconModel())}
           ${kpiCard('Versions', s.total_versions, kpiIconVersion())}
+          ${kpiCard('Agents', s.total_agents || 0, kpiIconAgent())}
+          ${kpiCard('Agent Versions', s.total_agent_versions || 0, kpiIconVersion())}
           <div class="gdash-kpi gdash-kpi--policy">
             <div class="gdash-kpi__icon">${kpiIconPolicy()}</div>
             <div class="gdash-kpi__body">
@@ -127,6 +129,9 @@ const GovernanceDashboardPage = (() => {
   }
   function kpiIconVersion() {
     return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>`;
+  }
+  function kpiIconAgent() {
+    return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="12" rx="2"/><circle cx="9" cy="14" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="14" r="1.2" fill="currentColor" stroke="none"/><path d="M12 8V4"/><circle cx="12" cy="3" r="1" fill="currentColor" stroke="none"/></svg>`;
   }
   function kpiIconPolicy() {
     return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`;
@@ -218,7 +223,7 @@ const GovernanceDashboardPage = (() => {
 
     const detDist = project.deterministic_distribution || {};
     const llmDist = project.llm_distribution || {};
-    const totalVersions = project.total_versions || 0;
+    const totalVersions = (project.total_versions || 0) + (project.total_agent_versions || 0);
 
     // Compute a "health score" — percentage of compliant + partial over total
     const detOk = (detDist['compliant'] || 0) + (detDist['partially_compliant'] || 0);
@@ -257,6 +262,14 @@ const GovernanceDashboardPage = (() => {
           <div class="gdash-project-card__stat">
             <span class="gdash-project-card__stat-val">${project.total_versions}</span>
             <span class="gdash-project-card__stat-lbl">versions</span>
+          </div>
+          <div class="gdash-project-card__stat">
+            <span class="gdash-project-card__stat-val">${project.total_agents || 0}</span>
+            <span class="gdash-project-card__stat-lbl">agents</span>
+          </div>
+          <div class="gdash-project-card__stat">
+            <span class="gdash-project-card__stat-val">${project.total_agent_versions || 0}</span>
+            <span class="gdash-project-card__stat-lbl">agent versions</span>
           </div>
         </div>
         <div class="gdash-project-card__bars">

@@ -47,10 +47,6 @@ const AgentDetailPage = (() => {
                   ${infoRow('LLM model',     a.llm_model    ? `<span class="mono">${escHtml(a.llm_model)}</span>` : '—', true)}
                   ${infoRow('Max iterations',a.max_iterations != null ? String(a.max_iterations) : '—')}
                   ${infoRow('Risk level',    riskBadge(a.risk_level), true)}
-                  ${infoRow('Suggested risk',riskBadge(a.suggested_risk_level), true)}
-                  ${infoRow('Deterministic compliance', complianceBadge(a.deterministic_compliance), true)}
-                  ${infoRow('LLM compliance',           complianceBadge(a.llm_compliance), true)}
-                  ${infoRow('ACT review',    a.act_review   ? `<span style="white-space:pre-wrap;font-size:12px">${escHtml(a.act_review)}</span>` : '—', true)}
                 </tbody>
               </table>
             </div>
@@ -140,14 +136,6 @@ const AgentDetailPage = (() => {
     return `<span class="badge ${cls}">${escHtml(risk)}</span>`;
   }
 
-  function complianceBadge(status) {
-    if (!status || status === 'not_evaluated') return `<span class="badge badge-neutral">Not evaluated</span>`;
-    if (status === 'compliant')           return `<span class="badge badge-green">Compliant</span>`;
-    if (status === 'partially_compliant') return `<span class="badge badge-orange">Partial</span>`;
-    if (status === 'non_compliant')       return `<span class="badge badge-red">Non-compliant</span>`;
-    return `<span class="badge badge-neutral">${escHtml(status)}</span>`;
-  }
-
   function guardrailsHTML(guardrails) {
     const preStyle = 'margin:0;white-space:pre-wrap;font-family:var(--font-mono);font-size:13px;color:var(--text-1);background:var(--bg-1);padding:12px 16px;border-radius:6px;border:1px solid var(--border-0)';
     let parsed = null;
@@ -169,7 +157,11 @@ const AgentDetailPage = (() => {
 
   function renderMarkdown(md) {
     if (typeof marked === 'undefined') return `<pre style="white-space:pre-wrap">${escHtml(md)}</pre>`;
-    return marked.parse(md, { breaks: false, gfm: true });
+    let html = marked.parse(md, { breaks: false, gfm: true });
+    return html
+      .replace(/<hr\s*\/?>/g, '')
+      .replace(/<table>/g, '<div class="ai-act-table-scroll"><table>')
+      .replace(/<\/table>/g, '</table></div>');
   }
 
   function loadingHTML(text = 'Loading…') {

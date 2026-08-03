@@ -44,6 +44,11 @@ class AgentRegistry(ABC):
         pass
 
     @abstractmethod
+    def download_agent_artifacts(self, agent_name: str, agent_version: str, destination_path: str) -> str:
+        """Download the agent's MLflow artifacts to `destination_path`. Returns the local path."""
+        pass
+
+    @abstractmethod
     def get_deployment_config(self, agent_name: str, agent_version: str) -> dict[str, str]:
         """Return the `deployment_config.json` artifact for this specific run/version, or {}.
 

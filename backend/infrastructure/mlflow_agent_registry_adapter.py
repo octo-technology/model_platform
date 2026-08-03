@@ -6,14 +6,17 @@ connection pool with the ML model registry.
 """
 
 import json
+import os
 
 import httpx
+import mlflow
 from loguru import logger
 from mlflow.entities.model_registry import ModelVersion
 from mlflow.store.entities import PagedList
 
 from backend.domain.ports.agent_registry import AgentRegistry
 from backend.infrastructure.mlflow_client import MLflowClientManager
+from backend.utils import hash_directory
 
 
 class MLFlowAgentRegistryAdapter(AgentRegistry):
@@ -41,6 +44,35 @@ class MLFlowAgentRegistryAdapter(AgentRegistry):
     def list_agent_versions(self, agent_name: str) -> list[dict]:
         versions: PagedList[ModelVersion] = self.mlflow_client.search_model_versions(f"name='{agent_name}'")
         return self._process_versions(versions.to_list())
+
+    def _logged_model_exists(self, model_id: str | None) -> bool:
+        """MLflow 3.x: a ModelVersion's registry entry survives deleting its
+        source LoggedModel (they're decoupled entities) — the version then
+        points at nothing. Treat that as effectively deleted."""
+        if not model_id:
+            return True  # no LoggedModel to check against (e.g. legacy version) — assume alive
+        try:
+            self.mlflow_client.get_logged_model(model_id)
+            return True
+        except Exception:
+            return False
+
+    def _get_logged_model_experiment_id(self, model_id: str) -> str | None:
+        """Best-effort lookup, isolated from _logged_model_exists so a failure here
+        never affects whether the version is considered alive."""
+        try:
+            return self.mlflow_client.get_logged_model(model_id).experiment_id
+        except Exception:
+            return None
+
+    @staticmethod
+    def _extract_model_id_from_source(source: str | None) -> str | None:
+        """ModelVersion.model_id is often unset even in MLflow 3.x (depends on how the
+        version was registered); the LoggedModel id is still recoverable from the
+        `models:/<model_id>` source URI when present."""
+        if source and source.startswith("models:/"):
+            return source[len("models:/") :]
+        return None
 
     def get_agent_card(self, agent_name: str, agent_version: str) -> str | None:
         try:
@@ -78,6 +110,20 @@ class MLFlowAgentRegistryAdapter(AgentRegistry):
             "run_tags": run_tags,
         }
 
+    def download_agent_artifacts(self, agent_name: str, agent_version: str, destination_path: str) -> str:
+        mlflow.set_tracking_uri(self.mlflow_client_manager.tracking_uri)
+        agent_uri = f"models:/{agent_name}/{agent_version}"
+        logger.info(f"Downloading agent artefacts for agent_uri: {agent_uri}")
+        target_path = os.path.join(destination_path, "custom_agent")
+        os.makedirs(target_path, exist_ok=True)
+        mlflow.artifacts.download_artifacts(artifact_uri=agent_uri, dst_path=target_path)
+        hash_value = hash_directory(target_path)
+        hash_file_path = os.path.join(target_path, hash_value)
+        with open(hash_file_path, "w") as f:
+            f.write("")
+        logger.info(f"Downloaded agent artefacts to: {target_path}")
+        return target_path
+
     def get_deployment_config(self, agent_name: str, agent_version: str) -> dict[str, str]:
         try:
             run_id = self._get_run_id(agent_name, agent_version)
@@ -101,14 +147,21 @@ class MLFlowAgentRegistryAdapter(AgentRegistry):
                 return v.get("run_id")
         return None
 
-    @staticmethod
-    def _process_versions(versions: list[ModelVersion]) -> list[dict]:
-        return [
-            {
+    def _process_versions(self, versions: list[ModelVersion]) -> list[dict]:
+        processed = []
+        for v in versions:
+            model_id = getattr(v, "model_id", None)
+            if not self._logged_model_exists(model_id):
+                continue
+            entry = {
                 "name": v.name,
                 "version": v.version,
                 "creation_timestamp": v.creation_timestamp,
                 "run_id": v.run_id,
             }
-            for v in versions
-        ]
+            registry_model_id = model_id or self._extract_model_id_from_source(getattr(v, "source", None))
+            if registry_model_id:
+                entry["model_id"] = registry_model_id
+                entry["experiment_id"] = self._get_logged_model_experiment_id(registry_model_id)
+            processed.append(entry)
+        return processed

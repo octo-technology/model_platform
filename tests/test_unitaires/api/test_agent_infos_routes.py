@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 
 from backend.api.app import create_app
 from backend.api.agent_infos_routes import get_agent_info_db_handler
+from backend.api.models_routes import get_registry_pool
 from backend.domain.entities.agent_info import AgentInfo, AgentTool
 from backend.domain.use_cases.auth_usecases import get_current_user, get_user_adapter
 from backend.infrastructure.agent_info_sqlite_db_handler import AgentInfoDoesntExistError
@@ -20,12 +21,21 @@ def mock_handler():
 
 
 @pytest.fixture
-def client(mock_handler):
+def mock_registry_pool():
+    return MagicMock()
+
+
+@pytest.fixture
+def client(mock_handler, mock_registry_pool):
     app = create_app()
     app.dependency_overrides[get_agent_info_db_handler] = lambda: mock_handler
+    app.dependency_overrides[get_registry_pool] = lambda: mock_registry_pool
     app.dependency_overrides[get_current_user] = lambda: {"id": "user123", "username": "test_user"}
     app.dependency_overrides[get_user_adapter] = lambda: MagicMock()
-    with patch("backend.api.agent_infos_routes.user_can_perform_action_for_project"):
+    with (
+        patch("backend.api.agent_infos_routes.user_can_perform_action_for_project"),
+        patch("backend.api.agent_infos_routes.get_project_registry_tracking_uri", return_value="http://mlflow:5000"),
+    ):
         yield TestClient(app)
 
 
@@ -63,3 +73,28 @@ class TestGetAgentInfo:
         response = client.get("/agent_infos/my_project/missing_agent/1")
 
         assert response.status_code == 404
+
+
+class TestGetAiActCard:
+    def test_returns_generated_markdown(self, client, mock_handler, mock_registry_pool):
+        with patch(
+            "backend.api.agent_infos_routes.generate_agent_ai_act_card",
+            return_value="# Fiche de conformité IA — Agent",
+        ) as mock_generate:
+            response = client.get("/agent_infos/my_project/my_agent/1/ai_act_card")
+
+        assert response.status_code == 200
+        assert response.json() == {"markdown": "# Fiche de conformité IA — Agent"}
+        mock_generate.assert_called_once()
+        args = mock_generate.call_args.args
+        assert args[2:] == ("my_project", "my_agent", "1")
+
+    def test_generation_error_returns_500(self, client, mock_registry_pool):
+        with patch(
+            "backend.api.agent_infos_routes.generate_agent_ai_act_card",
+            side_effect=RuntimeError("mlflow unreachable"),
+        ):
+            response = client.get("/agent_infos/my_project/my_agent/1/ai_act_card")
+
+        assert response.status_code == 500
+        assert "mlflow unreachable" in response.json()["detail"]

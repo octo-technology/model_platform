@@ -9,12 +9,15 @@ from typing import Callable
 from fpdf import FPDF
 from loguru import logger
 
+from backend.domain.entities.agent_info import AgentInfo
 from backend.domain.entities.model_info import ModelInfo
+from backend.domain.ports.agent_info_db_handler import AgentInfoDbHandler
 from backend.domain.ports.model_info_db_handler import ModelInfoDbHandler
 from backend.domain.ports.model_registry import ModelRegistry
 from backend.domain.ports.platform_config_handler import PlatformConfigHandler
 from backend.domain.ports.project_db_handler import ProjectDbHandler
 from backend.domain.ports.registry_handler import RegistryHandler
+from backend.domain.use_cases.agent_ai_act_usecases import generate_agent_ai_act_card
 from backend.domain.use_cases.ai_act_usecases import generate_ai_act_card
 from backend.domain.use_cases.compliance_usecases import DEPLOYMENT_GATE_POLICY_KEY, GATE_POLICY_PERMISSIVE
 
@@ -36,9 +39,24 @@ class ModelVersionData:
 
 
 @dataclass
+class AgentVersionData:
+    agent_name: str
+    version: str
+    risk_level: str | None = None
+    deterministic_compliance: str | None = None
+    llm_compliance: str | None = None
+    author: str | None = None
+    ai_act_card: str | None = None
+    act_review: str | None = None
+    agent_card: str | None = None
+    tags: dict = field(default_factory=dict)
+
+
+@dataclass
 class ProjectData:
     name: str
     models: list[ModelVersionData] = field(default_factory=list)
+    agents: list[AgentVersionData] = field(default_factory=list)
     error: str | None = None
 
 
@@ -47,6 +65,8 @@ class PlatformSummary:
     total_projects: int = 0
     total_models: int = 0
     total_versions: int = 0
+    total_agents: int = 0
+    total_agent_versions: int = 0
     risk_distribution: dict[str, int] = field(default_factory=dict)
     deterministic_distribution: dict[str, int] = field(default_factory=dict)
     llm_distribution: dict[str, int] = field(default_factory=dict)
@@ -61,9 +81,19 @@ def _get_project_models_versions(registry: ModelRegistry) -> dict:
     return model_versions
 
 
+def _get_project_agents_versions(agent_registry) -> dict:
+    project_agents = agent_registry.list_all_agents()
+    agent_versions = {}
+    for agent in project_agents:
+        agent_name = agent["name"]
+        agent_versions[agent_name] = agent_registry.list_agent_versions(agent_name)
+    return agent_versions
+
+
 def _collect_platform_data(
     project_db_handler: ProjectDbHandler,
     model_info_db_handler: ModelInfoDbHandler,
+    agent_info_db_handler: AgentInfoDbHandler,
     registry_pool: RegistryHandler,
     tracking_uri_builder: Callable[[str], str],
 ) -> list[ProjectData]:
@@ -122,6 +152,51 @@ def _collect_platform_data(
                     )
                     project_data.models.append(mvd)
 
+            agent_registry = registry_pool.get_agent_registry_adapter(project_name, tracking_uri_builder(project_name))
+            agent_versions = _get_project_agents_versions(agent_registry)
+            agent_infos = agent_info_db_handler.list_agent_infos_for_project(project_name)
+            agent_info_map: dict[tuple[str, str], AgentInfo] = {
+                (ai.agent_name, ai.agent_version): ai for ai in agent_infos
+            }
+
+            for agent_name, versions in agent_versions.items():
+                for version_entry in versions:
+                    version = version_entry["version"]
+                    ai_info = agent_info_map.get((agent_name, version))
+
+                    governance = {}
+                    try:
+                        governance = agent_registry.get_agent_governance_information(agent_name, version)
+                    except Exception:
+                        pass
+
+                    tags = {**governance.get("registered_model_tags", {}), **governance.get("run_tags", {})}
+                    author = tags.get("mlflow.user")
+
+                    agent_ai_act_md = None
+                    try:
+                        agent_ai_act_md = generate_agent_ai_act_card(
+                            agent_registry, agent_info_db_handler, project_name, agent_name, version
+                        )
+                    except Exception:
+                        logger.warning(
+                            f"Could not generate AI Act card for agent {agent_name}:{version} in {project_name}"
+                        )
+
+                    avd = AgentVersionData(
+                        agent_name=agent_name,
+                        version=version,
+                        risk_level=ai_info.risk_level if ai_info else None,
+                        deterministic_compliance=ai_info.deterministic_compliance if ai_info else "not_evaluated",
+                        llm_compliance=ai_info.llm_compliance if ai_info else "not_evaluated",
+                        author=author,
+                        ai_act_card=agent_ai_act_md,
+                        act_review=ai_info.act_review if ai_info else None,
+                        agent_card=ai_info.agent_card if ai_info else None,
+                        tags=tags,
+                    )
+                    project_data.agents.append(avd)
+
         except Exception as e:
             logger.warning(f"Could not access registry for project {project_name}: {e}")
             project_data.error = str(e)
@@ -137,6 +212,8 @@ def _compute_summary(platform_data: list[ProjectData]) -> PlatformSummary:
     llm_counter: Counter = Counter()
     total_models = set()
     total_versions = 0
+    total_agents = set()
+    total_agent_versions = 0
 
     for project in platform_data:
         for mv in project.models:
@@ -145,11 +222,19 @@ def _compute_summary(platform_data: list[ProjectData]) -> PlatformSummary:
             risk_counter[mv.risk_level or "non renseigne"] += 1
             det_counter[mv.deterministic_compliance or "not_evaluated"] += 1
             llm_counter[mv.llm_compliance or "not_evaluated"] += 1
+        for av in project.agents:
+            total_agents.add((project.name, av.agent_name))
+            total_agent_versions += 1
+            risk_counter[av.risk_level or "non renseigne"] += 1
+            det_counter[av.deterministic_compliance or "not_evaluated"] += 1
+            llm_counter[av.llm_compliance or "not_evaluated"] += 1
 
     return PlatformSummary(
         total_projects=len(platform_data),
         total_models=len(total_models),
         total_versions=total_versions,
+        total_agents=len(total_agents),
+        total_agent_versions=total_agent_versions,
         risk_distribution=dict(risk_counter),
         deterministic_distribution=dict(det_counter),
         llm_distribution=dict(llm_counter),
@@ -207,7 +292,8 @@ class ComplianceReportPDF(FPDF):
             0,
             8,
             f"{summary.total_projects} projets  |  {summary.total_models} modeles  |  "
-            f"{summary.total_versions} versions",
+            f"{summary.total_versions} versions  |  {summary.total_agents} agents  |  "
+            f"{summary.total_agent_versions} versions d'agents",
             align="C",
             new_x="LMARGIN",
             new_y="NEXT",
@@ -254,9 +340,10 @@ class ComplianceReportPDF(FPDF):
             0,
             7,
             _safe(
-                f"Ce rapport couvre l'ensemble des modeles de la plateforme Model Platform. "
+                f"Ce rapport couvre l'ensemble des modeles et agents de la plateforme Model Platform. "
                 f"Il recense {summary.total_projects} projet(s), {summary.total_models} modele(s) "
-                f"et {summary.total_versions} version(s) de modeles."
+                f"et {summary.total_versions} version(s) de modeles, ainsi que {summary.total_agents} "
+                f"agent(s) et {summary.total_agent_versions} version(s) d'agents."
             ),
         )
         self.ln(6)
@@ -264,6 +351,33 @@ class ComplianceReportPDF(FPDF):
         self._distribution_table("Distribution des niveaux de risque", summary.risk_distribution)
         self._distribution_table("Conformite deterministe", summary.deterministic_distribution)
         self._distribution_table("Conformite LLM", summary.llm_distribution)
+
+    def _entity_table(self, title: str, rows_data: list, name_attr: str, version_attr: str):
+        self._sub_title(title)
+        col_widths = [35, 15, 30, 35, 35, 30]
+        headers = ["Nom", "Ver.", "Risque", "Compliance Det.", "Compliance LLM", "Auteur"]
+        self.set_font("Helvetica", "B", 8)
+        self.set_fill_color(*self.NAVY)
+        self.set_text_color(*self.WHITE)
+        for i, h in enumerate(headers):
+            self.cell(col_widths[i], 7, h, border=1, fill=True)
+        self.ln()
+
+        self.set_font("Helvetica", "", 8)
+        self.set_text_color(0, 0, 0)
+        for entity in rows_data:
+            row = [
+                _truncate(getattr(entity, name_attr), 20),
+                getattr(entity, version_attr),
+                entity.risk_level or "N/A",
+                entity.deterministic_compliance or "N/A",
+                entity.llm_compliance or "N/A",
+                _truncate(entity.author or "N/A", 16),
+            ]
+            for i, val in enumerate(row):
+                self.cell(col_widths[i], 6, _safe(val), border=1)
+            self.ln()
+        self.ln(4)
 
     def project_section(self, project_data: ProjectData):
         self.add_page()
@@ -275,42 +389,29 @@ class ComplianceReportPDF(FPDF):
             self.multi_cell(0, 7, _safe(f"Donnees indisponibles : {project_data.error}"))
             return
 
-        if not project_data.models:
+        if not project_data.models and not project_data.agents:
             self.set_font("Helvetica", "I", 10)
             self.set_text_color(100, 100, 100)
-            self.cell(0, 7, "Aucun modele enregistre dans ce projet.", new_x="LMARGIN", new_y="NEXT")
+            self.cell(0, 7, "Aucun modele ni agent enregistre dans ce projet.", new_x="LMARGIN", new_y="NEXT")
             return
 
         self.set_font("Helvetica", "", 10)
         self.set_text_color(0, 0, 0)
-        self.cell(0, 7, f"Nombre de modeles-versions : {len(project_data.models)}", new_x="LMARGIN", new_y="NEXT")
+        self.cell(
+            0,
+            7,
+            f"Nombre de modeles-versions : {len(project_data.models)}  |  "
+            f"Nombre d'agents-versions : {len(project_data.agents)}",
+            new_x="LMARGIN",
+            new_y="NEXT",
+        )
         self.ln(4)
 
-        # Table header
-        col_widths = [35, 15, 30, 35, 35, 30]
-        headers = ["Modele", "Ver.", "Risque", "Compliance Det.", "Compliance LLM", "Auteur"]
-        self.set_font("Helvetica", "B", 8)
-        self.set_fill_color(*self.NAVY)
-        self.set_text_color(*self.WHITE)
-        for i, h in enumerate(headers):
-            self.cell(col_widths[i], 7, h, border=1, fill=True)
-        self.ln()
+        if project_data.models:
+            self._entity_table("Modeles", project_data.models, "model_name", "version")
 
-        # Table rows
-        self.set_font("Helvetica", "", 8)
-        self.set_text_color(0, 0, 0)
-        for mv in project_data.models:
-            row = [
-                _truncate(mv.model_name, 20),
-                mv.version,
-                mv.risk_level or "N/A",
-                mv.deterministic_compliance or "N/A",
-                mv.llm_compliance or "N/A",
-                _truncate(mv.author or "N/A", 16),
-            ]
-            for i, val in enumerate(row):
-                self.cell(col_widths[i], 6, _safe(val), border=1)
-            self.ln()
+        if project_data.agents:
+            self._entity_table("Agents", project_data.agents, "agent_name", "version")
 
     def annex_ai_act_card(self, model_name: str, version: str, ai_act_markdown: str):
         self.add_page()
@@ -326,6 +427,21 @@ class ComplianceReportPDF(FPDF):
         self.add_page()
         self._section_title(f"Annexe C : Model Card — {model_name} v{version}")
         self._render_markdown(model_card)
+
+    def annex_agent_ai_act_card(self, agent_name: str, version: str, ai_act_markdown: str):
+        self.add_page()
+        self._section_title(f"Annexe A : Fiche IA Act (agent) — {agent_name} v{version}")
+        self._render_markdown(ai_act_markdown)
+
+    def annex_agent_act_review(self, agent_name: str, version: str, review_markdown: str):
+        self.add_page()
+        self._section_title(f"Annexe B : Review LLM (agent) — {agent_name} v{version}")
+        self._render_markdown(review_markdown)
+
+    def annex_agent_card(self, agent_name: str, version: str, agent_card: str):
+        self.add_page()
+        self._section_title(f"Annexe C : Agent Card — {agent_name} v{version}")
+        self._render_markdown(agent_card)
 
     def annex_metadata(self, model_name: str, version: str, mv: ModelVersionData):
         self.add_page()
@@ -546,6 +662,13 @@ def _build_pdf(platform_data: list[ProjectData], summary: PlatformSummary, gate_
                 pdf.annex_model_card(mv.model_name, mv.version, mv.model_card)
             if mv.params or mv.metrics or mv.tags:
                 pdf.annex_metadata(mv.model_name, mv.version, mv)
+        for av in project_data.agents:
+            if av.ai_act_card:
+                pdf.annex_agent_ai_act_card(av.agent_name, av.version, av.ai_act_card)
+            if av.act_review:
+                pdf.annex_agent_act_review(av.agent_name, av.version, av.act_review)
+            if av.agent_card:
+                pdf.annex_agent_card(av.agent_name, av.version, av.agent_card)
 
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     pdf_path = os.path.join(tempfile.gettempdir(), f"platform_compliance_report_{timestamp}.pdf")
@@ -556,6 +679,7 @@ def _build_pdf(platform_data: list[ProjectData], summary: PlatformSummary, gate_
 def get_platform_dashboard_data(
     project_db_handler: ProjectDbHandler,
     model_info_db_handler: ModelInfoDbHandler,
+    agent_info_db_handler: AgentInfoDbHandler,
     registry_pool: RegistryHandler,
     platform_config_handler: PlatformConfigHandler,
     tracking_uri_builder: Callable[[str], str],
@@ -570,6 +694,8 @@ def get_platform_dashboard_data(
     llm_counter: Counter = Counter()
     total_models = set()
     total_versions = 0
+    total_agents = set()
+    total_agent_versions = 0
 
     for project in projects:
         project_name = project.name
@@ -578,6 +704,8 @@ def get_platform_dashboard_data(
         project_llm: Counter = Counter()
         project_version_count = 0
         project_model_names = set()
+        project_agent_version_count = 0
+        project_agent_names = set()
         error = None
 
         try:
@@ -610,6 +738,33 @@ def get_platform_dashboard_data(
                     project_llm[lc or "not_evaluated"] += 1
                     llm_counter[lc or "not_evaluated"] += 1
 
+            agent_registry = registry_pool.get_agent_registry_adapter(project_name, tracking_uri_builder(project_name))
+            agent_versions_map = _get_project_agents_versions(agent_registry)
+            agent_infos = agent_info_db_handler.list_agent_infos_for_project(project_name)
+            agent_info_map: dict[tuple[str, str], AgentInfo] = {
+                (ai.agent_name, ai.agent_version): ai for ai in agent_infos
+            }
+
+            for agent_name, versions in agent_versions_map.items():
+                for version_entry in versions:
+                    version = version_entry["version"]
+                    ai_info = agent_info_map.get((agent_name, version))
+                    project_agent_version_count += 1
+                    total_agent_versions += 1
+                    project_agent_names.add(agent_name)
+                    total_agents.add((project_name, agent_name))
+
+                    rl = ai_info.risk_level if ai_info else None
+                    dc = ai_info.deterministic_compliance if ai_info else "not_evaluated"
+                    lc = ai_info.llm_compliance if ai_info else "not_evaluated"
+
+                    project_risk[rl or "non renseigne"] += 1
+                    risk_counter[rl or "non renseigne"] += 1
+                    project_det[dc or "not_evaluated"] += 1
+                    det_counter[dc or "not_evaluated"] += 1
+                    project_llm[lc or "not_evaluated"] += 1
+                    llm_counter[lc or "not_evaluated"] += 1
+
         except Exception as e:
             logger.warning(f"Could not access registry for project {project_name}: {e}")
             error = str(e)
@@ -619,6 +774,8 @@ def get_platform_dashboard_data(
                 "name": project_name,
                 "total_models": len(project_model_names),
                 "total_versions": project_version_count,
+                "total_agents": len(project_agent_names),
+                "total_agent_versions": project_agent_version_count,
                 "risk_distribution": dict(project_risk),
                 "deterministic_distribution": dict(project_det),
                 "llm_distribution": dict(project_llm),
@@ -632,6 +789,8 @@ def get_platform_dashboard_data(
             "total_projects": len(projects),
             "total_models": len(total_models),
             "total_versions": total_versions,
+            "total_agents": len(total_agents),
+            "total_agent_versions": total_agent_versions,
             "risk_distribution": dict(risk_counter),
             "deterministic_distribution": dict(det_counter),
             "llm_distribution": dict(llm_counter),
@@ -643,6 +802,7 @@ def get_platform_dashboard_data(
 def generate_platform_compliance_report(
     project_db_handler: ProjectDbHandler,
     model_info_db_handler: ModelInfoDbHandler,
+    agent_info_db_handler: AgentInfoDbHandler,
     registry_pool: RegistryHandler,
     platform_config_handler: PlatformConfigHandler,
     tracking_uri_builder: Callable[[str], str],
@@ -650,7 +810,7 @@ def generate_platform_compliance_report(
     """Generate a full platform compliance PDF report. Returns the path to the PDF file."""
     gate_policy = platform_config_handler.get(DEPLOYMENT_GATE_POLICY_KEY) or GATE_POLICY_PERMISSIVE
     platform_data = _collect_platform_data(
-        project_db_handler, model_info_db_handler, registry_pool, tracking_uri_builder
+        project_db_handler, model_info_db_handler, agent_info_db_handler, registry_pool, tracking_uri_builder
     )
     summary = _compute_summary(platform_data)
     return _build_pdf(platform_data, summary, gate_policy)
