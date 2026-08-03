@@ -293,7 +293,8 @@ const GovernancePage = (() => {
       <div class="page-eyebrow" style="margin:28px 0 8px">Agents</div>
       ${agentSections || `<div class="empty-state" style="padding:40px 0"><div class="empty-state-title">No agent versions found</div></div>`}
 
-      ${renderEventsSection(deploymentEvents)}
+      <div class="page-eyebrow" style="margin:28px 0 8px">Events</div>
+      ${renderEventsSection(deploymentEvents) || `<div class="empty-state" style="padding:40px 0"><div class="empty-state-title">No events found</div></div>`}
     `;
 
     document.getElementById('download-gov-btn').addEventListener('click', async () => {
@@ -1155,10 +1156,6 @@ const GovernancePage = (() => {
 
     return `
       <div class="card mt-4">
-        <div class="card-header">
-          <span class="card-title">Events</span>
-          <span class="section-count">${events.length}</span>
-        </div>
         <div class="table-wrap">
           <table>
             <thead>

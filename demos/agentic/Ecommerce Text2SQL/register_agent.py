@@ -28,6 +28,12 @@ from pathlib import Path
 import mlflow
 from mlflow import MlflowClient
 
+# This script lives inside the model_platform monorepo (a uv project), so MLflow's
+# uv-project autodetection would otherwise copy the whole backend's uv.lock/pyproject.toml
+# into this agent's run artifacts. Disable it — the platform's Docker build only ever
+# reads requirements.txt (derived from PIP_REQUIREMENTS below), never these files.
+os.environ.setdefault("MLFLOW_LOG_UV_FILES", "false")
+
 # Make this script runnable from anywhere by resolving paths relative to the file.
 _DEMO_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _DEMO_DIR)
