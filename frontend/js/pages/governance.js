@@ -293,7 +293,8 @@ const GovernancePage = (() => {
       <div class="page-eyebrow" style="margin:28px 0 8px">Agents</div>
       ${agentSections || `<div class="empty-state" style="padding:40px 0"><div class="empty-state-title">No agent versions found</div></div>`}
 
-      ${renderEventsSection(deploymentEvents)}
+      <div class="page-eyebrow" style="margin:28px 0 8px">Events</div>
+      ${renderEventsSection(deploymentEvents) || `<div class="empty-state" style="padding:40px 0"><div class="empty-state-title">No events found</div></div>`}
     `;
 
     document.getElementById('download-gov-btn').addEventListener('click', async () => {
@@ -1016,6 +1017,108 @@ const GovernancePage = (() => {
       </div>`;
   }
 
+  function renderAgentSection(agentName, versions, projectName, governanceInfo) {
+    return `
+      <div class="card mt-4">
+        <div class="card-header">
+          <span class="card-title">${escHtml(agentName)}</span>
+          <span class="section-count">${versions.length}</span>
+        </div>
+        ${renderAgentVersionsSection(versions, agentName, projectName, governanceInfo)}
+      </div>`;
+  }
+
+  function renderAgentVersionsSection(versions, agentName, projectName, governanceInfo) {
+    if (!versions || versions.length === 0) return '';
+
+    const rows = versions.map(a => {
+      const ver = a.agent_version || '—';
+      const safeProj  = escHtml(projectName || '');
+      const safeAgent = escHtml(agentName || '');
+      const safeVer   = escHtml(String(ver));
+
+      const govInfo = (governanceInfo || {})[`${agentName}:${ver}`];
+      const owner   = (govInfo && govInfo.owner) || '—';
+      const created = (govInfo && govInfo.createdAt) ? formatDate(govInfo.createdAt) : '—';
+
+      const cached = aiCache.agent[`${agentName}:${ver}`];
+      const detCompliance = cached ? cached.deterministicCompliance : (a.deterministic_compliance || 'not_evaluated');
+      const llmComplianceStatus = cached ? cached.llmCompliance : (a.llm_compliance || 'not_evaluated');
+      const hasAgentCard = !!agentCardCache[`${agentName}:${ver}`];
+
+      const reviewLabel = 'Analyze';
+      const directReviewBtn = aiAvailable ? `
+        <button class="btn btn-ai btn-xs ai-direct-review-btn"
+          data-kind="agent"
+          data-project="${safeProj}"
+          data-model="${safeAgent}"
+          data-version="${safeVer}"
+          title="AI Act compliance analysis by Claude">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          ${reviewLabel}
+        </button>` : '';
+
+      return `
+        <tr>
+          <td class="mono">${safeVer}</td>
+          <td>${escHtml(owner)}</td>
+          <td style="white-space:nowrap">${escHtml(created)}</td>
+          <td class="gov-col-type">${a.agent_type ? `<span class="badge badge-neutral">${escHtml(a.agent_type)}</span>` : '—'}</td>
+          <td class="gov-col-llmmodel">${a.llm_model ? `<span class="mono">${escHtml(a.llm_model)}</span>` : '—'}</td>
+          <td class="gov-col-risk" data-risk-cell="${safeAgent}:${safeVer}">
+            <div class="flex gap-1 items-center">${renderRiskCell('agent', agentName, ver, projectName)}</div>
+          </td>
+          <td class="gov-col-compliant">${complianceBadge(detCompliance, 'Deterministic Compliance')}</td>
+          <td class="gov-col-llm" data-llm-badge="${safeAgent}:${safeVer}">${complianceBadge(llmComplianceStatus, 'LLM Compliance')}</td>
+          <td class="entity-actions-cell">
+            <div class="flex gap-2 items-center" style="flex-wrap:nowrap">
+              ${hasAgentCard ? `
+              <button class="btn btn-secondary btn-xs agent-card-btn"
+                data-project="${safeProj}"
+                data-model="${safeAgent}"
+                data-version="${safeVer}"
+                title="Voir l'agent card">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                </svg>
+                Agent Card
+              </button>` : ''}
+              <button class="btn btn-secondary btn-xs ai-act-btn"
+                data-kind="agent"
+                data-project="${safeProj}"
+                data-model="${safeAgent}"
+                data-version="${safeVer}">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                  <line x1="16" y1="13" x2="8" y2="13"/>
+                  <line x1="16" y1="17" x2="8" y2="17"/>
+                  <polyline points="10 9 9 9 8 9"/>
+                </svg>
+                AI Act Card
+              </button>
+              ${directReviewBtn}
+            </div>
+          </td>
+        </tr>`;
+    }).join('');
+
+    return `
+      <div class="table-wrap">
+        <table class="gov-versions-table">
+          <thead>
+            <tr>
+              <th class="gov-col-version">Version</th><th class="gov-col-owner">Owner</th><th class="gov-col-created">Created</th><th class="gov-col-type">Type</th><th class="gov-col-llmmodel">LLM model</th><th class="gov-col-risk">Risk Level</th><th class="gov-col-compliant">Deterministic Compliance</th><th class="gov-col-llm">LLM Compliance</th><th></th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }
+
   function renderEventsSection(events) {
     if (!events || events.length === 0) return '';
 
@@ -1053,10 +1156,6 @@ const GovernancePage = (() => {
 
     return `
       <div class="card mt-4">
-        <div class="card-header">
-          <span class="card-title">Events</span>
-          <span class="section-count">${events.length}</span>
-        </div>
         <div class="table-wrap">
           <table>
             <thead>
