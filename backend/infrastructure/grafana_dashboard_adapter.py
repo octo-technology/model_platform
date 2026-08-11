@@ -121,8 +121,12 @@ class GrafanaDashboardAdapter(DashboardHandler):
                     # scope them to this deployment by injecting the job filter.
                     # Template exprs for these metrics must carry a `{...}` brace
                     # (use `{}` when there is no label) so the filter can be added.
+                    # Every selector gets the filter, not just the first: exprs such
+                    # as the success-rate ratio or the period-total baseline diff
+                    # carry several, and an unscoped one would aggregate the traffic
+                    # of every other deployment in the cluster.
                     if "http_" in expr or "agent_" in expr:
-                        expr = expr.replace("{", f'{{job="{service_name}", ', 1)
+                        expr = expr.replace("{", f'{{job="{service_name}", ')
 
                     target["expr"] = expr
 

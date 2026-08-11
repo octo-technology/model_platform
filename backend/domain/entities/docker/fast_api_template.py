@@ -1,3 +1,4 @@
+import json
 import os
 from typing import Any, Dict, Optional
 
@@ -235,6 +236,41 @@ _agent_llm_calls = _agent_meter.create_counter(
     "agent_llm_calls", description="LLM / chat-model spans, summed per agent run."
 )
 _agent_tool_calls = _agent_meter.create_counter("agent_tool_calls", description="Tool spans, by tool name.")
+
+# Publish every known series at 0 right away. The Prometheus exporter only emits
+# a counter once it has received a measurement, so without this the first scrape
+# Prometheus ever sees already carries the full value — it never observes the
+# 0 -> N step, and increase()/rate() report nothing for the agent's first calls.
+_agent_invocations.add(0, {"status": "success"})
+_agent_invocations.add(0, {"status": "error"})
+_agent_tokens.add(0, {"token_type": "input"})
+_agent_tokens.add(0, {"token_type": "output"})
+_agent_cost.add(0)
+_agent_llm_calls.add(0)
+
+
+def _declared_tool_names() -> list:
+    """Tool names the agent declared at registration, from the MLflow "tools" tag.
+
+    agent_tool_calls is labelled by tool name, which the code above cannot know.
+    Registration writes a `tools` tag ([{"name": ..., "description": ...}, ...])
+    on the model's run, so read it back to seed those series too. Best-effort:
+    a non-agent model, an unreachable tracking server or a missing tag all just
+    mean no seeding.
+    """
+    try:
+        run_id = getattr(getattr(model, "metadata", None), "run_id", None)
+        if not run_id:
+            return []
+        tags = mlflow.get_run(run_id).data.tags
+        return [t["name"] for t in json.loads(tags.get("tools", "[]")) if isinstance(t, dict) and t.get("name")]
+    except Exception as e:
+        logger.warning(f"Could not read declared tool names, tool metrics will start at their first call: {e}")
+        return []
+
+
+for _tool_name in _declared_tool_names():
+    _agent_tool_calls.add(0, {"tool": _tool_name})
 
 
 def _record_agent_metrics_from_last_trace() -> None:
