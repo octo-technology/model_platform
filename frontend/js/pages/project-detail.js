@@ -986,7 +986,7 @@ const ProjectDetailPage = (() => {
   function buildDashboardUrl(projectName, deployName) {
     const host = window.MP_HOST_NAME || '';
     if (!host || !deployName || deployName === '—') return '';
-    return `http://${host}/deploy/${projectName}/${deployName}`;
+    return `${location.protocol}//${host}/deploy/${projectName}/${deployName}`;
   }
 
   function loadingHTML(text = 'Loading…') {

@@ -4,7 +4,10 @@ metadata:
   name: frontend-config
   namespace: model-platform
 data:
-  API_BASE_URL: "http://model-platform.com/api"
+  # Same origin as the page (nginx proxies /api/ to the backend). Relative so
+  # it follows the page protocol — an absolute http:// URL is blocked as mixed
+  # content when the page is served over https.
+  API_BASE_URL: "/api"
   MLFLOW_S3_ENDPOINT_URL: "http://minio.minio.svc.cluster.local:9000"
   MP_HOST_NAME: "model-platform.com"
   MP_REGISTRY_PATH: "registry"

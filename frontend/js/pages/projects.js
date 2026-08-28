@@ -271,7 +271,7 @@ const ProjectsPage = (() => {
   function buildRegistryUrl(name) {
     const host = window.MP_HOST_NAME || 'model-platform.com';
     const path = window.MP_REGISTRY_PATH || 'registry';
-    return `http://${host}/${path}/${sanitizeName(name)}/`;
+    return `${location.protocol}//${host}/${path}/${sanitizeName(name)}/`;
   }
 
   // Reads the same scale the cards use, so the legend cannot drift from
