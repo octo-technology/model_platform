@@ -53,6 +53,23 @@ class K8SRegistryDeployment(RegistryDeployment, K8SDeployment):
             else:
                 logger.info(f"⚠️ Error while creating/updating the service: {e}")
 
+    def _allowed_hosts(self, project_name: str) -> str:
+        """Host headers the MLflow server accepts.
+
+        MLflow 3 rejects any Host it does not know with a 403 (DNS rebinding
+        protection). Its default allowlist covers localhost and private IPs
+        only, so the cluster DNS name the backend dials and the public host
+        the registry links point at both have to be declared.
+        """
+        return ",".join(
+            [
+                f"{project_name}.{project_name}.svc.cluster.local:{self.port}",
+                f"{project_name}.{project_name}.svc.cluster.local",
+                f"localhost:{self.port}",
+                self.host_name,
+            ]
+        )
+
     def _create_or_update_mlflow_deployment(self, project_name: str):
         """Crée ou met à jour un déploiement Kubernetes pour MLflow."""
         project_name = sanitize_project_name(project_name)
@@ -102,6 +119,8 @@ class K8SRegistryDeployment(RegistryDeployment, K8SDeployment):
                                     f"postgresql://{self.pgsql_user}:{self.pgsql_password}@{self.pgsql_cluster_host}/{self.mlflow_db_name}",
                                     "--artifacts-destination",
                                     "s3://bucket",
+                                    "--allowed-hosts",
+                                    self._allowed_hosts(project_name),
                                     #  "--static-prefix",
                                     #  f"/{self.sub_path}/{project_name}",
                                 ],
