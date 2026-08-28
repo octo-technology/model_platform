@@ -107,13 +107,16 @@ const ProjectsPage = (() => {
       const enriched = await Promise.all(
         projects.map(async p => {
           const name = p.name || p.Name || '';
-          const [deployed, registryOk] = await Promise.allSettled([
+          const [deployed, models, registryOk] = await Promise.allSettled([
             API.deployedModels.list(name),
+            API.models.list(name),
             API.projects.registryStatus(name),
           ]);
+          const count = result => (result.status === 'fulfilled' && Array.isArray(result.value) ? result.value.length : 0);
           return {
             ...p,
-            _deployed_count: deployed.status === 'fulfilled' && Array.isArray(deployed.value) ? deployed.value.length : 0,
+            _deployed_count: count(deployed),
+            _model_count: count(models),
             _registry_status: registryOk.status === 'fulfilled' ? registryOk.value : 'error',
           };
         })
@@ -185,11 +188,13 @@ const ProjectsPage = (() => {
     return `http://${host}/${path}/${sanitizeName(name)}/`;
   }
 
-  function deployedBadge(count) {
-    if (count > 0) {
-      return Status.badge('runtime', 'deployed', { label: `${count} deployed` });
+  // A quantity, not a status — so it uses the count chip, not a badge.
+  function deployedChip(deployed, total) {
+    if (total === 0) {
+      return `<span class="count-chip count-chip--empty" title="No model registered in this project">No models</span>`;
     }
-    return Status.badge('runtime', 'not_found', { label: 'No deployments' });
+    return `<span class="count-chip" title="${deployed} of ${total} model${total > 1 ? 's' : ''} deployed">`
+      + `${deployed}<span class="count-chip__total">/${total}</span> deployed</span>`;
   }
 
   function registryStatusDot(status) {
@@ -212,6 +217,7 @@ const ProjectsPage = (() => {
     const owner          = p.owner || p.Owner || '—';
     const scope          = p.scope || p.Scope || '';
     const deployedCount  = p._deployed_count  ?? 0;
+    const modelCount     = p._model_count     ?? 0;
     const registryStatus = p._registry_status || 'error';
     const registryUrl    = buildRegistryUrl(name);
 
@@ -219,7 +225,7 @@ const ProjectsPage = (() => {
       <div class="project-card" data-project="${escHtml(name)}">
         <div class="project-card-header">
           <div class="project-name">${escHtml(name)}</div>
-          ${deployedBadge(deployedCount)}
+          ${deployedChip(deployedCount, modelCount)}
         </div>
         ${scope ? `<p class="project-scope-desc">${escHtml(scope)}</p>` : ''}
         <div class="project-meta">

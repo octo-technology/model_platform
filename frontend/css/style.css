@@ -137,6 +137,13 @@
   --accent-rgb:     0,109,115;
   --radius-base:    var(--radius);
 
+  /* Count chip — a quantity, not a status. Deliberately off the status
+     palette so "3/5 deployed" never reads as a health signal. */
+  --count-fg:      #6D28D9;  /* 6.68:1 on white */
+  --count-fg-soft: #7C3AED;  /* 5.01:1 on --count-bg */
+  --count-bg:      rgba(109,40,217,0.08);
+  --count-border:  rgba(109,40,217,0.22);
+
   /* AI feature accent (violet) */
   --ai:        #5B21B6;
   --ai-mid:    #6D28D9;  /* 6.68:1 on white */
@@ -725,6 +732,37 @@ img { max-width: 100%; }
   color: var(--status-neutral-fg);
   border: 1px solid var(--border-1);
 }
+
+/* ── Count chip ──────────────────────────────────────────────── */
+/* Square corners, no leading dot and its own colour: at a glance it is
+   a measurement, where a rounded dotted pill is a status. */
+.count-chip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--radius-xs);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  font-family: var(--font-mono);
+  line-height: 1.6;
+  background: var(--count-bg);
+  color: var(--count-fg);
+  border: 1px solid var(--count-border);
+  white-space: nowrap;
+}
+
+/* Lighter step for the total, still AA on the chip background — an
+   opacity fade would have dropped it to 3.6:1. */
+.count-chip__total {
+  color: var(--count-fg-soft);
+}
+
+.count-chip--empty {
+  background: var(--status-neutral-bg);
+  color: var(--status-neutral-fg);
+  border-color: var(--border-1);
+}
+
 
 /* ── Cards ───────────────────────────────────────────────────── */
 .card {
