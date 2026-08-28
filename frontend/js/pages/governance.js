@@ -307,6 +307,7 @@ const GovernancePage = (() => {
 
     Modal.open({
       title: `Model Card — ${modelName} v${version}`,
+      size: 'wide',
       body: bodyHtml,
       footer: cardContent ? `
         <button class="btn btn-secondary btn-sm" id="model-card-dl-btn">
@@ -340,6 +341,7 @@ const GovernancePage = (() => {
 
     const { close } = Modal.open({
       title: `AI Act Card — ${modelName} v${version}`,
+      size: 'wide',
       body: `<div class="ai-act-loading"><span class="spinner"></span><span>Generating card…</span></div>`,
       footer: `
         ${aiReviewBtnHtml}
@@ -487,6 +489,7 @@ const GovernancePage = (() => {
 
     const { close } = Modal.open({
       title: `AI Act Compliance — ${modelName} v${version}`,
+      size: 'wide',
       body: hasCache ? reviewHtml(cached.actReview) : loadingHtml,
       footer: `
         <button class="btn btn-secondary btn-sm" id="direct-review-dl-btn" ${hasCache ? '' : 'disabled'}>

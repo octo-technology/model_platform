@@ -2101,10 +2101,15 @@ mark.search-mark {
 
 /* ── AI Act card modal ───────────────────────────────────────── */
 
-/* Wide modal override for AI Act card */
-#modal-container .modal {
+/* Opt-in width for document-sized modals. This used to target every
+   .modal inside #modal-container, which made confirmations 920px wide. */
+.modal--wide {
   max-width: 920px;
   width: 96vw;
+}
+
+.modal--sm {
+  max-width: 420px;
 }
 
 .ai-act-loading {

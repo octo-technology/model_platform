@@ -10,14 +10,17 @@ const Modal = (() => {
     if (_currentClose) _currentClose();
   }
 
-  function open({ title, body, footer, onClose } = {}) {
+  // size: 'default' | 'sm' (confirmations) | 'wide' (documents such as model cards)
+  function open({ title, body, footer, onClose, size = 'default' } = {}) {
     const overlay   = document.getElementById('modal-overlay');
     const container = document.getElementById('modal-container');
 
     overlay.classList.remove('hidden');
 
+    const sizeClass = size === 'default' ? '' : ` modal--${size}`;
+
     container.innerHTML = `
-      <div class="modal">
+      <div class="modal${sizeClass}">
         <div class="modal-header">
           <h2 class="modal-title">${title || ''}</h2>
           <button class="modal-close" id="modal-close-btn">
@@ -55,6 +58,7 @@ const Modal = (() => {
     return new Promise(resolve => {
       const { close } = open({
         title,
+        size: 'sm',
         body: `<p style="color: var(--text-1); line-height:1.6;">${message}</p>`,
         footer: `
           <button class="btn btn-secondary" id="modal-cancel">Cancel</button>
