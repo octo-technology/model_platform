@@ -1,6 +1,8 @@
 // Projects list page
 const ProjectsPage = (() => {
 
+  let allProjects = [];
+
   const DEMO_PROJECTS = [
     {
       name: "Credit-Risk-Assessment",
@@ -76,11 +78,42 @@ const ProjectsPage = (() => {
 
         <div class="page-content">
           ${legend()}
+          <div class="monitoring-filters hidden" id="projects-filters">
+            <div class="filters-row">
+              <div class="form-group" style="flex:1;min-width:220px">
+                <label class="form-label" for="projects-search">Search</label>
+                <input class="form-input" id="projects-search" type="search" placeholder="Name, owner or scope" autocomplete="off">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="projects-owner-filter">Owner</label>
+                <select class="form-select" id="projects-owner-filter"><option value="">All</option></select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="projects-registry-filter">MLflow registry</label>
+                <select class="form-select" id="projects-registry-filter">
+                  <option value="">All</option>
+                  ${REGISTRY_STATUSES.map(st => `<option value="${st}">${escHtml(Status.label('runtime', st))}</option>`).join('')}
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="projects-sort-filter">Sort</label>
+                <select class="form-select" id="projects-sort-filter">
+                  <option value="name">Name</option>
+                  <option value="deployed">Deployed models</option>
+                </select>
+              </div>
+            </div>
+          </div>
           <div id="projects-loading" class="loading-screen">
             <span class="spinner"></span>
             <span>Loading projects…</span>
           </div>
           <div id="projects-grid" class="projects-grid hidden"></div>
+          <div id="projects-no-match" class="empty-state hidden">
+            <div class="empty-state-title">No project matches your filters</div>
+            <div class="empty-state-desc">Try a different search term or clear the filters.</div>
+            <button class="btn btn-secondary mt-4" id="projects-clear-filters">Clear filters</button>
+          </div>
           <div id="projects-empty" class="empty-state hidden">
             <div class="empty-state-icon">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -99,6 +132,49 @@ const ProjectsPage = (() => {
 
     loadProjects();
     document.getElementById('new-project-btn').addEventListener('click', openNewProjectModal);
+
+    ['projects-search', 'projects-owner-filter', 'projects-registry-filter', 'projects-sort-filter']
+      .forEach(id => document.getElementById(id).addEventListener('input', applyFilters));
+    document.getElementById('projects-clear-filters').addEventListener('click', clearFilters);
+  }
+
+  function clearFilters() {
+    document.getElementById('projects-search').value = '';
+    document.getElementById('projects-owner-filter').value = '';
+    document.getElementById('projects-registry-filter').value = '';
+    applyFilters();
+  }
+
+  function applyFilters() {
+    const query    = document.getElementById('projects-search').value.trim().toLowerCase();
+    const owner    = document.getElementById('projects-owner-filter').value;
+    const registry = document.getElementById('projects-registry-filter').value;
+    const sort     = document.getElementById('projects-sort-filter').value;
+
+    const filtered = allProjects.filter(p => {
+      const haystack = [p.name || p.Name, p.owner || p.Owner, p.scope || p.Scope]
+        .filter(Boolean).join(' ').toLowerCase();
+      if (query && !haystack.includes(query)) return false;
+      if (owner && (p.owner || p.Owner || '') !== owner) return false;
+      if (registry && (p._registry_status || '') !== registry) return false;
+      return true;
+    });
+
+    filtered.sort((a, b) => sort === 'deployed'
+      ? (b._deployed_count ?? 0) - (a._deployed_count ?? 0)
+      : String(a.name || a.Name || '').localeCompare(String(b.name || b.Name || '')));
+
+    renderGrid(filtered);
+  }
+
+  function populateOwnerFilter(projects) {
+    const select = document.getElementById('projects-owner-filter');
+    const previous = select.value;
+    const owners = [...new Set(projects.map(p => p.owner || p.Owner).filter(Boolean))].sort();
+    select.innerHTML = '<option value="">All</option>'
+      + owners.map(o => `<option value="${escHtml(o)}">${escHtml(o)}</option>`).join('');
+    // A reload (after a delete) must not silently drop the active filter.
+    if (owners.includes(previous)) select.value = previous;
   }
 
   async function loadProjects() {
@@ -130,19 +206,28 @@ const ProjectsPage = (() => {
   }
 
   function renderProjects(projects) {
-    const loading = document.getElementById('projects-loading');
-    const grid    = document.getElementById('projects-grid');
-    const empty   = document.getElementById('projects-empty');
+    allProjects = projects || [];
 
-    loading.classList.add('hidden');
+    document.getElementById('projects-loading').classList.add('hidden');
 
-    if (!projects || projects.length === 0) {
-      empty.classList.remove('hidden');
+    if (allProjects.length === 0) {
+      document.getElementById('projects-empty').classList.remove('hidden');
       document.getElementById('new-project-btn-empty')?.addEventListener('click', openNewProjectModal);
       return;
     }
 
-    grid.classList.remove('hidden');
+    document.getElementById('projects-filters').classList.remove('hidden');
+    populateOwnerFilter(allProjects);
+    applyFilters();
+  }
+
+  function renderGrid(projects) {
+    const grid    = document.getElementById('projects-grid');
+    const noMatch = document.getElementById('projects-no-match');
+
+    grid.classList.toggle('hidden', projects.length === 0);
+    noMatch.classList.toggle('hidden', projects.length > 0);
+
     grid.innerHTML = projects.map(p => projectCard(p)).join('');
 
     grid.querySelectorAll('.project-card').forEach(card => {
