@@ -216,12 +216,10 @@ Minimal — <!-- justification -->
 
   // ── Tab content data ──────────────────────────────────────
 
-  const TABS = [
-    { id: 'minimal',       label: 'Minimal',       color: 'green' },
-    { id: 'limited',       label: 'Limited',        color: 'yellow' },
-    { id: 'high',          label: 'High',           color: 'orange' },
-    { id: 'unacceptable',  label: 'Unacceptable',   color: 'red' },
-  ];
+  // Tabs are the four AI Act risk levels — they take their label and their
+  // colour from the shared risk scale rather than naming a colour.
+  const TABS = ['minimal', 'limited', 'high', 'unacceptable']
+    .map(id => ({ id, label: Status.label('risk', id) }));
 
   // ── Render ────────────────────────────────────────────────
 
@@ -281,8 +279,8 @@ Minimal — <!-- justification -->
           <!-- Tabs -->
           <div class="cg-tabs" id="cg-tabs">
             ${TABS.map(t => `
-              <button class="cg-tabs__btn cg-tabs__btn--${t.color}" data-tab="${t.id}">
-                <span class="cg-tabs__dot cg-tabs__dot--${t.color}"></span>
+              <button class="cg-tabs__btn cg-tabs__btn--${t.id}" data-tab="${t.id}">
+                <span class="cg-tabs__dot cg-tabs__dot--${t.id}"></span>
                 ${t.label}
               </button>
             `).join('')}

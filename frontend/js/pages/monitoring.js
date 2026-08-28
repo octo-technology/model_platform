@@ -32,7 +32,7 @@ const MonitoringPage = (() => {
           <h1 class="page-title">Model Fleet Monitoring</h1>
         </div>
         <div class="page-header-meta">
-          <div class="status-badge status-badge-live"><span class="status-pulse"></span>Live</div>
+          <div class="status-badge status-badge-live" title="Metrics refresh automatically"><span class="status-pulse"></span>Live data</div>
           <button class="monitoring-refresh-btn" id="monitoring-refresh-btn" title="Click to refresh now">
             <span id="monitoring-timestamp">Updating…</span>
           </button>
@@ -42,7 +42,7 @@ const MonitoringPage = (() => {
         <div class="monitoring-filters">
           <div class="filters-row">
             <div class="form-group"><label class="form-label">Project</label><select class="form-select" id="monitoring-project-filter"><option value="">All</option></select></div>
-            <div class="form-group"><label class="form-label">Status</label><select class="form-select" id="monitoring-status-filter"><option value="">All</option><option value="healthy">Healthy</option><option value="caution">Caution</option><option value="alert">Alert</option></select></div>
+            <div class="form-group"><label class="form-label">Status</label><select class="form-select" id="monitoring-status-filter"><option value="">All</option>${['healthy', 'caution', 'alert'].map(v => `<option value="${v}">${Status.label('health', v)}</option>`).join('')}</select></div>
             <div class="form-group"><label class="form-label">Sort</label><select class="form-select" id="monitoring-sort-filter"><option value="name">Name</option><option value="error-rate">Error Rate</option><option value="calls">Calls</option></select></div>
             <div class="form-group" style="margin-left: auto;"><label class="form-label">Period</label><select class="form-select" id="monitoring-period-filter"><option value="15m">15 min</option><option value="30m">30 min</option><option value="1h">1h</option><option value="6h">6h</option><option value="1d">24h</option><option value="7d" selected>7d</option><option value="30d">30d</option></select></div>
           </div>
@@ -91,7 +91,7 @@ const MonitoringPage = (() => {
       content.innerHTML = `
         <div class="empty-state">
           <div class="empty-state-title" style="color:var(--status-red-light)">⚠️ Cannot Load Metrics</div>
-          <div class="empty-state-desc" style="max-width:600px;text-align:left;white-space:pre-wrap;font-family:monospace;font-size:12px">${escHtml(errorMsg)}</div>
+          <div class="empty-state-desc" style="max-width:600px;text-align:left;white-space:pre-wrap;font-family:var(--font-mono);font-size:12px">${escHtml(errorMsg)}</div>
           <div style="margin-top:16px;font-size:12px;color:var(--text-2)">Debug Info: API URL = ${escHtml(API_BASE_URL)}</div>
         </div>
       `;
@@ -203,10 +203,10 @@ const MonitoringPage = (() => {
     content.innerHTML = `
       <div class="fleet-header">
         <div><div class="fleet-stat-label">Total</div><div class="fleet-stat-value">${stats.total}</div></div>
-        <div><div class="fleet-stat-label">Healthy</div><div class="fleet-stat-value">${stats.healthy}</div></div>
-        <div><div class="fleet-stat-label">Caution</div><div class="fleet-stat-value">${stats.caution}</div></div>
-        <div><div class="fleet-stat-label">Alert</div><div class="fleet-stat-value">${stats.alert}</div></div>
-        ${stats.noMetrics > 0 ? `<div><div class="fleet-stat-label">No Metrics</div><div class="fleet-stat-value" style="color: var(--text-secondary);">${stats.noMetrics}</div></div>` : ''}
+        <div><div class="fleet-stat-label">${Status.label('health', 'healthy')}</div><div class="fleet-stat-value">${stats.healthy}</div></div>
+        <div><div class="fleet-stat-label">${Status.label('health', 'caution')}</div><div class="fleet-stat-value">${stats.caution}</div></div>
+        <div><div class="fleet-stat-label">${Status.label('health', 'alert')}</div><div class="fleet-stat-value">${stats.alert}</div></div>
+        ${stats.noMetrics > 0 ? `<div><div class="fleet-stat-label">No Metrics</div><div class="fleet-stat-value" style="color: var(--text-2);">${stats.noMetrics}</div></div>` : ''}
         <div><div class="fleet-stat-label">Calls</div><div class="fleet-stat-value">${stats.totalCalls.toLocaleString()}</div></div>
       </div>
       <div class="projects-grid">
@@ -224,9 +224,9 @@ const MonitoringPage = (() => {
                 <div class="project-header-top">
                   <h2 class="project-box-title">${escHtml(proj)}</h2>
                   <div class="project-box-stats">
-                    ${pStats.healthy > 0 ? `<span class="project-stat-badge healthy">${pStats.healthy}</span>` : ''}
-                    ${pStats.caution > 0 ? `<span class="project-stat-badge caution">${pStats.caution}</span>` : ''}
-                    ${pStats.alert   > 0 ? `<span class="project-stat-badge alert">${pStats.alert}</span>`   : ''}
+                    ${['healthy', 'caution', 'alert'].filter(st => pStats[st] > 0).map(st =>
+                      `<span class="project-stat-badge ${st}" title="${pStats[st]} ${Status.label('health', st)}">${pStats[st]}</span>`
+                    ).join('')}
                   </div>
                 </div>
                 <div class="project-health-bar">
@@ -241,7 +241,7 @@ const MonitoringPage = (() => {
                   const st = getModelStatus(met.errorRate);
                   const hasMetrics = allMetrics[m.id] !== undefined;
                   return `
-                    <div class="model-row model-row-${hasMetrics ? st : 'unknown'}">
+                    <div class="model-row model-row-${hasMetrics ? st : 'unknown'}" title="${Status.label('health', hasMetrics ? st : 'unknown')}">
                       <div class="model-row-header">
                         <div class="model-row-info">
                           <div class="model-row-name">${escHtml(m.name)}</div>

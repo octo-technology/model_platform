@@ -304,14 +304,14 @@ const DemoPage = (() => {
 
       // Running simulations section
       if (running.length > 0) {
-        html += '<div class="demo-status-section"><div class="demo-status-section-title">🟢 Running</div>';
+        html += `<div class="demo-status-section"><div class="demo-status-section-title">🟢 ${Status.label('runtime', 'running')}</div>`;
         html += running.map(sim => renderSimulationCard(sim)).join('');
         html += '</div>';
       }
 
       // Stopped simulations section
       if (stopped.length > 0) {
-        html += '<div class="demo-status-section"><div class="demo-status-section-title">⚫ Terminated</div>';
+        html += `<div class="demo-status-section"><div class="demo-status-section-title">⚫ ${Status.label('runtime', 'stopped')}</div>`;
         html += stopped.map(sim => renderSimulationCard(sim)).join('');
         html += '</div>';
       }
@@ -357,12 +357,12 @@ const DemoPage = (() => {
 
       let html = '';
       if (running.length > 0) {
-        html += '<div class="demo-status-section"><div class="demo-status-section-title">🟢 Running</div>';
+        html += `<div class="demo-status-section"><div class="demo-status-section-title">🟢 ${Status.label('runtime', 'running')}</div>`;
         html += running.map(sim => renderDsSimulationCard(sim)).join('');
         html += '</div>';
       }
       if (stopped.length > 0) {
-        html += '<div class="demo-status-section"><div class="demo-status-section-title">⚫ Terminated</div>';
+        html += `<div class="demo-status-section"><div class="demo-status-section-title">⚫ ${Status.label('runtime', 'stopped')}</div>`;
         html += stopped.map(sim => renderDsSimulationCard(sim)).join('');
         html += '</div>';
       }
@@ -384,11 +384,11 @@ const DemoPage = (() => {
     const successRate = sim.total_runs > 0
       ? ((sim.successful_runs / sim.total_runs) * 100).toFixed(1)
       : '0.0';
-    const failedStyle = sim.failed_runs > 0 ? 'color:var(--red-light)' : '';
+    const failedStyle = sim.failed_runs > 0 ? 'color:var(--status-error-fg)' : '';
 
     return `
       <div class="demo-row">
-        <div class="demo-row-dot ${running ? 'running' : 'stopped'}" title="${running ? 'Running' : 'Stopped'}"></div>
+        <div class="demo-row-dot ${running ? 'running' : 'stopped'}" title="${Status.label('runtime', running ? 'running' : 'stopped')}"></div>
         <span class="demo-row-name">${escHtml(sim.model_name)}</span>
         <span class="demo-row-project">${escHtml(sim.project_name)}</span>
         <span class="demo-row-simid" title="${escHtml(sim.simulation_id)}">#${simIdShort}</span>
@@ -425,11 +425,11 @@ const DemoPage = (() => {
       : '0.0';
     const timeAgo = sim.last_call_time ? getTimeAgo(sim.last_call_time * 1000) : 'Never';
     const simIdShort = sim.simulation_id ? sim.simulation_id.substring(0, 8) : 'unknown';
-    const failedStyle = sim.failed_calls > 0 ? 'color:var(--red-light)' : '';
+    const failedStyle = sim.failed_calls > 0 ? 'color:var(--status-error-fg)' : '';
 
     return `
       <div class="demo-row">
-        <div class="demo-row-dot ${running ? 'running' : 'stopped'}" title="${running ? 'Running' : 'Stopped'}"></div>
+        <div class="demo-row-dot ${running ? 'running' : 'stopped'}" title="${Status.label('runtime', running ? 'running' : 'stopped')}"></div>
         <span class="demo-row-name">${escHtml(sim.model_name)}</span>
         <span class="demo-row-project">${escHtml(sim.project_name)}</span>
         <span class="demo-row-simid" title="${escHtml(sim.simulation_id)}">#${simIdShort}</span>

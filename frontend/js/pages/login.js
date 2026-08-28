@@ -10,9 +10,9 @@ const LoginPage = (() => {
           <div class="login-brand-logo">
             <svg width="36" height="36" viewBox="0 0 32 32" fill="none">
               <rect width="32" height="32" rx="8" fill="rgba(0,163,190,0.18)"/>
-              <path d="M16 4L28 10.5V21.5L16 28L4 21.5V10.5L16 4Z" stroke="#00A3BE" stroke-width="1.5" fill="none" stroke-linejoin="round"/>
-              <circle cx="16" cy="16" r="5" fill="#00A3BE"/>
-              <circle cx="16" cy="16" r="2.5" fill="#0E2356"/>
+              <path d="M16 4L28 10.5V21.5L16 28L4 21.5V10.5L16 4Z" stroke="var(--octo-turquoise)" stroke-width="1.5" fill="none" stroke-linejoin="round"/>
+              <circle cx="16" cy="16" r="5" fill="var(--octo-turquoise)"/>
+              <circle cx="16" cy="16" r="2.5" fill="var(--octo-marine)"/>
             </svg>
             <div>
               <div class="login-brand-name">MODEL PLATFORM</div>

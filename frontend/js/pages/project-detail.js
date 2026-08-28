@@ -127,7 +127,7 @@ const ProjectDetailPage = (() => {
               <tr>
                 <td class="font-bold">${escHtml(name)}</td>
                 <td>${escHtml(owner)}</td>
-                <td><span class="badge badge-orange">${escHtml(scope)}</span></td>
+                <td><span class="badge badge-neutral">${escHtml(scope)}</span></td>
                 <td class="mono">${escHtml(perimeter)}</td>
               </tr>
             </tbody>
@@ -144,7 +144,7 @@ const ProjectDetailPage = (() => {
             <input type="checkbox" id="batch-toggle" ${batchEnabled ? 'checked' : ''} style="width:16px;height:16px;cursor:pointer">
             <span>Enable batch predictions for this project</span>
           </label>
-          <span id="batch-status" class="badge ${batchEnabled ? 'badge-running' : 'badge-neutral'}">${batchEnabled ? 'Enabled' : 'Disabled'}</span>
+          <span id="batch-status" class="badge badge-${Status.tone('runtime', batchEnabled ? 'enabled' : 'disabled')}">${Status.label('runtime', batchEnabled ? 'enabled' : 'disabled')}</span>
         </div>
       </div>
 
@@ -184,8 +184,9 @@ const ProjectDetailPage = (() => {
 
       try {
         await API.projects.updateBatchEnabled(projectName, enabled);
-        statusEl.className = `badge ${enabled ? 'badge-running' : 'badge-neutral'}`;
-        statusEl.textContent = enabled ? 'Enabled' : 'Disabled';
+        const batchState = enabled ? 'enabled' : 'disabled';
+        statusEl.className = `badge badge-${Status.tone('runtime', batchState)}`;
+        statusEl.textContent = Status.label('runtime', batchState);
         Toast.success(`Batch predictions ${enabled ? 'enabled' : 'disabled'}.`);
       } catch (err) {
         e.target.checked = !enabled;
@@ -397,11 +398,10 @@ const ProjectDetailPage = (() => {
 
   function complianceIcon(status, label) {
     const prefix = label ? `<span style="font-size:10px;color:var(--text-2);margin-right:4px">${escHtml(label)}</span>` : '';
-    if (status === 'compliant') return `${prefix}<span class="badge badge-green" title="${escHtml(label || '')} — Compliant">Compliant</span>`;
-    if (status === 'partially_compliant') return `${prefix}<span class="badge badge-orange" title="${escHtml(label || '')} — Partially compliant">Partial</span>`;
-    if (status === 'non_compliant') return `${prefix}<span class="badge badge-red" title="${escHtml(label || '')} — Non-compliant">Non-compliant</span>`;
-    if (status === 'not_evaluated') return `${prefix}<span class="badge badge-neutral" title="${escHtml(label || '')} — Not evaluated">Not evaluated</span>`;
-    return `${prefix}<span class="badge badge-neutral">—</span>`;
+    const meta = Status.meta('compliance', status);
+    if (!meta) return `${prefix}<span class="badge badge-neutral">—</span>`;
+    const title = label ? `${label} — ${meta.label}` : meta.label;
+    return prefix + Status.badge('compliance', status, { title });
   }
 
   function modelRow(m, projectName, context, complianceMap) {
@@ -980,13 +980,7 @@ const ProjectDetailPage = (() => {
   // ── Helpers ──────────────────────────────────────────────────
 
   function statusBadge(status) {
-    const s = String(status).toLowerCase();
-    let cls = 'badge-neutral';
-    if (s.includes('run') || s.includes('serv'))       cls = 'badge-running';
-    else if (s.includes('pend') || s.includes('build')) cls = 'badge-pending';
-    else if (s.includes('err') || s.includes('fail'))  cls = 'badge-error';
-    else if (s === 'deployed')                          cls = 'badge-deployed';
-    return `<span class="badge ${cls}">${escHtml(status)}</span>`;
+    return Status.badge('runtime', status);
   }
 
   function buildDashboardUrl(projectName, deployName) {

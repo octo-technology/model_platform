@@ -107,6 +107,23 @@
   --status-red-dim:   var(--status-error-bg);
   --status-grey-dim:  var(--status-neutral-bg);
 
+  /* AI Act risk — a four-step severity ladder, deliberately its own scale
+     so it never reads as ok/warn/error. Every step is AA on --bg-0. */
+  --risk-minimal-fg:      #047857;  /* 5.48:1 */
+  --risk-minimal-bg:      rgba(4,120,87,0.10);
+  --risk-minimal-border:  rgba(4,120,87,0.28);
+  --risk-limited-fg:      #8F5606;  /* 6.12:1 */
+  --risk-limited-bg:      rgba(143,86,6,0.10);
+  --risk-limited-border:  rgba(143,86,6,0.28);
+  --risk-high-fg:         #AE3A0B;  /* 6.24:1 */
+  --risk-high-bg:         rgba(174,58,11,0.10);
+  --risk-high-border:     rgba(174,58,11,0.28);
+  --risk-unacceptable-fg: #B91C1C;  /* 6.47:1 */
+  --risk-unacceptable-bg: rgba(185,28,28,0.09);
+  --risk-unacceptable-border: rgba(185,28,28,0.26);
+  --risk-unknown-fg:      var(--octo-navy-600);
+  --risk-unknown-bg:      var(--status-neutral-bg);
+
   /* Aliases for names still referenced by older rules — they were
      undefined, so those declarations resolved to nothing. */
   --text-primary:   var(--text-0);
@@ -1867,32 +1884,32 @@ mark.search-mark {
 }
 
 .risk-unacceptable {
-  background: var(--status-red-dim);
-  color: var(--status-red-light);
-  border: 1px solid rgba(239,68,68,0.22);
+  background: var(--risk-unacceptable-bg);
+  color: var(--risk-unacceptable-fg);
+  border: 1px solid var(--risk-unacceptable-border);
 }
 
 .risk-high {
-  background: var(--status-orange-dim);
-  color: var(--status-orange-light);
-  border: 1px solid rgba(249,115,22,0.22);
+  background: var(--risk-high-bg);
+  color: var(--risk-high-fg);
+  border: 1px solid var(--risk-high-border);
 }
 
 .risk-limited {
-  background: var(--yellow-dim);
-  color: var(--status-warn-fg);
-  border: 1px solid rgba(245,158,11,0.22);
+  background: var(--risk-limited-bg);
+  color: var(--risk-limited-fg);
+  border: 1px solid var(--risk-limited-border);
 }
 
 .risk-minimal {
-  background: var(--status-green-dim);
-  color: var(--status-green-light);
-  border: 1px solid rgba(16,185,129,0.22);
+  background: var(--risk-minimal-bg);
+  color: var(--risk-minimal-fg);
+  border: 1px solid var(--risk-minimal-border);
 }
 
 .risk-unknown {
-  background: var(--status-grey-dim);
-  color: var(--text-2);
+  background: var(--risk-unknown-bg);
+  color: var(--risk-unknown-fg);
   border: 1px solid var(--border-1);
 }
 
@@ -3829,16 +3846,17 @@ mark.search-mark {
   flex-shrink: 0;
 }
 
-.cg-tabs__dot--green  { background: var(--status-green); }
-.cg-tabs__dot--yellow { background: var(--yellow); }
-.cg-tabs__dot--orange { background: var(--status-orange); }
-.cg-tabs__dot--red    { background: var(--status-red); }
+/* Named after the risk level they stand for, not after a colour. */
+.cg-tabs__dot--minimal      { background: var(--risk-minimal-fg); }
+.cg-tabs__dot--limited      { background: var(--risk-limited-fg); }
+.cg-tabs__dot--high         { background: var(--risk-high-fg); }
+.cg-tabs__dot--unacceptable { background: var(--risk-unacceptable-fg); }
 
 .cg-tabs__btn--active { color: var(--text-0); font-weight: 600; }
-.cg-tabs__btn--active.cg-tabs__btn--green  { border-bottom-color: var(--status-ok-fg); }
-.cg-tabs__btn--active.cg-tabs__btn--yellow { border-bottom-color: var(--status-warn-fg); }
-.cg-tabs__btn--active.cg-tabs__btn--orange { border-bottom-color: var(--status-warn-fg); }
-.cg-tabs__btn--active.cg-tabs__btn--red    { border-bottom-color: var(--status-error-fg); }
+.cg-tabs__btn--active.cg-tabs__btn--minimal      { border-bottom-color: var(--risk-minimal-fg); }
+.cg-tabs__btn--active.cg-tabs__btn--limited      { border-bottom-color: var(--risk-limited-fg); }
+.cg-tabs__btn--active.cg-tabs__btn--high         { border-bottom-color: var(--risk-high-fg); }
+.cg-tabs__btn--active.cg-tabs__btn--unacceptable { border-bottom-color: var(--risk-unacceptable-fg); }
 
 /* ── Layout: main + TOC sidebar ───────────────────────────── */
 
@@ -4401,12 +4419,14 @@ mark.search-mark {
   color: var(--text-1);
 }
 
+/* A data-freshness indicator, not a model status — it uses the brand
+   colour so it never reads as "healthy". */
 .status-badge-live {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: var(--status-green-dim);
-  color: var(--status-ok-fg);
+  background: var(--brand-dim);
+  color: var(--brand-ink);
   padding: 4px 10px;
   border-radius: var(--radius-sm);
   font-size: 11px;
@@ -4420,7 +4440,7 @@ mark.search-mark {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--status-green);
+  background: var(--brand-ink);
   animation: pulse-live 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 

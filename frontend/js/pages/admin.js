@@ -63,7 +63,8 @@ const AdminPage = (() => {
     const rows = users.map(u => {
       const email = u.email || u;
       const role  = u.role  || 'SIMPLE_USER';
-      const badgeCls = role === 'ADMIN' ? 'badge-orange' : 'badge-neutral';
+      // A role is not a status, so it stays off the status palette.
+      const badgeCls = 'badge-neutral';
       return `
         <tr>
           <td class="mono">${escHtml(email)}</td>

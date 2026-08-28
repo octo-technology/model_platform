@@ -4,12 +4,7 @@ const SearchPage = (() => {
   let debounceTimer = null;
   let currentProjectFilter = '';
 
-  const RISK_META = {
-    unacceptable: { cls: 'risk-unacceptable', label: 'Unacceptable' },
-    high:         { cls: 'risk-high',         label: 'High' },
-    limited:      { cls: 'risk-limited',      label: 'Limited' },
-    minimal:      { cls: 'risk-minimal',      label: 'Minimal' },
-  };
+  const RISK_META = Status.RISK;
 
   function render(container, params = {}) {
     const initialQuery = params.q || '';

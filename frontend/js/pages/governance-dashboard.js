@@ -134,22 +134,33 @@ const GovernanceDashboardPage = (() => {
 
   // ── Donut Charts ───────────────────────────────────────────
 
+  const TONE_COLORS = {
+    ok:      'var(--status-ok-fg)',
+    warn:    'var(--status-warn-fg)',
+    error:   'var(--status-error-fg)',
+    neutral: 'var(--status-neutral-fg)',
+  };
+
+  // Chart fills reuse the shared scales so a slice and a badge for the same
+  // value are never two different colours.
   function riskPalette() {
+    const step = key => ({ color: `var(--risk-${key}-fg)`, label: Status.label('risk', key) });
     return {
-      'minimal': { color: '#10B981', label: 'Minimal' },
-      'limited': { color: '#F59E0B', label: 'Limited' },
-      'high':    { color: '#F97316', label: 'High' },
-      'unacceptable': { color: '#EF4444', label: 'Unacceptable' },
-      'non renseigne': { color: '#6B84A8', label: 'Not set' },
+      'minimal':       step('minimal'),
+      'limited':       step('limited'),
+      'high':          step('high'),
+      'unacceptable':  step('unacceptable'),
+      'non renseigne': { color: 'var(--risk-unknown-fg)', label: 'Not set' },
     };
   }
 
   function compliancePalette() {
+    const entry = key => ({ color: TONE_COLORS[Status.tone('compliance', key)], label: Status.label('compliance', key) });
     return {
-      'compliant':           { color: '#10B981', label: 'Compliant' },
-      'partially_compliant': { color: '#F97316', label: 'Partial' },
-      'non_compliant':       { color: '#EF4444', label: 'Non-compliant' },
-      'not_evaluated':       { color: '#6B84A8', label: 'Not evaluated' },
+      'compliant':           entry('compliant'),
+      'partially_compliant': entry('partially_compliant'),
+      'non_compliant':       entry('non_compliant'),
+      'not_evaluated':       entry('not_evaluated'),
     };
   }
 
@@ -169,14 +180,14 @@ const GovernanceDashboardPage = (() => {
     const entries = Object.entries(distribution).sort((a, b) => b[1] - a[1]);
     for (const [key, count] of entries) {
       const pct = (count / total) * 100;
-      const p = palette[key] || { color: '#6B84A8', label: key };
+      const p = palette[key] || { color: TONE_COLORS.neutral, label: key };
       segments.push(`${p.color} ${cumulative}% ${cumulative + pct}%`);
       cumulative += pct;
     }
     const gradient = `conic-gradient(${segments.join(', ')})`;
 
     const legend = entries.map(([key, count]) => {
-      const p = palette[key] || { color: '#6B84A8', label: key };
+      const p = palette[key] || { color: TONE_COLORS.neutral, label: key };
       const pct = Math.round((count / total) * 100);
       return `
         <div class="gdash-legend-item">
@@ -236,10 +247,10 @@ const GovernanceDashboardPage = (() => {
       const ne = dist['not_evaluated'] || 0;
       return `
         <div class="gdash-minibar">
-          ${c > 0 ? `<div class="gdash-minibar__seg" style="width:${(c/t)*100}%;background:#10B981" title="Compliant: ${c}"></div>` : ''}
-          ${p > 0 ? `<div class="gdash-minibar__seg" style="width:${(p/t)*100}%;background:#F97316" title="Partial: ${p}"></div>` : ''}
-          ${n > 0 ? `<div class="gdash-minibar__seg" style="width:${(n/t)*100}%;background:#EF4444" title="Non-compliant: ${n}"></div>` : ''}
-          ${ne > 0 ? `<div class="gdash-minibar__seg" style="width:${(ne/t)*100}%;background:#6B84A8" title="Not evaluated: ${ne}"></div>` : ''}
+          ${c > 0 ? `<div class="gdash-minibar__seg" style="width:${(c/t)*100}%;background:${TONE_COLORS.ok}" title="${Status.label('compliance', 'compliant')}: ${c}"></div>` : ''}
+          ${p > 0 ? `<div class="gdash-minibar__seg" style="width:${(p/t)*100}%;background:${TONE_COLORS.warn}" title="${Status.label('compliance', 'partially_compliant')}: ${p}"></div>` : ''}
+          ${n > 0 ? `<div class="gdash-minibar__seg" style="width:${(n/t)*100}%;background:${TONE_COLORS.error}" title="${Status.label('compliance', 'non_compliant')}: ${n}"></div>` : ''}
+          ${ne > 0 ? `<div class="gdash-minibar__seg" style="width:${(ne/t)*100}%;background:${TONE_COLORS.neutral}" title="${Status.label('compliance', 'not_evaluated')}: ${ne}"></div>` : ''}
         </div>`;
     };
 

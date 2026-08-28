@@ -187,20 +187,21 @@ const ProjectsPage = (() => {
 
   function deployedBadge(count) {
     if (count > 0) {
-      return `<span class="badge badge-running">${count} deployed</span>`;
+      return Status.badge('runtime', 'deployed', { label: `${count} deployed` });
     }
-    return `<span class="badge badge-neutral">No deployments</span>`;
+    return Status.badge('runtime', 'not_found', { label: 'No deployments' });
   }
 
   function registryStatusDot(status) {
-    const map = {
-      running:   { color: 'var(--cyan)',       label: 'Healthy'      },
-      pending:   { color: 'var(--orange)',      label: 'Starting…'    },
-      error:     { color: 'var(--red-light)',   label: 'Error'        },
-      not_found: { color: 'var(--text-2)',      label: 'Not deployed' },
+    const TONE_COLORS = {
+      ok:      'var(--status-ok-fg)',
+      warn:    'var(--status-warn-fg)',
+      error:   'var(--status-error-fg)',
+      neutral: 'var(--status-neutral-fg)',
     };
-    const { color, label } = map[status] || { color: 'var(--text-2)', label: status || '…' };
-    return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:${color};white-space:nowrap" title="Registry: ${label}">
+    const label = Status.label('runtime', status);
+    const color = TONE_COLORS[Status.tone('runtime', status)];
+    return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:${color};white-space:nowrap" title="Registry: ${escHtml(label)}">
       <svg width="7" height="7" viewBox="0 0 7 7" fill="currentColor"><circle cx="3.5" cy="3.5" r="3.5"/></svg>
       ${escHtml(label)}
     </span>`;
