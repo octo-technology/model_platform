@@ -63,8 +63,8 @@ const ProjectsPage = (() => {
       <div class="page-animate">
         <div class="page-header">
           <div class="page-title-group">
-            <div class="page-eyebrow">Overview</div>
-            <h1 class="page-title">Projects</h1>
+            <div class="page-eyebrow">Platform</div>
+            <h1 class="page-title">Project overview</h1>
           </div>
           <div class="page-actions">
             <button class="btn btn-primary" id="new-project-btn">
@@ -75,6 +75,7 @@ const ProjectsPage = (() => {
         </div>
 
         <div class="page-content">
+          ${legend()}
           <div id="projects-loading" class="loading-screen">
             <span class="spinner"></span>
             <span>Loading projects…</span>
@@ -186,6 +187,31 @@ const ProjectsPage = (() => {
     const host = window.MP_HOST_NAME || 'model-platform.com';
     const path = window.MP_REGISTRY_PATH || 'registry';
     return `http://${host}/${path}/${sanitizeName(name)}/`;
+  }
+
+  // Reads the same scale the cards use, so the legend cannot drift from
+  // what is actually rendered below it.
+  const REGISTRY_STATUSES = ['running', 'pending', 'error', 'not_found'];
+
+  function legend() {
+    const dots = REGISTRY_STATUSES.map(st =>
+      `<span class="legend-item">
+        <span class="legend-dot legend-dot--${Status.tone('runtime', st)}"></span>
+        ${escHtml(Status.label('runtime', st))}
+      </span>`
+    ).join('');
+    return `
+      <div class="legend">
+        <span class="legend-group">
+          <span class="legend-label">Models</span>
+          <span class="legend-item"><span class="count-chip">1<span class="count-chip__total">/3</span> deployed</span> deployed / registered</span>
+        </span>
+        <span class="legend-group">
+          <span class="legend-label">MLflow registry</span>
+          ${dots}
+        </span>
+      </div>
+    `;
   }
 
   // A quantity, not a status — so it uses the count chip, not a badge.

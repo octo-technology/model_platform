@@ -733,6 +733,58 @@ img { max-width: 100%; }
   border: 1px solid var(--border-1);
 }
 
+/* ── Legend ──────────────────────────────────────────────────── */
+/* Names the components used on the page so their colours do not have to
+   be guessed. */
+.legend {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  margin-bottom: 20px;
+  background: var(--bg-1);
+  border: 1px solid var(--border-1);
+  border-radius: var(--radius-sm);
+  font-size: 11.5px;
+  color: var(--text-2);
+}
+
+.legend-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.legend-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-1);
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.legend-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.legend-dot--ok      { background: var(--status-ok-fg); }
+.legend-dot--warn    { background: var(--status-warn-fg); }
+.legend-dot--error   { background: var(--status-error-fg); }
+.legend-dot--neutral { background: var(--status-neutral-fg); }
+
+
 /* ── Count chip ──────────────────────────────────────────────── */
 /* Square corners, no leading dot and its own colour: at a glance it is
    a measurement, where a rounded dotted pill is a status. */
