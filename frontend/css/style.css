@@ -6,64 +6,126 @@
 
 /* ── Custom Properties ───────────────────────────────────────── */
 :root {
+  /* ── OCTO brand palette (charte graphique) ──────────────────────
+     Contrast ratios against #FFFFFF are noted; the charter forbids
+     any pair below 4.5:1 for regular text.                        */
+  --octo-white:     #FFFFFF;
+  --octo-marine:    #0E2356;  /* 15.07:1 — primary text, dark surfaces */
+  --octo-navy-700:  #3E4F78;  /*  8.09:1 — secondary text */
+  --octo-navy-600:  #586586;  /*  5.80:1 — last readable step */
+  --octo-navy-500:  #6E7B9A;  /*  4.23:1 — large text only (>=18pt / 14pt bold) */
+  --octo-navy-400:  #9FA7BB;  /*  2.41:1 — borders only, never text */
+  --octo-navy-300:  #B7BDCC;  /*  1.88:1 — borders only */
+  --octo-navy-200:  #CFD3DD;  /*  1.50:1 — surfaces only */
+  --octo-navy-100:  #E7E9EE;  /*  1.21:1 — surfaces only */
+  --octo-turquoise: #00D2DD;  /*  1.86:1 — surface only, pair with marine text (8.08:1) */
+
   /* Light backgrounds */
   --bg-0: #FFFFFF;
-  --bg-1: #F4F7FB;
-  --bg-2: #EBF0F7;
-  --bg-3: #DDE5F0;
-  --bg-4: #CDD8EB;
+  --bg-1: #F3F4F7;
+  --bg-2: var(--octo-navy-100);
+  --bg-3: var(--octo-navy-200);
+  --bg-4: var(--octo-navy-300);
 
-  /* Navy-alpha borders */
+  /* Navy borders */
   --border-0: rgba(14,35,86,0.06);
-  --border-1: rgba(14,35,86,0.10);
-  --border-2: rgba(14,35,86,0.16);
-  --border-3: rgba(14,35,86,0.26);
+  --border-1: rgba(14,35,86,0.12);
+  --border-2: var(--octo-navy-300);
+  --border-3: var(--octo-navy-400);
 
-  /* Navy-based text */
-  --text-0: #0E2356;
-  --text-1: #2D4A7A;
-  --text-2: #6B84A8;
-  --text-3: #A8BBC8;
+  /* Navy-based text — every step is AA on --bg-0 */
+  --text-0: var(--octo-marine);
+  --text-1: var(--octo-navy-700);
+  --text-2: var(--octo-navy-600);
+  --text-3: var(--octo-navy-600);
+  --text-large-only: var(--octo-navy-500);  /* >=18pt / 14pt bold */
 
-  --orange:       #00A3BE;
-  --orange-light: #1DBCD4;
-  --orange-dark:  #007E92;
-  --orange-dim:   rgba(0,163,190,0.10);
-  --orange-glow:  0 0 20px rgba(0,163,190,0.20);
+  /* Brand turquoise — surface by default, --brand-ink when it must be text */
+  --brand:        var(--octo-turquoise);
+  --brand-hover:  #00B9C2;  /* marine on it: 6.26:1 */
+  --brand-active: #00A8B1;  /* marine on it: 5.19:1 */
+  --brand-ink:    #006D73;  /* 6.11:1 on white — turquoise as text/icon */
+  --brand-dim:    rgba(0,210,221,0.12);
+  --brand-glow:   0 0 20px rgba(0,210,221,0.28);
 
-  --cyan:         #06B6D4;
-  --cyan-light:   #22D3EE;
-  --cyan-dim:     rgba(6,182,212,0.1);
+  /* Semantic status colours — absent from the charter, derived to be AA on white */
+  --status-ok-fg:     #047857;  /* 5.48:1 */
+  --status-ok:        #059669;  /* dots, fills */
+  --status-ok-bg:     rgba(4,120,87,0.10);
+  --status-ok-border: rgba(4,120,87,0.28);
 
-  --green:        #10B981;
-  --green-light:  #34D399;
-  --green-dim:    rgba(16,185,129,0.1);
+  --status-warn-fg:     #92400E;  /* 7.09:1 */
+  --status-warn:        #D97706;
+  --status-warn-bg:     rgba(146,64,14,0.10);
+  --status-warn-border: rgba(146,64,14,0.28);
 
-  --red:          #EF4444;
-  --red-light:    #F87171;
-  --red-dim:      rgba(239,68,68,0.1);
+  --status-error-fg:     #B91C1C;  /* 6.47:1 */
+  --status-error:        #DC2626;
+  --status-error-bg:     rgba(185,28,28,0.09);
+  --status-error-border: rgba(185,28,28,0.26);
 
-  --yellow:       #F59E0B;
-  --yellow-dim:   rgba(245,158,11,0.1);
+  /* On marine surfaces (sidebar, login panel) the dark foregrounds fail;
+     these are the AA counterparts against #0E2356. */
+  --status-ok-on-dark:    #34D399;  /* 7.84:1 on marine */
+  --status-warn-on-dark:  #FBBF24;  /* 9.03:1 on marine */
+  --status-error-on-dark: #F87171;  /* 5.45:1 on marine */
 
-  /* Semantic status colors (avoids brand turquoise) */
-  --status-green:      #10B981;
-  --status-green-light:#34D399;
-  --status-green-dim:  rgba(16,185,129,0.12);
-  --status-orange:     #F97316;
-  --status-orange-light:#FB923C;
-  --status-orange-dim: rgba(249,115,22,0.12);
-  --status-red:        #EF4444;
-  --status-red-light:  #F87171;
-  --status-red-dim:    rgba(239,68,68,0.12);
-  --status-grey-dim:   rgba(107,132,168,0.12);
+  --status-neutral-fg:     var(--octo-navy-600);
+  --status-neutral-bg:     rgba(88,101,134,0.10);
+  --status-neutral-border: var(--octo-navy-300);
+
+  /* Legacy aliases — kept so existing rules keep resolving */
+  --orange:       var(--brand-ink);   /* legacy alias used as text — must stay AA */
+  --orange-light: var(--brand-hover);
+  --orange-dark:  var(--brand-ink);
+  --orange-dim:   var(--brand-dim);
+  --orange-glow:  var(--brand-glow);
+
+  --cyan:         var(--brand-ink);
+  --cyan-light:   var(--brand);
+  --cyan-dim:     var(--brand-dim);
+
+  --green:        var(--status-ok);
+  --green-light:  var(--status-ok-fg);
+  --green-dim:    var(--status-ok-bg);
+
+  --red:          var(--status-error);
+  --red-light:    var(--status-error-fg);
+  --red-dim:      var(--status-error-bg);
+
+  --yellow:       var(--status-warn);
+  --yellow-dim:   var(--status-warn-bg);
+
+  --status-green:       var(--status-ok);
+  --status-green-light: var(--status-ok-fg);
+  --status-green-dim:   var(--status-ok-bg);
+  --status-orange:       var(--status-warn);
+  --status-orange-light: var(--status-warn-fg);
+  --status-orange-dim:   var(--status-warn-bg);
+  --status-red:       var(--status-error);
+  --status-red-light: var(--status-error-fg);
+  --status-red-dim:   var(--status-error-bg);
+  --status-grey-dim:  var(--status-neutral-bg);
+
+  /* Aliases for names still referenced by older rules — they were
+     undefined, so those declarations resolved to nothing. */
+  --text-primary:   var(--text-0);
+  --text-secondary: var(--text-1);
+  --text-muted:     var(--text-2);
+  --bg-surface:     var(--bg-1);
+  --bg-card:        var(--bg-1);
+  --bg-input:       var(--bg-0);
+  --border-subtle:  var(--border-1);
+  --accent:         var(--brand-ink);
+  --accent-rgb:     0,109,115;
+  --radius-base:    var(--radius);
 
   /* AI feature accent (violet) */
   --ai:        #5B21B6;
-  --ai-mid:    #7C3AED;
-  --ai-light:  #A78BFA;
-  --ai-dim:    rgba(124,58,237,0.07);
-  --ai-border: rgba(124,58,237,0.18);
+  --ai-mid:    #6D28D9;  /* 6.68:1 on white */
+  --ai-light:  #A78BFA;  /* surfaces only */
+  --ai-dim:    rgba(91,33,182,0.07);
+  --ai-border: rgba(91,33,182,0.20);
 
   --font-display: 'Bebas Neue', sans-serif;
   --font-body:    'Outfit', sans-serif;
@@ -164,7 +226,7 @@ img { max-width: 100%; }
 .logo-sub {
   font-size: 10px;
   letter-spacing: 0.15em;
-  color: rgba(255,255,255,0.45);
+  color: rgba(255,255,255,0.75);
   font-weight: 500;
 }
 
@@ -182,7 +244,7 @@ img { max-width: 100%; }
   font-size: 10px;
   letter-spacing: 0.12em;
   font-weight: 600;
-  color: rgba(255,255,255,0.38);
+  color: rgba(255,255,255,0.65);
   padding: 0 8px;
   margin-bottom: 4px;
 }
@@ -202,15 +264,15 @@ img { max-width: 100%; }
 
 .nav-item:hover {
   background: rgba(255,255,255,0.07);
-  color: var(--text-0);
+  color: var(--octo-white);
 }
 
 .nav-item.active {
-  background: var(--orange-dim);
-  color: var(--orange-light);
+  background: var(--brand-dim);
+  color: var(--octo-turquoise);
 }
 
-.nav-item.active svg { stroke: var(--orange-light); }
+.nav-item.active svg { stroke: var(--octo-turquoise); }
 
 .nav-item.active::before {
   content: '';
@@ -243,7 +305,7 @@ img { max-width: 100%; }
   font-size: 9px;
   letter-spacing: 0.10em;
   font-weight: 500;
-  color: rgba(255,255,255,0.28);
+  color: rgba(255,255,255,0.65);
   white-space: nowrap;
   text-transform: uppercase;
 }
@@ -285,7 +347,7 @@ img { max-width: 100%; }
   justify-content: center;
   border-radius: var(--radius-sm);
   background: rgba(10, 10, 16, 0.92);
-  color: rgba(255,255,255,0.45);
+  color: rgba(255,255,255,0.75);
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.10em;
@@ -331,7 +393,7 @@ img { max-width: 100%; }
 
 .status-label {
   font-size: 11px;
-  color: rgba(255,255,255,0.45);
+  color: rgba(255,255,255,0.75);
   font-weight: 500;
   letter-spacing: 0.04em;
 }
@@ -348,14 +410,14 @@ img { max-width: 100%; }
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  background: var(--orange-dim);
-  border: 1px solid var(--orange-dark);
+  background: var(--brand-dim);
+  border: 1px solid var(--brand-ink);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 11px;
   font-weight: 600;
-  color: var(--orange-light);
+  color: var(--octo-turquoise);
   flex-shrink: 0;
   text-transform: uppercase;
 }
@@ -374,7 +436,7 @@ img { max-width: 100%; }
   border-radius: var(--radius-sm);
   border: 1px solid rgba(255,255,255,0.12);
   background: transparent;
-  color: rgba(255,255,255,0.45);
+  color: rgba(255,255,255,0.75);
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.02em;
@@ -383,9 +445,14 @@ img { max-width: 100%; }
 }
 
 .btn-logout:hover {
-  background: var(--red-dim);
-  border-color: rgba(239,68,68,0.2);
-  color: var(--red-light);
+  background: rgba(248,113,113,0.14);
+  border-color: rgba(248,113,113,0.45);
+  color: var(--status-error-on-dark);
+}
+
+.btn-logout:active {
+  background: rgba(248,113,113,0.22);
+  transform: translateY(1px);
 }
 
 /* ── Main Content ─────────────────────────────────────────────── */
@@ -452,21 +519,31 @@ img { max-width: 100%; }
   font-weight: 600;
   letter-spacing: 0.02em;
   border: 1px solid transparent;
-  transition: all var(--t-fast) var(--ease);
+  transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease),
+              color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
   white-space: nowrap;
   line-height: 1;
 }
 
+/* Primary — turquoise surface with marine text (8.08:1), the pairing the
+   OCTO charter prescribes. White on turquoise is 1.86:1 and is never used. */
 .btn-primary {
-  background: var(--orange);
-  color: #fff;
-  border-color: var(--orange);
+  background: var(--brand);
+  color: var(--octo-marine);
+  border-color: var(--brand);
 }
 
 .btn-primary:hover {
-  background: var(--orange-light);
-  border-color: var(--orange-light);
-  box-shadow: var(--orange-glow);
+  background: var(--brand-hover);
+  border-color: var(--brand-hover);
+  box-shadow: var(--brand-glow);
+}
+
+.btn-primary:active {
+  background: var(--brand-active);
+  border-color: var(--brand-active);
+  box-shadow: none;
+  transform: translateY(1px);
 }
 
 .btn-secondary {
@@ -476,20 +553,31 @@ img { max-width: 100%; }
 }
 
 .btn-secondary:hover {
-  background: var(--bg-3);
+  background: var(--bg-2);
   color: var(--text-0);
   border-color: var(--border-3);
 }
 
+.btn-secondary:active {
+  background: var(--bg-3);
+  transform: translateY(1px);
+}
+
 .btn-danger {
   background: transparent;
-  color: var(--red-light);
-  border-color: rgba(239,68,68,0.3);
+  color: var(--status-error-fg);
+  border-color: var(--status-error-border);
 }
 
 .btn-danger:hover {
-  background: var(--red-dim);
-  border-color: rgba(239,68,68,0.5);
+  background: var(--status-error-bg);
+  border-color: var(--status-error-fg);
+}
+
+.btn-danger:active {
+  background: var(--status-error-bg);
+  border-color: var(--status-error-fg);
+  transform: translateY(1px);
 }
 
 .btn-ghost {
@@ -500,8 +588,13 @@ img { max-width: 100%; }
 }
 
 .btn-ghost:hover {
-  background: var(--bg-3);
+  background: var(--bg-2);
   color: var(--text-0);
+}
+
+.btn-ghost:active {
+  background: var(--bg-3);
+  transform: translateY(1px);
 }
 
 .btn-sm {
@@ -514,9 +607,18 @@ img { max-width: 100%; }
   font-size: 11px;
 }
 
-.btn:disabled {
-  opacity: 0.4;
+/* Disabled — no opacity trick: it would drag every foreground below AA. */
+.btn:disabled,
+.btn[disabled],
+.btn-icon:disabled,
+.btn-icon[disabled] {
+  background: var(--bg-2);
+  color: var(--text-2);
+  border-color: var(--border-2);
+  box-shadow: none;
+  transform: none;
   cursor: not-allowed;
+  pointer-events: none;
 }
 
 .btn-icon {
@@ -528,13 +630,32 @@ img { max-width: 100%; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: all var(--t-fast) var(--ease);
+  transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease),
+              color var(--t-fast) var(--ease);
 }
 
 .btn-icon:hover {
-  background: var(--bg-3);
+  background: var(--bg-2);
   color: var(--text-0);
   border-color: var(--border-2);
+}
+
+.btn-icon:active {
+  background: var(--bg-3);
+  transform: translateY(1px);
+}
+
+/* Focus — one visible ring for every interactive element. Marine reads on
+   light surfaces and on turquoise alike, so a single token covers both. */
+:focus-visible {
+  outline: 2px solid var(--octo-marine);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+.sidebar :focus-visible,
+.topbar-dark :focus-visible {
+  outline-color: var(--octo-turquoise);
 }
 
 /* ── Badges ──────────────────────────────────────────────────── */
@@ -551,6 +672,8 @@ img { max-width: 100%; }
   line-height: 1.6;
 }
 
+/* The dot carries the same meaning as the colour, so status is never
+   conveyed by hue alone. */
 .badge::before {
   content: '';
   width: 5px;
@@ -560,46 +683,30 @@ img { max-width: 100%; }
   flex-shrink: 0;
 }
 
-.badge-running, .badge-serving, .badge-deployed, .badge-success {
-  background: var(--status-green-dim);
-  color: var(--status-green-light);
-  border: 1px solid rgba(16,185,129,0.22);
+.badge-ok,
+.badge-running, .badge-serving, .badge-deployed, .badge-success, .badge-green {
+  background: var(--status-ok-bg);
+  color: var(--status-ok-fg);
+  border: 1px solid var(--status-ok-border);
 }
 
-.badge-pending, .badge-building {
-  background: var(--status-orange-dim);
-  color: var(--status-orange-light);
-  border: 1px solid rgba(249,115,22,0.22);
+.badge-warn,
+.badge-pending, .badge-building, .badge-orange {
+  background: var(--status-warn-bg);
+  color: var(--status-warn-fg);
+  border: 1px solid var(--status-warn-border);
 }
 
-.badge-error, .badge-failed {
-  background: var(--status-red-dim);
-  color: var(--status-red-light);
-  border: 1px solid rgba(239,68,68,0.22);
+.badge-error, .badge-failed, .badge-red {
+  background: var(--status-error-bg);
+  color: var(--status-error-fg);
+  border: 1px solid var(--status-error-border);
 }
 
 .badge-neutral {
-  background: var(--status-grey-dim);
-  color: var(--text-2);
+  background: var(--status-neutral-bg);
+  color: var(--status-neutral-fg);
   border: 1px solid var(--border-1);
-}
-
-.badge-green {
-  background: var(--status-green-dim);
-  color: var(--status-green-light);
-  border: 1px solid rgba(16,185,129,0.22);
-}
-
-.badge-red {
-  background: var(--status-red-dim);
-  color: var(--status-red-light);
-  border: 1px solid rgba(239,68,68,0.22);
-}
-
-.badge-orange {
-  background: var(--orange-dim);
-  color: var(--orange-light);
-  border: 1px solid rgba(249,115,22,0.2);
 }
 
 /* ── Cards ───────────────────────────────────────────────────── */
@@ -709,9 +816,11 @@ tbody td.actions {
 
 .tab-btn:hover { color: var(--text-1); }
 
+.tab-btn:active { color: var(--text-0); }
+
 .tab-btn.active {
-  color: var(--orange);
-  border-bottom-color: var(--orange);
+  color: var(--brand-ink);
+  border-bottom-color: var(--brand-ink);
 }
 
 .tab-panel { display: none; }
@@ -754,9 +863,17 @@ tbody td.actions {
 .form-input::placeholder { color: var(--text-3); }
 
 .form-input:focus,
-.form-select:focus {
-  border-color: var(--orange-dark);
-  box-shadow: 0 0 0 3px var(--orange-dim);
+.form-select:focus,
+.form-textarea:focus {
+  border-color: var(--brand-ink);
+  box-shadow: 0 0 0 3px var(--brand-dim);
+}
+
+.form-input:focus-visible,
+.form-select:focus-visible,
+.form-textarea:focus-visible {
+  outline: 2px solid var(--octo-marine);
+  outline-offset: 1px;
 }
 
 .form-select {
@@ -849,7 +966,7 @@ tbody td.actions {
   width: 20px;
   height: 20px;
   border: 2px solid var(--border-1);
-  border-top-color: var(--orange);
+  border-top-color: var(--brand-ink);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
   display: inline-block;
@@ -928,10 +1045,10 @@ tbody td.actions {
 .toast-warning { border-left: 3px solid var(--yellow); }
 .toast-info    { border-left: 3px solid var(--cyan); }
 
-.toast-success .toast-icon { color: var(--green); }
-.toast-error   .toast-icon { color: var(--red); }
-.toast-warning .toast-icon { color: var(--yellow); }
-.toast-info    .toast-icon { color: var(--cyan); }
+.toast-success .toast-icon { color: var(--status-ok-fg); }
+.toast-error   .toast-icon { color: var(--status-error-fg); }
+.toast-warning .toast-icon { color: var(--status-warn-fg); }
+.toast-info    .toast-icon { color: var(--brand-ink); }
 
 @keyframes toast-in {
   from { opacity: 0; transform: translateX(16px); }
@@ -1098,7 +1215,7 @@ tbody td.actions {
 
 .login-brand-sub {
   font-size: 11px;
-  color: rgba(255,255,255,0.45);
+  color: rgba(255,255,255,0.75);
   letter-spacing: 0.12em;
   font-weight: 500;
 }
@@ -1118,7 +1235,7 @@ tbody td.actions {
 }
 
 .login-brand-headline span {
-  color: var(--orange);
+  color: var(--octo-turquoise);
 }
 
 .login-brand-desc {
@@ -1155,7 +1272,7 @@ tbody td.actions {
 
 .login-brand-footnote-label {
   font-size: 11px;
-  color: rgba(255,255,255,0.38);
+  color: rgba(255,255,255,0.65);
   letter-spacing: 0.06em;
   font-weight: 500;
   white-space: nowrap;
@@ -1373,7 +1490,7 @@ tbody td.actions {
   padding: 2px 7px;
   border-radius: 999px;
   background: var(--bg-3);
-  color: var(--text-2);
+  color: var(--text-1);
   font-weight: 600;
   font-family: var(--font-mono);
 }
@@ -1393,7 +1510,7 @@ tbody td.actions {
   transition: color var(--t-fast);
 }
 
-.breadcrumb a:hover { color: var(--orange); }
+.breadcrumb a:hover { color: var(--brand-ink); }
 
 .breadcrumb-sep {
   color: var(--text-3);
@@ -1408,7 +1525,7 @@ tbody td.actions {
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: var(--yellow);
+  color: var(--status-warn-fg);
 }
 
 /* ── Governance ──────────────────────────────────────────────── */
@@ -1463,7 +1580,7 @@ tbody td.actions {
   border-radius: 3px;
   background: rgba(255,255,255,0.07);
   border: 1px solid rgba(255,255,255,0.12);
-  color: rgba(255,255,255,0.35);
+  color: rgba(255,255,255,0.65);
   letter-spacing: 0;
   line-height: 1.5;
   flex-shrink: 0;
@@ -1704,7 +1821,7 @@ tbody td.actions {
 }
 
 .search-result-project-link:hover {
-  color: var(--orange);
+  color: var(--brand-ink);
   border-color: var(--orange-dark);
   background: var(--orange-dim);
 }
@@ -1763,7 +1880,7 @@ mark.search-mark {
 
 .risk-limited {
   background: var(--yellow-dim);
-  color: var(--yellow);
+  color: var(--status-warn-fg);
   border: 1px solid rgba(245,158,11,0.22);
 }
 
@@ -1802,7 +1919,7 @@ mark.search-mark {
   font-family: var(--font-mono);
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--ai-light);
+  color: var(--ai-mid);
   background: var(--bg-0);
   padding: 0 3px;
   border-radius: 3px;
@@ -2125,7 +2242,7 @@ mark.search-mark {
 .ai-act-md ul > li input[type="checkbox"] {
   width: 13px; height: 13px;
   flex-shrink: 0;
-  accent-color: var(--orange);
+  accent-color: var(--brand-ink);
   cursor: default;
 }
 
@@ -2157,11 +2274,11 @@ mark.search-mark {
   text-transform: uppercase;
 }
 .ai-act-section-ok  { border-color: rgba(16,185,129,0.22); background: rgba(16,185,129,0.04); }
-.ai-act-section-ok  > h3 { color: var(--status-green);  background: rgba(16,185,129,0.11); border-bottom: 1px solid rgba(16,185,129,0.20); }
+.ai-act-section-ok  > h3 { color: var(--status-ok-fg);  background: rgba(16,185,129,0.11); border-bottom: 1px solid rgba(16,185,129,0.20); }
 .ai-act-section-warn { border-color: rgba(249,115,22,0.22); background: rgba(249,115,22,0.04); }
-.ai-act-section-warn > h3 { color: var(--status-orange); background: rgba(249,115,22,0.11); border-bottom: 1px solid rgba(249,115,22,0.20); }
+.ai-act-section-warn > h3 { color: var(--status-warn-fg); background: rgba(249,115,22,0.11); border-bottom: 1px solid rgba(249,115,22,0.20); }
 .ai-act-section-error { border-color: rgba(239,68,68,0.22); background: rgba(239,68,68,0.04); }
-.ai-act-section-error > h3 { color: var(--status-red);   background: rgba(239,68,68,0.11);  border-bottom: 1px solid rgba(239,68,68,0.20); }
+.ai-act-section-error > h3 { color: var(--status-error-fg);   background: rgba(239,68,68,0.11);  border-bottom: 1px solid rgba(239,68,68,0.20); }
 
 /* Tiny button variant */
 .btn-xs {
@@ -2276,7 +2393,7 @@ mark.search-mark {
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.04em;
-  color: var(--text-2);
+  color: var(--text-1);
   background: var(--bg-3);
   border: 1px solid var(--border-1);
   border-radius: 100px;
@@ -2289,7 +2406,7 @@ mark.search-mark {
 .ai-act-toc-btn:hover {
   color: #fff;
   background: var(--orange);
-  border-color: var(--orange);
+  border-color: var(--brand-ink);
 }
 
 /* Model card suggest textarea */
@@ -2342,7 +2459,7 @@ mark.search-mark {
   align-items: center;
   justify-content: center;
   background: rgba(0,163,190,0.12);
-  color: var(--orange);
+  color: var(--brand-ink);
   flex-shrink: 0;
 }
 
@@ -2403,7 +2520,7 @@ mark.search-mark {
 }
 
 .key-input.key-valid {
-  border-color: var(--green);
+  border-color: var(--status-ok-fg);
   box-shadow: 0 0 0 3px var(--green-dim);
 }
 
@@ -2432,7 +2549,7 @@ mark.search-mark {
 }
 
 .key-secured-icon {
-  color: var(--green);
+  color: var(--status-ok-fg);
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -2464,13 +2581,13 @@ mark.search-mark {
 }
 
 .btn-danger-soft {
-  color: var(--red);
+  color: var(--status-error-fg);
   border-color: rgba(239,68,68,0.28);
 }
 
 .btn-danger-soft:hover:not(:disabled) {
   background: var(--red-dim);
-  border-color: var(--red);
+  border-color: var(--status-error-fg);
 }
 
 /* Provider toggle */
@@ -2525,7 +2642,7 @@ mark.search-mark {
 
 .compliance-report-banner:hover {
   border-color: var(--border-2);
-  border-left-color: var(--orange);
+  border-left-color: var(--brand-ink);
   box-shadow: var(--shadow-sm);
 }
 
@@ -2638,8 +2755,8 @@ mark.search-mark {
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.06em;
-  background: rgba(0,163,190,0.35);
-  color: #fff;
+  background: var(--brand-ink);
+  color: var(--octo-white);
   padding: 1px 5px;
   border-radius: 3px;
   line-height: 1.4;
@@ -2769,8 +2886,7 @@ mark.search-mark {
 }
 
 .demo-card-version {
-  background: var(--orange-dim);
-  color: var(--orange-light);
+  background: var(--brand-dim);
   border: 1px solid rgba(0,163,190,0.22);
 }
 
@@ -2798,7 +2914,7 @@ mark.search-mark {
   padding: 4px 8px;
   border-radius: var(--radius-xs);
   background: var(--cyan-dim);
-  color: var(--cyan);
+  color: var(--brand-ink);
   font-family: var(--font-mono);
   white-space: nowrap;
   cursor: help;
@@ -2806,8 +2922,8 @@ mark.search-mark {
 }
 
 .demo-card-simid:hover {
-  background: rgba(6, 182, 212, 0.2);
-  color: var(--cyan-light);
+  background: var(--brand-dim);
+  color: var(--brand-ink);
 }
 
 .demo-status-running {
@@ -2894,7 +3010,7 @@ mark.search-mark {
 
 .demo-error-label {
   font-weight: 600;
-  color: var(--red);
+  color: var(--status-error-fg);
 }
 
 .demo-error-msg {
@@ -3011,7 +3127,7 @@ mark.search-mark {
 .demo-row-simid {
   font-size: 11px;
   font-family: var(--font-mono);
-  color: var(--cyan);
+  color: var(--brand-ink);
   background: rgba(0, 188, 212, 0.08);
   padding: 1px 5px;
   border-radius: 4px;
@@ -3152,8 +3268,8 @@ mark.search-mark {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0,163,190,0.15);
-  color: #00A3BE;
+  background: var(--brand-dim);
+  color: var(--octo-turquoise);
   flex-shrink: 0;
 }
 
@@ -3166,7 +3282,7 @@ mark.search-mark {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.10em;
-  color: rgba(255,255,255,0.5);
+  color: rgba(255,255,255,0.75);
   margin-bottom: 4px;
 }
 
@@ -3196,21 +3312,21 @@ mark.search-mark {
 }
 
 .gdash-policy--strict {
-  background: rgba(239,68,68,0.2);
-  color: #F87171;
-  border: 1px solid rgba(239,68,68,0.3);
+  background: var(--status-error-bg);
+  color: var(--status-error-fg);
+  border: 1px solid var(--status-error-border);
 }
 
 .gdash-policy--permissive {
-  background: rgba(16,185,129,0.2);
-  color: #34D399;
-  border: 1px solid rgba(16,185,129,0.3);
+  background: var(--status-ok-bg);
+  color: var(--status-ok-fg);
+  border: 1px solid var(--status-ok-border);
 }
 
 .gdash-policy--disabled {
-  background: rgba(107,132,168,0.2);
-  color: #A8BBC8;
-  border: 1px solid rgba(107,132,168,0.3);
+  background: var(--status-neutral-bg);
+  color: var(--status-neutral-fg);
+  border: 1px solid var(--status-neutral-border);
 }
 
 /* ── Donut Charts Row ────────────────────────────────────────── */
@@ -3274,7 +3390,7 @@ mark.search-mark {
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  background: var(--donut-gradient, conic-gradient(#6B84A8 0% 100%));
+  background: var(--donut-gradient, conic-gradient(var(--octo-navy-400) 0% 100%));
   mask: radial-gradient(transparent 42px, #000 43px);
   -webkit-mask: radial-gradient(transparent 42px, #000 43px);
   transform: rotate(-90deg) scale(0);
@@ -3378,7 +3494,7 @@ mark.search-mark {
   font-size: 11px;
   font-weight: 600;
   background: var(--bg-3);
-  color: var(--text-2);
+  color: var(--text-1);
   padding: 2px 10px;
   border-radius: 100px;
 }
@@ -3437,23 +3553,23 @@ mark.search-mark {
 }
 
 .gdash-health--good {
-  background: rgba(16,185,129,0.12);
-  color: #10B981;
+  background: var(--status-ok-bg);
+  color: var(--status-ok-fg);
 }
 
 .gdash-health--warn {
-  background: rgba(249,115,22,0.12);
-  color: #F97316;
+  background: var(--status-warn-bg);
+  color: var(--status-warn-fg);
 }
 
 .gdash-health--bad {
-  background: rgba(239,68,68,0.12);
-  color: #EF4444;
+  background: var(--status-error-bg);
+  color: var(--status-error-fg);
 }
 
 .gdash-project-card__error {
   font-size: 12px;
-  color: var(--red);
+  color: var(--status-error-fg);
   font-style: italic;
 }
 
@@ -3497,7 +3613,7 @@ mark.search-mark {
 
 .monitoring-filters button:hover {
   opacity: 1;
-  color: var(--brand);
+  color: var(--brand-ink);
 }
 
 .filters-row {
@@ -3666,7 +3782,7 @@ mark.search-mark {
   margin-top: 4px;
 }
 
-.cg-checklist__icon--mandatory { color: var(--green); }
+.cg-checklist__icon--mandatory { color: var(--status-ok-fg); }
 .cg-checklist__icon--recommended { color: var(--text-3); }
 
 .cg-checklist__legend {
@@ -3719,10 +3835,10 @@ mark.search-mark {
 .cg-tabs__dot--red    { background: var(--status-red); }
 
 .cg-tabs__btn--active { color: var(--text-0); font-weight: 600; }
-.cg-tabs__btn--active.cg-tabs__btn--green  { border-bottom-color: var(--status-green); }
-.cg-tabs__btn--active.cg-tabs__btn--yellow { border-bottom-color: var(--yellow); }
-.cg-tabs__btn--active.cg-tabs__btn--orange { border-bottom-color: var(--status-orange); }
-.cg-tabs__btn--active.cg-tabs__btn--red    { border-bottom-color: var(--status-red); }
+.cg-tabs__btn--active.cg-tabs__btn--green  { border-bottom-color: var(--status-ok-fg); }
+.cg-tabs__btn--active.cg-tabs__btn--yellow { border-bottom-color: var(--status-warn-fg); }
+.cg-tabs__btn--active.cg-tabs__btn--orange { border-bottom-color: var(--status-warn-fg); }
+.cg-tabs__btn--active.cg-tabs__btn--red    { border-bottom-color: var(--status-error-fg); }
 
 /* ── Layout: main + TOC sidebar ───────────────────────────── */
 
@@ -3787,12 +3903,12 @@ mark.search-mark {
   content: '•';
   position: absolute;
   left: 0;
-  color: var(--orange);
+  color: var(--brand-ink);
   font-weight: 700;
 }
 
 .cg-list--danger li::before {
-  color: var(--status-red);
+  color: var(--status-error-fg);
 }
 
 /* ── TOC (sticky sidebar) ────────────────────────────────── */
@@ -3826,7 +3942,7 @@ mark.search-mark {
 
 .cg-toc__link:hover { color: var(--text-0); }
 .cg-toc__link.active {
-  color: var(--orange);
+  color: var(--brand-ink);
   font-weight: 500;
 }
 
@@ -3851,7 +3967,7 @@ mark.search-mark {
 .cg-code__title {
   font-family: var(--font-mono);
   font-size: 0.78rem;
-  color: rgba(255,255,255,0.5);
+  color: rgba(255,255,255,0.75);
 }
 
 .cg-code__copy {
@@ -3914,7 +4030,7 @@ mark.search-mark {
   padding: 2px 8px;
   border-radius: 100px;
   background: var(--status-green-dim);
-  color: var(--status-green);
+  color: var(--status-ok-fg);
 }
 
 .fleet-stat-label {
@@ -3998,22 +4114,22 @@ mark.search-mark {
 
 .fleet-card-badge.status-healthy {
   background: var(--status-green-dim);
-  color: var(--status-green);
+  color: var(--status-ok-fg);
 }
 
 .cg-template__badge--limited {
   background: var(--yellow-dim);
-  color: var(--yellow);
+  color: var(--status-warn-fg);
 }
 
 .cg-template__badge--high {
   background: var(--status-orange-dim);
-  color: var(--status-orange);
+  color: var(--status-warn-fg);
 }
 
 .fleet-card-badge.status-caution {
   background: var(--status-orange-dim);
-  color: var(--status-orange);
+  color: var(--status-warn-fg);
 }
 
 .cg-template__preview {
@@ -4040,7 +4156,7 @@ mark.search-mark {
   font-family: var(--font-body);
   font-size: 0.85rem;
   font-weight: 500;
-  color: var(--orange);
+  color: var(--brand-ink);
   cursor: pointer;
   transition: background var(--t-fast) var(--ease);
 }
@@ -4103,14 +4219,14 @@ mark.search-mark {
 
 .cg-banner--danger svg {
   flex-shrink: 0;
-  color: var(--red);
+  color: var(--status-error-fg);
   margin-top: 2px;
 }
 
 .cg-banner--danger strong {
   display: block;
   font-size: 1rem;
-  color: var(--red);
+  color: var(--status-error-fg);
   margin-bottom: 6px;
 }
 
@@ -4146,7 +4262,7 @@ mark.search-mark {
   height: 28px;
   border-radius: 50%;
   background: var(--orange-dim);
-  color: var(--orange);
+  color: var(--brand-ink);
   font-family: var(--font-mono);
   font-size: 0.82rem;
   font-weight: 600;
@@ -4170,7 +4286,7 @@ mark.search-mark {
 
 .fleet-card-badge.status-alert {
   background: var(--status-red-dim);
-  color: var(--status-red);
+  color: var(--status-error-fg);
 }
 
 .fleet-card-meta {
@@ -4290,7 +4406,7 @@ mark.search-mark {
   align-items: center;
   gap: 6px;
   background: var(--status-green-dim);
-  color: var(--status-green);
+  color: var(--status-ok-fg);
   padding: 4px 10px;
   border-radius: var(--radius-sm);
   font-size: 11px;
@@ -4440,17 +4556,17 @@ mark.search-mark {
   padding: 2px 6px;
   border-radius: 4px;
   background: var(--status-green-dim);
-  color: var(--status-green);
+  color: var(--status-ok-fg);
 }
 
 .metric-trend.trend-down {
   background: var(--status-red-dim);
-  color: var(--status-red);
+  color: var(--status-error-fg);
 }
 
 .metric-trend.trend-up {
   background: var(--status-green-dim);
-  color: var(--status-green);
+  color: var(--status-ok-fg);
 }
 
 .metric-trend svg {
@@ -4557,17 +4673,17 @@ mark.search-mark {
 
 .metric-status.status-healthy {
   background: var(--status-green-dim);
-  color: var(--status-green);
+  color: var(--status-ok-fg);
 }
 
 .metric-status.status-caution {
   background: var(--status-orange-dim);
-  color: var(--status-orange);
+  color: var(--status-warn-fg);
 }
 
 .metric-status.status-alert {
   background: var(--status-red-dim);
-  color: var(--status-red);
+  color: var(--status-error-fg);
 }
 
 /* ── System Health Section ─────────────────────────────────── */
@@ -4749,17 +4865,17 @@ mark.search-mark {
 
 .project-stat-badge.healthy {
   background: var(--status-green-dim);
-  color: var(--status-green);
+  color: var(--status-ok-fg);
 }
 
 .project-stat-badge.caution {
   background: var(--status-orange-dim);
-  color: var(--status-orange);
+  color: var(--status-warn-fg);
 }
 
 .project-stat-badge.alert {
   background: var(--status-red-dim);
-  color: var(--status-red);
+  color: var(--status-error-fg);
 }
 
 /* ── Models List ─────────────────────────────────────────────── */
@@ -4786,9 +4902,9 @@ mark.search-mark {
   border-left-color: var(--orange) !important;
 }
 
-.model-row.model-row-healthy { border-left-color: var(--status-green); }
-.model-row.model-row-caution { border-left-color: var(--status-orange); }
-.model-row.model-row-alert   { border-left-color: var(--status-red); }
+.model-row.model-row-healthy { border-left-color: var(--status-ok-fg); }
+.model-row.model-row-caution { border-left-color: var(--status-warn-fg); }
+.model-row.model-row-alert   { border-left-color: var(--status-error-fg); }
 .model-row.model-row-unknown { border-left-color: var(--border-1); }
 
 .model-row-no-metrics {
@@ -4909,7 +5025,7 @@ mark.search-mark {
 
 .model-row-link:hover {
   background: var(--bg-2);
-  color: var(--brand);
+  color: var(--brand-ink);
 }
 
 /* ── Responsive ──────────────────────────────────────────────── */
@@ -4990,4 +5106,14 @@ mark.search-mark {
   .gdash-kpi-grid { grid-template-columns: 1fr; }
   .gdash-chart-card__content { flex-direction: column; }
   .gdash-donut { width: 100px; height: 100px; }
+}
+
+/* ── Reduced motion ──────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
