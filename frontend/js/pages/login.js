@@ -64,7 +64,7 @@ const LoginPage = (() => {
                   <input class="form-input" type="password" id="signin-password" placeholder="••••••••" autocomplete="current-password" required>
                 </div>
                 <button type="submit" class="btn btn-primary" id="signin-btn">Sign in</button>
-                <p id="signin-error" style="color:var(--red-light);font-size:12px;display:none;text-align:center;"></p>
+                <p id="signin-error" role="alert" style="color:var(--red-light);font-size:12px;display:none;text-align:center;"></p>
               </form>
             </div>
 
@@ -84,7 +84,7 @@ const LoginPage = (() => {
                   <input class="form-input" type="password" id="create-password-confirm" placeholder="Repeat your password" required>
                 </div>
                 <button type="submit" class="btn btn-primary" id="create-btn">Create account</button>
-                <p id="create-error" style="color:var(--red-light);font-size:12px;display:none;text-align:center;"></p>
+                <p id="create-error" role="alert" style="color:var(--red-light);font-size:12px;display:none;text-align:center;"></p>
               </form>
             </div>
           </div>

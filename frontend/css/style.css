@@ -1201,7 +1201,6 @@ tbody td.actions {
   line-height: 0;
 }
 .toast-close:hover { color: var(--text-0); }
-.toast-close:focus-visible { outline: 2px solid var(--brand-ink); outline-offset: 1px; }
 
 .toast-success { border-left: 3px solid var(--green); }
 .toast-error   { border-left: 3px solid var(--red); }
@@ -3802,7 +3801,6 @@ mark.search-mark {
 }
 .cg-quickstart__header::-webkit-details-marker { display: none; }
 .cg-quickstart[open] .cg-quickstart__header { border-bottom: 1px solid var(--border-1); }
-.cg-quickstart__header:focus-visible { outline: 2px solid var(--brand-ink); outline-offset: -2px; }
 
 .cg-quickstart__chevron {
   margin-left: auto;
