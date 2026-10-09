@@ -44,8 +44,7 @@ const GovernancePage = (() => {
                     <polyline points="7 10 12 15 17 10"/>
                     <line x1="12" y1="15" x2="12" y2="3"/>
                   </svg>
-                  <span>Download</span>
-                  <span class="compliance-report-btn__badge">PDF</span>
+                  <span>Download report</span>
                 </span>
                 <span class="compliance-report-btn__loading" style="display:none">
                   <span class="compliance-report-spinner"></span>
@@ -55,7 +54,7 @@ const GovernancePage = (() => {
             </div>
           </div>
 
-          <div class="flex items-center gap-3 mb-4" style="max-width:380px">
+          <div class="flex items-center gap-3 mb-4" style="max-width:260px">
             <div style="flex:1" class="form-group">
               <label class="form-label">Select project</label>
               <select class="form-select" id="gov-project-select">
@@ -758,6 +757,10 @@ const GovernancePage = (() => {
     return Status.badge('compliance', status, { label: text, title: `${label}: ${text}` });
   }
 
+  function complianceLabel(label) {
+    return `<span class="compliance-stack__label">${escHtml(label)}</span>`;
+  }
+
   function refreshLlmBadge(modelName, version) {
     const cell = document.querySelector(`[data-llm-badge="${modelName}:${version}"]`);
     if (!cell) return;
@@ -830,10 +833,14 @@ const GovernancePage = (() => {
           <td style="white-space:nowrap" data-risk-cell="${safeModel}:${safeVer}">
             <div class="flex gap-1 items-center">${renderRiskCell(modelName, ver, projectName)}</div>
           </td>
-          <td style="white-space:nowrap">${complianceBadge(detCompliance, 'Deterministic')}</td>
-          <td style="white-space:nowrap" data-llm-badge="${safeModel}:${safeVer}">${complianceBadge(llmComplianceStatus, 'LLM')}</td>
+          <td style="white-space:nowrap">
+            <div class="compliance-stack">
+              <div>${complianceLabel('Deterministic')}${complianceBadge(detCompliance, 'Deterministic')}</div>
+              <div>${complianceLabel('LLM')}<span data-llm-badge="${safeModel}:${safeVer}">${complianceBadge(llmComplianceStatus, 'LLM')}</span></div>
+            </div>
+          </td>
           <td>
-            <div class="flex gap-2 items-center" style="flex-wrap:wrap">
+            <div class="action-stack">
               ${hasModelCard ? `
               <button class="btn btn-secondary btn-xs model-card-btn"
                 data-project="${safeProj}"
@@ -870,7 +877,7 @@ const GovernancePage = (() => {
         <table>
           <thead>
             <tr>
-              <th>Version</th><th>Run Name</th><th>User</th><th>Created</th><th>Metrics</th><th>Risk</th><th>Deterministic</th><th>LLM</th><th></th>
+              <th>Version</th><th>Run Name</th><th>User</th><th>Created</th><th>Metrics</th><th>Risk</th><th>Compliance</th><th>Actions</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>

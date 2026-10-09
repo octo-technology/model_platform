@@ -911,6 +911,21 @@ tbody td.actions {
   gap: 4px;
 }
 
+.compliance-stack__label {
+  display: inline-block;
+  min-width: 82px;
+  font-size: 10px;
+  color: var(--text-2);
+}
+
+/* Row actions stacked vertically to keep table columns narrow */
+.action-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
 .table-footnote-link {
   display: inline-block;
   margin-top: 10px;
@@ -2443,36 +2458,23 @@ mark.search-mark {
 
 /* ── AI Assist ───────────────────────────────────────────────── */
 
-/* AI button variant — violet accent */
+/* AI buttons follow the button hierarchy: they are primary actions, so they
+   wear the primary colours instead of a violet of their own (UX review). */
 .btn-ai {
-  background: linear-gradient(135deg, var(--ai) 0%, var(--ai-mid) 100%);
-  color: #fff;
-  border: none;
-  box-shadow: 0 1px 8px rgba(91,33,182,0.28);
-  position: relative;
-  overflow: hidden;
-}
-.btn-ai::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(105deg, transparent 38%, rgba(255,255,255,0.14) 50%, transparent 62%);
-  background-size: 250% 100%;
-  background-position: -100% center;
-  transition: background-position 0.55s ease;
-}
-.btn-ai:hover:not(:disabled)::after {
-  background-position: 120% center;
+  background: var(--brand);
+  color: var(--octo-marine);
+  border-color: var(--brand);
 }
 .btn-ai:hover:not(:disabled) {
-  background: linear-gradient(135deg, #4C1D95 0%, var(--ai) 100%);
-  box-shadow: 0 3px 16px rgba(91,33,182,0.40);
-  transform: translateY(-1px);
+  background: var(--brand-hover);
+  border-color: var(--brand-hover);
+  box-shadow: var(--brand-glow);
 }
-.btn-ai:disabled {
-  opacity: 0.50;
-  cursor: not-allowed;
-  transform: none;
+.btn-ai:active:not(:disabled) {
+  background: var(--brand-active);
+  border-color: var(--brand-active);
+  box-shadow: none;
+  transform: translateY(1px);
 }
 
 /* AI output badge — appears at top of AI-generated content */
