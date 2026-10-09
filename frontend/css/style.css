@@ -4991,11 +4991,11 @@ mark.search-mark {
 .project-box.project-status-caution { }
 .project-box.project-status-alert   { }
 
+/* Same title style as the Projects page cards */
 .project-box-title {
-  font-family: var(--font-display);
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
-  letter-spacing: 0.02em;
+  line-height: 1.3;
   color: var(--text-0);
   margin: 0;
   flex: 1;
@@ -5005,33 +5005,6 @@ mark.search-mark {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-}
-
-.project-stat-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 28px;
-  height: 28px;
-  font-size: 12px;
-  font-weight: 700;
-  border-radius: 50%;
-  font-family: var(--font-mono);
-}
-
-.project-stat-badge.healthy {
-  background: var(--status-green-dim);
-  color: var(--status-ok-fg);
-}
-
-.project-stat-badge.caution {
-  background: var(--status-orange-dim);
-  color: var(--status-warn-fg);
-}
-
-.project-stat-badge.alert {
-  background: var(--status-red-dim);
-  color: var(--status-error-fg);
 }
 
 /* ── Models List ─────────────────────────────────────────────── */
@@ -5100,6 +5073,9 @@ mark.search-mark {
 }
 
 .model-row-version {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 11px;
   color: var(--text-2);
   font-family: var(--font-mono);
