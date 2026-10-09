@@ -1174,6 +1174,20 @@ tbody td.actions {
   line-height: 1.5;
 }
 
+.toast-close {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 2px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-2);
+  cursor: pointer;
+  line-height: 0;
+}
+.toast-close:hover { color: var(--text-0); }
+.toast-close:focus-visible { outline: 2px solid var(--brand-ink); outline-offset: 1px; }
+
 .toast-success { border-left: 3px solid var(--green); }
 .toast-error   { border-left: 3px solid var(--red); }
 .toast-warning { border-left: 3px solid var(--yellow); }
