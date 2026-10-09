@@ -3796,9 +3796,19 @@ mark.search-mark {
   gap: 10px;
   padding: 16px 20px;
   background: var(--bg-1);
-  border-bottom: 1px solid var(--border-1);
   color: var(--text-0);
+  cursor: pointer;
+  list-style: none;
 }
+.cg-quickstart__header::-webkit-details-marker { display: none; }
+.cg-quickstart[open] .cg-quickstart__header { border-bottom: 1px solid var(--border-1); }
+.cg-quickstart__header:focus-visible { outline: 2px solid var(--brand-ink); outline-offset: -2px; }
+
+.cg-quickstart__chevron {
+  margin-left: auto;
+  transition: transform var(--t-fast) var(--ease);
+}
+.cg-quickstart[open] .cg-quickstart__chevron { transform: rotate(180deg); }
 
 .cg-quickstart__header h2 {
   font-family: var(--font-body);
@@ -3972,8 +3982,11 @@ mark.search-mark {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  border-left: 2px solid var(--border-1);
-  padding-left: 14px;
+  padding: 14px 16px;
+  background: var(--bg-1);
+  border: 1px solid var(--border-2);
+  border-left: 3px solid var(--brand);
+  border-radius: var(--radius);
 }
 
 .cg-toc__title {
@@ -3981,7 +3994,7 @@ mark.search-mark {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--text-3);
+  color: var(--text-1);
   margin-bottom: 6px;
 }
 

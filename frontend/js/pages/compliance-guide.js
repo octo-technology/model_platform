@@ -236,12 +236,13 @@ Minimal — <!-- justification -->
 
         <div class="page-content">
 
-          <!-- Quick Start -->
-          <div class="cg-quickstart">
-            <div class="cg-quickstart__header">
+          <!-- Quick Start — collapsible: read once, then mostly in the way -->
+          <details class="cg-quickstart" id="cg-quickstart" ${quickStartOpen() ? 'open' : ''}>
+            <summary class="cg-quickstart__header">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
               <h2>Quick Start — Platform Criteria</h2>
-            </div>
+              <svg class="cg-quickstart__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </summary>
             <div class="cg-quickstart__body">
               <div class="cg-checklist">
                 <div class="cg-checklist__item cg-checklist__item--mandatory">
@@ -274,7 +275,7 @@ Minimal — <!-- justification -->
                 <span class="cg-checklist__icon cg-checklist__icon--recommended" style="margin-left:16px">○</span> Recommended (1 minimum for "compliant" status)
               </div>
             </div>
-          </div>
+          </details>
 
           <!-- Tabs -->
           <div class="cg-tabs" id="cg-tabs">
@@ -296,8 +297,19 @@ Minimal — <!-- justification -->
       </div>
     `;
 
+    document.getElementById('cg-quickstart').addEventListener('toggle', e => {
+      try { localStorage.setItem(QUICK_START_KEY, e.target.open ? 'open' : 'closed'); } catch {}
+    });
+
     initTabs();
     activateTab('minimal');
+  }
+
+  // Remembers per viewer whether the Quick Start was folded away
+  const QUICK_START_KEY = 'cg-quickstart';
+
+  function quickStartOpen() {
+    try { return localStorage.getItem(QUICK_START_KEY) !== 'closed'; } catch { return true; }
   }
 
   // ── Tabs ──────────────────────────────────────────────────
