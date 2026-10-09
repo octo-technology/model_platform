@@ -1,5 +1,5 @@
-// Project detail page with 4 tabs:
-// Settings · Available Models · Public Registry · Deployed Models
+// Project detail page with 5 tabs, most used first:
+// Available Models · Deployed Models · Batch Predictions · Public Registry · Settings
 const ProjectDetailPage = (() => {
 
   const ROLES = ['VIEWER', 'DEVELOPER', 'MAINTAINER', 'ADMIN'];
@@ -23,17 +23,9 @@ const ProjectDetailPage = (() => {
 
         <div class="page-content">
           <div class="tabs" id="project-tabs">
-            <button class="tab-btn active" data-tab="settings">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
-              Settings
-            </button>
-            <button class="tab-btn" data-tab="models">
+            <button class="tab-btn active" data-tab="models">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="9" height="9"/><rect x="13" y="2" width="9" height="9"/><rect x="13" y="13" width="9" height="9"/><rect x="2" y="13" width="9" height="9"/></svg>
               Available Models
-            </button>
-            <button class="tab-btn" data-tab="registry">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              Public Registry
             </button>
             <button class="tab-btn" data-tab="deployed">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
@@ -43,13 +35,21 @@ const ProjectDetailPage = (() => {
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
               Batch Predictions
             </button>
+            <button class="tab-btn" data-tab="registry">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              Public Registry
+            </button>
+            <button class="tab-btn" data-tab="settings">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+              Settings
+            </button>
           </div>
 
-          <div id="tab-settings" class="tab-panel active"></div>
-          <div id="tab-models"   class="tab-panel"></div>
-          <div id="tab-registry" class="tab-panel"></div>
+          <div id="tab-models"   class="tab-panel active"></div>
           <div id="tab-deployed" class="tab-panel"></div>
           <div id="tab-batch"    class="tab-panel"></div>
+          <div id="tab-registry" class="tab-panel"></div>
+          <div id="tab-settings" class="tab-panel"></div>
         </div>
       </div>
     `;
@@ -78,9 +78,9 @@ const ProjectDetailPage = (() => {
     });
 
     // Load first tab immediately
-    const settingsPanel = document.getElementById('tab-settings');
-    settingsPanel.dataset.loaded = 'true';
-    loadTab('settings', name, settingsPanel);
+    const modelsPanel = document.getElementById('tab-models');
+    modelsPanel.dataset.loaded = 'true';
+    loadTab('models', name, modelsPanel);
   }
 
   function loadTab(tab, projectName, panel) {
