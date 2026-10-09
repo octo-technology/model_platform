@@ -232,7 +232,7 @@ const ProjectDetailPage = (() => {
             </select>
           </td>
           <td class="actions">
-            <div class="flex gap-2 justify-end">
+            <div class="flex gap-2">
               <button class="btn btn-secondary btn-xs save-role-btn" data-user="${escHtml(email)}" data-project="${escHtml(projectName)}">Save role</button>
               <button class="btn btn-danger btn-xs remove-user-btn" data-user="${escHtml(email)}" data-project="${escHtml(projectName)}">Remove</button>
             </div>
@@ -243,7 +243,7 @@ const ProjectDetailPage = (() => {
     area.innerHTML = `
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th style="text-align:right">Actions</th></tr></thead>
+          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Actions</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>`;
@@ -341,9 +341,10 @@ const ProjectDetailPage = (() => {
   async function loadModels(projectName, panel) {
     panel.innerHTML = loadingHTML();
     try {
-      const [models, modelInfos] = await Promise.all([
+      const [models, modelInfos, deployed] = await Promise.all([
         API.models.list(projectName),
         API.modelInfos.listForProject(projectName).catch(() => []),
+        API.deployedModels.list(projectName).catch(() => []),
       ]);
       if (!models || models.length === 0) {
         panel.innerHTML = emptyHTML('No models found', 'Register models in MLflow to see them here.');
@@ -370,20 +371,20 @@ const ProjectDetailPage = (() => {
           }
         })
       );
-      renderModels(projectName, modelsWithVersions, panel, complianceMap);
+      renderModels(projectName, modelsWithVersions, deployed.length, panel, complianceMap);
     } catch (err) {
       panel.innerHTML = errorHTML(err.message);
     }
   }
 
-  function renderModels(projectName, models, panel, complianceMap) {
+  function renderModels(projectName, models, deployedCount, panel, complianceMap) {
     const rows = models.map(m => modelRow(m, projectName, 'available', complianceMap)).join('');
 
     panel.innerHTML = `
       <div class="section-toolbar">
         <div class="section-toolbar-left">
           <span class="section-title">MLflow Registry</span>
-          <span class="section-count">${models.length}</span>
+          ${CountChip.deployed(deployedCount, models.length)}
         </div>
       </div>
       <div class="table-wrap">
@@ -396,16 +397,26 @@ const ProjectDetailPage = (() => {
               <th>Registered</th>
               <th>Version to deploy</th>
               <th>Compliance</th>
-              <th style="text-align:right">Action</th>
+              <th>Action</th>
             </tr>
           </thead>
           <tbody id="models-tbody">${rows}</tbody>
         </table>
       </div>
+      <a href="#compliance-guide" class="table-footnote-link">See compliance guide</a>
       <div id="deploy-status-area"></div>
     `;
 
     attachModelEvents(projectName, panel, 'available', complianceMap);
+  }
+
+  // Deterministic above LLM, same layout as the Audit page
+  function complianceCellHTML(compliance) {
+    const c = compliance || { deterministic: 'not_evaluated', llm: 'not_evaluated' };
+    return `<div class="compliance-stack">
+      <div>${complianceIcon(c.deterministic, 'Deterministic')}</div>
+      <div>${complianceIcon(c.llm, 'LLM')}</div>
+    </div>`;
   }
 
   function complianceIcon(status, label) {
@@ -443,9 +454,7 @@ const ProjectDetailPage = (() => {
     const complianceData = JSON.stringify(complianceMap || {}).replace(/"/g, '&quot;');
     const firstVersion = versionNumbers.length > 0 ? versionNumbers[0] : '';
     const firstCompliance = (complianceMap || {})[`${name}:${firstVersion}`];
-    const initialBadge = firstCompliance
-      ? `${complianceIcon(firstCompliance.deterministic, 'Det.')} ${complianceIcon(firstCompliance.llm, 'LLM')}`
-      : `${complianceIcon('not_evaluated', 'Det.')} ${complianceIcon('not_evaluated', 'LLM')}`;
+    const initialBadge = complianceCellHTML(firstCompliance);
 
     return `
       <tr>
@@ -476,10 +485,7 @@ const ProjectDetailPage = (() => {
         const version = sel.value;
         const cell = panel.querySelector(`.compliance-cell[data-model="${modelName}"]`);
         if (!cell) return;
-        const c = (complianceMap || {})[`${modelName}:${version}`];
-        cell.innerHTML = c
-          ? `${complianceIcon(c.deterministic, 'Det.')} ${complianceIcon(c.llm, 'LLM')}`
-          : `${complianceIcon('not_evaluated', 'Det.')} ${complianceIcon('not_evaluated', 'LLM')}`;
+        cell.innerHTML = complianceCellHTML((complianceMap || {})[`${modelName}:${version}`]);
       });
     });
 
@@ -596,7 +602,7 @@ const ProjectDetailPage = (() => {
       results.innerHTML = `
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Model ID</th><th>Author</th><th>Task</th><th>Likes</th><th style="text-align:right">Action</th></tr></thead>
+            <thead><tr><th>Model ID</th><th>Author</th><th>Task</th><th>Likes</th><th>Action</th></tr></thead>
             <tbody>${rows}</tbody>
           </table>
         </div>`;
@@ -655,13 +661,13 @@ const ProjectDetailPage = (() => {
           <td class="font-bold">${escHtml(name)}</td>
           <td class="mono">${escHtml(String(version))}</td>
           <td>${escHtml(deployDate)}</td>
-          <td>${endpointUrl ? `<a href="${escHtml(endpointUrl)}" target="_blank" rel="noopener" style="color:var(--cyan);font-size:12px;font-family:var(--font-mono)">${escHtml(endpointUrl)}</a>` : '—'}</td>
+          <td>${endpointUrl ? `<a href="${escHtml(endpointUrl)}" target="_blank" rel="noopener" class="endpoint-link">${escHtml(endpointUrl)}</a>` : '—'}</td>
           <td class="mono">${escHtml(deployName)}</td>
           <td>${statusBadge(status)}</td>
           <td class="actions">
-            <div class="flex gap-2 justify-end">
+            <div class="flex gap-2">
               ${docsUrl ? `<a href="${escHtml(docsUrl)}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">API Docs</a>` : ''}
-              ${dashUrl ? `<a href="${escHtml(dashUrl)}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Dashboard</a>` : ''}
+              ${dashUrl ? `<a href="${escHtml(dashUrl)}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Grafana dashboard</a>` : ''}
               <button class="btn btn-danger btn-sm undeploy-btn" data-model="${escHtml(name)}" data-version="${escHtml(String(version))}">Undeploy</button>
             </div>
           </td>
@@ -683,7 +689,7 @@ const ProjectDetailPage = (() => {
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Model</th><th>Version</th><th>Deployed on</th><th>Endpoint</th><th>Deployment name</th><th>Status</th><th style="text-align:right">Actions</th></tr></thead>
+          <thead><tr><th>Model</th><th>Version</th><th>Deployed on</th><th>Endpoint</th><th>Deployment name</th><th>Status</th><th>Actions</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>`;
@@ -815,7 +821,7 @@ const ProjectDetailPage = (() => {
           ${rows ? `
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Job ID</th><th>Model</th><th>Version</th><th>Status</th><th>Created</th><th style="text-align:right">Actions</th></tr></thead>
+              <thead><tr><th>Job ID</th><th>Model</th><th>Version</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
               <tbody>${rows}</tbody>
             </table>
           </div>` : emptyHTML('No batch jobs', 'Submit a batch prediction to get started.')}
@@ -957,7 +963,7 @@ const ProjectDetailPage = (() => {
         </td>
         <td>${escHtml(created)}</td>
         <td class="actions">
-          <div class="flex gap-2 justify-end">
+          <div class="flex gap-2">
             ${isCompleted ? `<button class="btn btn-secondary btn-sm batch-download-btn" data-job-id="${escHtml(jobId)}">Download</button>` : ''}
             <button class="btn btn-danger btn-xs batch-delete-btn" data-job-id="${escHtml(jobId)}">Delete</button>
           </div>

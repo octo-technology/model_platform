@@ -892,8 +892,32 @@ tbody td.mono {
 }
 
 tbody td.actions {
-  text-align: right;
   white-space: nowrap;
+}
+
+/* Clickable URLs in tables read as links, not as plain text */
+.endpoint-link {
+  color: var(--brand-ink);
+  font-size: 12px;
+  font-family: var(--font-mono);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Deterministic above LLM, one badge per line */
+.compliance-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.table-footnote-link {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--brand-ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 /* ── Tabs ────────────────────────────────────────────────────── */

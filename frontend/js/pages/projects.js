@@ -299,15 +299,6 @@ const ProjectsPage = (() => {
     `;
   }
 
-  // A quantity, not a status — so it uses the count chip, not a badge.
-  function deployedChip(deployed, total) {
-    if (total === 0) {
-      return `<span class="count-chip count-chip--empty" title="No model registered in this project">No models</span>`;
-    }
-    return `<span class="count-chip" title="${deployed} of ${total} model${total > 1 ? 's' : ''} deployed">`
-      + `${deployed}<span class="count-chip__total">/${total}</span> deployed</span>`;
-  }
-
   function registryStatusDot(status) {
     const TONE_COLORS = {
       ok:      'var(--status-ok-fg)',
@@ -336,7 +327,7 @@ const ProjectsPage = (() => {
       <div class="project-card" data-project="${escHtml(name)}">
         <div class="project-card-header">
           <div class="project-name">${escHtml(name)}</div>
-          ${deployedChip(deployedCount, modelCount)}
+          ${CountChip.deployed(deployedCount, modelCount)}
         </div>
         ${scope ? `<p class="project-scope-desc">${escHtml(scope)}</p>` : ''}
         <div class="project-meta">
