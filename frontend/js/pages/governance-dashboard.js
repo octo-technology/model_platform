@@ -7,7 +7,7 @@ const GovernanceDashboardPage = (() => {
         <div class="page-header">
           <div class="page-title-group">
             <div class="page-eyebrow">Governance</div>
-            <h1 class="page-title">Overview</h1>
+            <h1 class="page-title">Governance overview</h1>
           </div>
           <div class="flex gap-2">
             <button class="btn btn-secondary btn-sm" id="dash-goto-governance">
@@ -61,20 +61,16 @@ const GovernanceDashboardPage = (() => {
     const policyClass = { strict: 'gdash-policy--strict', permissive: 'gdash-policy--permissive', disabled: 'gdash-policy--disabled' };
 
     container.innerHTML = `
-      <!-- KPI Hero -->
-      <div class="gdash-hero">
-        <div class="gdash-kpi-grid">
-          ${kpiCard('Projects', s.total_projects, kpiIconProject())}
-          ${kpiCard('Models', s.total_models, kpiIconModel())}
-          ${kpiCard('Versions', s.total_versions, kpiIconVersion())}
-          <div class="gdash-kpi gdash-kpi--policy">
-            <div class="gdash-kpi__icon">${kpiIconPolicy()}</div>
-            <div class="gdash-kpi__body">
-              <div class="gdash-kpi__label">Gate Policy</div>
-              <div class="gdash-kpi__value gdash-kpi__value--sm">
-                <span class="gdash-policy-badge ${policyClass[data.gate_policy] || ''}">${escHtml(policyLabels[data.gate_policy] || data.gate_policy)}</span>
-              </div>
-            </div>
+      <!-- KPI: same flat strip as the Monitoring page -->
+      <h2 class="section-title" style="margin-bottom:8px">Platform KPI</h2>
+      <div class="fleet-header">
+        <div><div class="fleet-stat-label">Projects</div><div class="fleet-stat-value">${s.total_projects}</div></div>
+        <div><div class="fleet-stat-label">Models</div><div class="fleet-stat-value">${s.total_models}</div></div>
+        <div><div class="fleet-stat-label">Versions</div><div class="fleet-stat-value">${s.total_versions}</div></div>
+        <div>
+          <div class="fleet-stat-label">Gate policy</div>
+          <div class="fleet-stat-value">
+            <span class="gdash-policy-badge ${policyClass[data.gate_policy] || ''}">${escHtml(policyLabels[data.gate_policy] || data.gate_policy)}</span>
           </div>
         </div>
       </div>
@@ -104,32 +100,6 @@ const GovernanceDashboardPage = (() => {
         el.classList.add('gdash-donut--visible');
       });
     });
-  }
-
-  // ── KPI Cards ──────────────────────────────────────────────
-
-  function kpiCard(label, value, icon) {
-    return `
-      <div class="gdash-kpi">
-        <div class="gdash-kpi__icon">${icon}</div>
-        <div class="gdash-kpi__body">
-          <div class="gdash-kpi__label">${label}</div>
-          <div class="gdash-kpi__value">${value}</div>
-        </div>
-      </div>`;
-  }
-
-  function kpiIconProject() {
-    return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`;
-  }
-  function kpiIconModel() {
-    return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>`;
-  }
-  function kpiIconVersion() {
-    return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>`;
-  }
-  function kpiIconPolicy() {
-    return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`;
   }
 
   // ── Donut Charts ───────────────────────────────────────────
@@ -258,7 +228,8 @@ const GovernanceDashboardPage = (() => {
       <div class="gdash-project-card" style="animation-delay:${index * 60}ms">
         <div class="gdash-project-card__header">
           <span class="gdash-project-card__name">${escHtml(project.name)}</span>
-          <span class="gdash-project-card__health ${healthClass}">${combined}%</span>
+          <span class="gdash-project-card__health ${healthClass}"
+                title="Share of version evaluations (Deterministic + LLM) that are compliant or partial">${combined}% compliant</span>
         </div>
         <div class="gdash-project-card__stats">
           <div class="gdash-project-card__stat">

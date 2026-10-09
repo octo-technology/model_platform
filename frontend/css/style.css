@@ -3349,109 +3349,6 @@ mark.search-mark {
    GOVERNANCE DASHBOARD
    ═══════════════════════════════════════════════════════════════ */
 
-/* ── Hero / KPI strip ───────────────────────────────────────── */
-.gdash-hero {
-  background: linear-gradient(135deg, #0E2356 0%, #122d6b 50%, #0b1d45 100%);
-  border-radius: var(--radius);
-  padding: 28px 32px;
-  margin-bottom: 24px;
-  position: relative;
-  overflow: hidden;
-}
-
-.gdash-hero::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(ellipse 600px 300px at 15% 50%, rgba(0,163,190,0.12), transparent),
-    radial-gradient(ellipse 400px 400px at 85% 30%, rgba(0,163,190,0.06), transparent);
-  pointer-events: none;
-}
-
-.gdash-hero::after {
-  content: '';
-  position: absolute;
-  top: 0; right: 0; bottom: 0; left: 0;
-  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2300A3BE' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-  pointer-events: none;
-}
-
-.gdash-kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 20px;
-  position: relative;
-  z-index: 1;
-}
-
-.gdash-kpi {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 10px;
-  padding: 18px 20px;
-  backdrop-filter: blur(8px);
-  transition: background var(--t-fast), border-color var(--t-fast), transform var(--t-fast);
-  animation: gdash-kpi-in 0.5s var(--ease) both;
-}
-
-.gdash-kpi:nth-child(1) { animation-delay: 0ms; }
-.gdash-kpi:nth-child(2) { animation-delay: 80ms; }
-.gdash-kpi:nth-child(3) { animation-delay: 160ms; }
-.gdash-kpi:nth-child(4) { animation-delay: 240ms; }
-
-.gdash-kpi:hover {
-  background: rgba(255,255,255,0.09);
-  border-color: rgba(0,163,190,0.3);
-  transform: translateY(-2px);
-}
-
-@keyframes gdash-kpi-in {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-.gdash-kpi__icon {
-  width: 42px;
-  height: 42px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--brand-dim);
-  color: var(--octo-turquoise);
-  flex-shrink: 0;
-}
-
-.gdash-kpi__body {
-  min-width: 0;
-}
-
-.gdash-kpi__label {
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.10em;
-  color: rgba(255,255,255,0.75);
-  margin-bottom: 4px;
-}
-
-.gdash-kpi__value {
-  font-family: var(--font-mono);
-  font-size: 28px;
-  font-weight: 700;
-  color: #fff;
-  line-height: 1;
-  letter-spacing: -0.02em;
-}
-
-.gdash-kpi__value--sm {
-  font-size: 16px;
-}
-
 /* ── Policy badge ────────────────────────────────────────────── */
 .gdash-policy-badge {
   display: inline-block;
@@ -5188,10 +5085,8 @@ mark.search-mark {
   .btn-sm { padding: 4px 8px; font-size: 11px; }
   .page-header { padding: 24px 16px 0; }
   .page-content { padding: 20px 16px 36px; }
-  .gdash-kpi-grid { grid-template-columns: repeat(2, 1fr); }
   .gdash-charts-row { grid-template-columns: 1fr; }
   .gdash-matrix { grid-template-columns: 1fr; }
-  .gdash-hero { padding: 20px 18px; }
 
   .model-row-metrics {
     grid-template-columns: repeat(2, 1fr);
@@ -5235,7 +5130,6 @@ mark.search-mark {
 }
 
 @media (max-width: 500px) {
-  .gdash-kpi-grid { grid-template-columns: 1fr; }
   .gdash-chart-card__content { flex-direction: column; }
   .gdash-donut { width: 100px; height: 100px; }
 }
