@@ -1021,15 +1021,18 @@ tbody td.actions {
   gap: 10px;
   align-items: center;
   padding: 10px 16px;
-  background: var(--bg-2);
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-1);
-  margin-bottom: 12px;
 }
 
 .row-form .form-input,
 .row-form .form-select {
   flex: 1;
+}
+
+/* Free-text project fields split into one bullet per fact */
+.info-list {
+  margin: 0;
+  padding-left: 16px;
+  line-height: 1.5;
 }
 
 /* ── Empty state ─────────────────────────────────────────────── */

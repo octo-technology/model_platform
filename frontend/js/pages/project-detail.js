@@ -127,8 +127,8 @@ const ProjectDetailPage = (() => {
               <tr>
                 <td class="font-bold">${escHtml(name)}</td>
                 <td>${escHtml(owner)}</td>
-                <td><span class="badge badge-neutral">${escHtml(scope)}</span></td>
-                <td class="mono">${escHtml(perimeter)}</td>
+                <td>${infoListHTML(scope)}</td>
+                <td>${infoListHTML(perimeter)}</td>
               </tr>
             </tbody>
           </table>
@@ -197,6 +197,14 @@ const ProjectDetailPage = (() => {
     document.getElementById('add-user-btn').addEventListener('click', () =>
       toggleAddUserForm(projectName)
     );
+  }
+
+  // Free-text project fields hold several facts in one paragraph:
+  // one bullet per line or sentence reads faster.
+  function infoListHTML(text) {
+    const items = text.split(/\n+|(?<=\.)\s+/).map(item => item.trim()).filter(Boolean);
+    if (items.length < 2) return escHtml(text);
+    return `<ul class="info-list">${items.map(item => `<li>${escHtml(item)}</li>`).join('')}</ul>`;
   }
 
   function renderUsersTable(projectName, users, area) {
@@ -273,14 +281,21 @@ const ProjectDetailPage = (() => {
     });
   }
 
+  function closeAddUserForm(area) {
+    area.innerHTML = '';
+    area.dataset.open = 'false';
+    document.querySelector('#users-table-area .empty-state')?.classList.remove('hidden');
+  }
+
   async function toggleAddUserForm(projectName) {
     const area = document.getElementById('add-user-form-area');
     if (area.dataset.open === 'true') {
-      area.innerHTML = '';
-      area.dataset.open = 'false';
+      closeAddUserForm(area);
       return;
     }
     area.dataset.open = 'true';
+    // The form takes the place of the "No users yet" message
+    document.querySelector('#users-table-area .empty-state')?.classList.add('hidden');
 
     // Try to load the user list for autocomplete (admin only).
     // Always fall back to a plain text input so non-admins can still add users.
@@ -295,7 +310,7 @@ const ProjectDetailPage = (() => {
       : `<input class="form-input" id="add-user-email" type="email" placeholder="user@example.com" style="flex:2" autocomplete="off">`;
 
     area.innerHTML = `
-      <div class="row-form" style="padding:10px 20px;border-bottom:1px solid var(--border-0)">
+      <div class="row-form" style="padding:16px 20px">
         ${emailField}
         <select class="form-select" id="add-user-role" style="flex:1">
           ${ROLES.map(r => `<option value="${r}">${r}</option>`).join('')}
@@ -304,10 +319,7 @@ const ProjectDetailPage = (() => {
         <button class="btn btn-secondary btn-sm" id="add-user-cancel">Cancel</button>
       </div>`;
 
-    document.getElementById('add-user-cancel').addEventListener('click', () => {
-      area.innerHTML = '';
-      area.dataset.open = 'false';
-    });
+    document.getElementById('add-user-cancel').addEventListener('click', () => closeAddUserForm(area));
 
     document.getElementById('add-user-submit').addEventListener('click', async () => {
       const emailEl = document.getElementById('add-user-email');
