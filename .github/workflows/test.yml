@@ -153,6 +153,9 @@ jobs:
           kubectl apply -f infrastructure/k8s/nginx-configmap.yaml
           kubectl apply -f infrastructure/k8s/ingress.yaml
           kubectl wait --for=condition=available deployment/nginx-reverse-proxy --timeout=120s || true
+          # Artifacts need the MLflow bucket: fail here, not 20 minutes later in the tests.
+          kubectl wait --for=condition=complete job/create-mlflow-bucket -n minio --timeout=360s \
+            || { kubectl logs -n minio job/create-mlflow-bucket --tail=50 || true; exit 1; }
 
       - name: Set image tag and backend image
         run: |
