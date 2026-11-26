@@ -7,7 +7,7 @@ const GovernanceDashboardPage = (() => {
         <div class="page-header">
           <div class="page-title-group">
             <div class="page-eyebrow">Governance</div>
-            <h1 class="page-title">Overview</h1>
+            <h1 class="page-title">Governance overview</h1>
           </div>
           <div class="flex gap-2">
             <button class="btn btn-secondary btn-sm" id="dash-goto-governance">
@@ -61,22 +61,18 @@ const GovernanceDashboardPage = (() => {
     const policyClass = { strict: 'gdash-policy--strict', permissive: 'gdash-policy--permissive', disabled: 'gdash-policy--disabled' };
 
     container.innerHTML = `
-      <!-- KPI Hero -->
-      <div class="gdash-hero">
-        <div class="gdash-kpi-grid">
-          ${kpiCard('Projects', s.total_projects, kpiIconProject())}
-          ${kpiCard('Models', s.total_models, kpiIconModel())}
-          ${kpiCard('Versions', s.total_versions, kpiIconVersion())}
-          ${kpiCard('Agents', s.total_agents || 0, kpiIconAgent())}
-          ${kpiCard('Agent Versions', s.total_agent_versions || 0, kpiIconVersion())}
-          <div class="gdash-kpi gdash-kpi--policy">
-            <div class="gdash-kpi__icon">${kpiIconPolicy()}</div>
-            <div class="gdash-kpi__body">
-              <div class="gdash-kpi__label">Gate Policy</div>
-              <div class="gdash-kpi__value gdash-kpi__value--sm">
-                <span class="gdash-policy-badge ${policyClass[data.gate_policy] || ''}">${escHtml(policyLabels[data.gate_policy] || data.gate_policy)}</span>
-              </div>
-            </div>
+      <!-- KPI: same flat strip as the Monitoring page -->
+      <h2 class="section-title" style="margin-bottom:8px">Platform KPI</h2>
+      <div class="fleet-header">
+        <div><div class="fleet-stat-label">Projects</div><div class="fleet-stat-value">${s.total_projects}</div></div>
+        <div><div class="fleet-stat-label">Models</div><div class="fleet-stat-value">${s.total_models}</div></div>
+        <div><div class="fleet-stat-label">Versions</div><div class="fleet-stat-value">${s.total_versions}</div></div>
+        <div><div class="fleet-stat-label">Agents</div><div class="fleet-stat-value">${s.total_agents || 0}</div></div>
+        <div><div class="fleet-stat-label">Agent versions</div><div class="fleet-stat-value">${s.total_agent_versions || 0}</div></div>
+        <div>
+          <div class="fleet-stat-label">Gate policy</div>
+          <div class="fleet-stat-value">
+            <span class="gdash-policy-badge ${policyClass[data.gate_policy] || ''}">${escHtml(policyLabels[data.gate_policy] || data.gate_policy)}</span>
           </div>
         </div>
       </div>
@@ -108,53 +104,35 @@ const GovernanceDashboardPage = (() => {
     });
   }
 
-  // ── KPI Cards ──────────────────────────────────────────────
-
-  function kpiCard(label, value, icon) {
-    return `
-      <div class="gdash-kpi">
-        <div class="gdash-kpi__icon">${icon}</div>
-        <div class="gdash-kpi__body">
-          <div class="gdash-kpi__label">${label}</div>
-          <div class="gdash-kpi__value">${value}</div>
-        </div>
-      </div>`;
-  }
-
-  function kpiIconProject() {
-    return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`;
-  }
-  function kpiIconModel() {
-    return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>`;
-  }
-  function kpiIconVersion() {
-    return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>`;
-  }
-  function kpiIconAgent() {
-    return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="12" rx="2"/><circle cx="9" cy="14" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="14" r="1.2" fill="currentColor" stroke="none"/><path d="M12 8V4"/><circle cx="12" cy="3" r="1" fill="currentColor" stroke="none"/></svg>`;
-  }
-  function kpiIconPolicy() {
-    return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`;
-  }
-
   // ── Donut Charts ───────────────────────────────────────────
 
+  const TONE_COLORS = {
+    ok:      'var(--status-ok-fg)',
+    warn:    'var(--status-warn-fg)',
+    error:   'var(--status-error-fg)',
+    neutral: 'var(--status-neutral-fg)',
+  };
+
+  // Chart fills reuse the shared scales so a slice and a badge for the same
+  // value are never two different colours.
   function riskPalette() {
+    const step = key => ({ color: `var(--risk-${key}-fg)`, label: Status.label('risk', key) });
     return {
-      'minimal': { color: '#10B981', label: 'Minimal' },
-      'limited': { color: '#F59E0B', label: 'Limited' },
-      'high':    { color: '#F97316', label: 'High' },
-      'unacceptable': { color: '#EF4444', label: 'Unacceptable' },
-      'non renseigne': { color: '#6B84A8', label: 'Not set' },
+      'minimal':       step('minimal'),
+      'limited':       step('limited'),
+      'high':          step('high'),
+      'unacceptable':  step('unacceptable'),
+      'non renseigne': { color: 'var(--risk-unknown-fg)', label: 'Not set' },
     };
   }
 
   function compliancePalette() {
+    const entry = key => ({ color: TONE_COLORS[Status.tone('compliance', key)], label: Status.label('compliance', key) });
     return {
-      'compliant':           { color: '#10B981', label: 'Compliant' },
-      'partially_compliant': { color: '#F97316', label: 'Partial' },
-      'non_compliant':       { color: '#EF4444', label: 'Non-compliant' },
-      'not_evaluated':       { color: '#6B84A8', label: 'Not evaluated' },
+      'compliant':           entry('compliant'),
+      'partially_compliant': entry('partially_compliant'),
+      'non_compliant':       entry('non_compliant'),
+      'not_evaluated':       entry('not_evaluated'),
     };
   }
 
@@ -174,14 +152,14 @@ const GovernanceDashboardPage = (() => {
     const entries = Object.entries(distribution).sort((a, b) => b[1] - a[1]);
     for (const [key, count] of entries) {
       const pct = (count / total) * 100;
-      const p = palette[key] || { color: '#6B84A8', label: key };
+      const p = palette[key] || { color: TONE_COLORS.neutral, label: key };
       segments.push(`${p.color} ${cumulative}% ${cumulative + pct}%`);
       cumulative += pct;
     }
     const gradient = `conic-gradient(${segments.join(', ')})`;
 
     const legend = entries.map(([key, count]) => {
-      const p = palette[key] || { color: '#6B84A8', label: key };
+      const p = palette[key] || { color: TONE_COLORS.neutral, label: key };
       const pct = Math.round((count / total) * 100);
       return `
         <div class="gdash-legend-item">
@@ -241,10 +219,10 @@ const GovernanceDashboardPage = (() => {
       const ne = dist['not_evaluated'] || 0;
       return `
         <div class="gdash-minibar">
-          ${c > 0 ? `<div class="gdash-minibar__seg" style="width:${(c/t)*100}%;background:#10B981" title="Compliant: ${c}"></div>` : ''}
-          ${p > 0 ? `<div class="gdash-minibar__seg" style="width:${(p/t)*100}%;background:#F97316" title="Partial: ${p}"></div>` : ''}
-          ${n > 0 ? `<div class="gdash-minibar__seg" style="width:${(n/t)*100}%;background:#EF4444" title="Non-compliant: ${n}"></div>` : ''}
-          ${ne > 0 ? `<div class="gdash-minibar__seg" style="width:${(ne/t)*100}%;background:#6B84A8" title="Not evaluated: ${ne}"></div>` : ''}
+          ${c > 0 ? `<div class="gdash-minibar__seg" style="width:${(c/t)*100}%;background:${TONE_COLORS.ok}" title="${Status.label('compliance', 'compliant')}: ${c}"></div>` : ''}
+          ${p > 0 ? `<div class="gdash-minibar__seg" style="width:${(p/t)*100}%;background:${TONE_COLORS.warn}" title="${Status.label('compliance', 'partially_compliant')}: ${p}"></div>` : ''}
+          ${n > 0 ? `<div class="gdash-minibar__seg" style="width:${(n/t)*100}%;background:${TONE_COLORS.error}" title="${Status.label('compliance', 'non_compliant')}: ${n}"></div>` : ''}
+          ${ne > 0 ? `<div class="gdash-minibar__seg" style="width:${(ne/t)*100}%;background:${TONE_COLORS.neutral}" title="${Status.label('compliance', 'not_evaluated')}: ${ne}"></div>` : ''}
         </div>`;
     };
 
@@ -252,7 +230,8 @@ const GovernanceDashboardPage = (() => {
       <div class="gdash-project-card" style="animation-delay:${index * 60}ms">
         <div class="gdash-project-card__header">
           <span class="gdash-project-card__name">${escHtml(project.name)}</span>
-          <span class="gdash-project-card__health ${healthClass}">${combined}%</span>
+          <span class="gdash-project-card__health ${healthClass}"
+                title="Share of version evaluations (Deterministic + LLM) that are compliant or partial">${combined}% compliant</span>
         </div>
         <div class="gdash-project-card__stats">
           <div class="gdash-project-card__stat">

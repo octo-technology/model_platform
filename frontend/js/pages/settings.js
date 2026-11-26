@@ -108,9 +108,7 @@ const SettingsPage = (() => {
 
   function renderClaudeCard(status, area) {
     const { available, provider, bedrock_models, bedrock_model_id } = status;
-    const statusBadge = available
-      ? `<span class="badge badge-green integration-status-badge">Active</span>`
-      : `<span class="badge badge-neutral integration-status-badge">Inactive</span>`;
+    const statusBadge = Status.badge('runtime', available ? 'active' : 'inactive', { extraClass: 'integration-status-badge' });
 
     area.innerHTML = `
       <div class="integration-card">

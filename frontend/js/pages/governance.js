@@ -70,8 +70,7 @@ const GovernancePage = (() => {
                     <polyline points="7 10 12 15 17 10"/>
                     <line x1="12" y1="15" x2="12" y2="3"/>
                   </svg>
-                  <span>Download</span>
-                  <span class="compliance-report-btn__badge">PDF</span>
+                  <span>Download report</span>
                 </span>
                 <span class="compliance-report-btn__loading" style="display:none">
                   <span class="compliance-report-spinner"></span>
@@ -81,7 +80,7 @@ const GovernancePage = (() => {
             </div>
           </div>
 
-          <div class="flex items-center gap-3 mb-4" style="max-width:380px">
+          <div class="flex items-center gap-3 mb-4" style="max-width:260px">
             <div style="flex:1" class="form-group">
               <label class="form-label">Select project</label>
               <select class="form-select" id="gov-project-select">
@@ -390,6 +389,7 @@ const GovernancePage = (() => {
 
     Modal.open({
       title: `Model Card — ${modelName} v${version}`,
+      size: 'wide',
       body: bodyHtml,
       footer: cardContent ? `
         <button class="btn btn-secondary btn-sm" id="model-card-dl-btn">
@@ -437,6 +437,7 @@ const GovernancePage = (() => {
   async function openAiActModal(kind, projectName, modelName, version) {
     const { close } = Modal.open({
       title: `AI Act Card — ${modelName} v${version}`,
+      size: 'wide',
       body: `<div class="ai-act-loading"><span class="spinner"></span><span>Generating card…</span></div>`,
       footer: `
         <button class="btn btn-secondary" id="ai-act-download" disabled>
@@ -510,6 +511,7 @@ const GovernancePage = (() => {
 
     const { close } = Modal.open({
       title: `AI Act Compliance — ${modelName} v${version}`,
+      size: 'wide',
       body: hasCache ? reviewHtml(cached.actReview) : loadingHtml,
       footer: `
         <button class="btn btn-secondary btn-sm" id="direct-review-dl-btn" ${hasCache ? '' : 'disabled'}>
@@ -602,15 +604,7 @@ const GovernancePage = (() => {
   // ── Risk Level Suggestion ────────────────────────────────────
 
   function riskBadge(level) {
-    const meta = {
-      unacceptable: { cls: 'risk-unacceptable', label: 'Unacceptable' },
-      high:         { cls: 'risk-high',         label: 'High' },
-      limited:      { cls: 'risk-limited',      label: 'Limited' },
-      minimal:      { cls: 'risk-minimal',      label: 'Minimal' },
-    };
-    const m = meta[(level || '').toLowerCase()];
-    if (!m) return `<span class="risk-badge risk-unknown">${escHtml(level || '—')}</span>`;
-    return `<span class="risk-badge ${m.cls}">${m.label}</span>`;
+    return Status.riskBadge(level);
   }
 
   function renderRiskCell(kind, modelName, version, projectName) {
@@ -731,12 +725,18 @@ const GovernancePage = (() => {
   }
 
   function openRiskSuggestionModal(kind, projectName, modelName, version, level, justification) {
-    const levelMeta = {
-      unacceptable: { icon: '🚫', title: 'Unacceptable', desc: 'Prohibited system (Art. 5)', cls: 'risk-unacceptable' },
-      high:         { icon: '⚠️', title: 'High', desc: 'Mandatory compliance (Art. 6 + Annex III)', cls: 'risk-high' },
-      limited:      { icon: '📋', title: 'Limited', desc: 'Transparency obligations (Art. 50)', cls: 'risk-limited' },
-      minimal:      { icon: '✅', title: 'Minimal', desc: 'No specific obligations', cls: 'risk-minimal' },
+    // Icon and article reference are page-specific; label and class come
+    // from the shared risk scale.
+    const levelExtras = {
+      unacceptable: { icon: '🚫', desc: 'Prohibited system (Art. 5)' },
+      high:         { icon: '⚠️', desc: 'Mandatory compliance (Art. 6 + Annex III)' },
+      limited:      { icon: '📋', desc: 'Transparency obligations (Art. 50)' },
+      minimal:      { icon: '✅', desc: 'No specific obligations' },
     };
+    const levelMeta = Object.fromEntries(Object.entries(levelExtras).map(([key, extra]) => {
+      const m = Status.meta('risk', key);
+      return [key, { icon: extra.icon, desc: extra.desc, title: m.label, cls: m.cls }];
+    }));
     const meta = levelMeta[level] || levelMeta.minimal;
 
     Modal.open({
@@ -780,21 +780,9 @@ const GovernancePage = (() => {
   // ── Render helpers ────────────────────────────────────────────
 
   function complianceBadge(status, label) {
-    const colors = {
-      compliant: 'badge-green',
-      partially_compliant: 'badge-orange',
-      non_compliant: 'badge-red',
-      not_evaluated: 'badge-neutral',
-    };
-    const labels = {
-      compliant: 'Compliant',
-      partially_compliant: 'Partial',
-      non_compliant: 'Non-compliant',
-      not_evaluated: 'Not evaluated',
-    };
-    const cls = colors[status] || 'badge-neutral';
-    const text = labels[status] || status;
-    return `<span class="badge ${cls}" title="${escHtml(label)}: ${escHtml(text)}">${escHtml(text)}</span>`;
+    const meta = Status.meta('compliance', status);
+    const text = meta ? meta.label : status;
+    return Status.badge('compliance', status, { label: text, title: `${label}: ${text}` });
   }
 
   function refreshLlmBadge(kind, modelName, version) {
@@ -1129,12 +1117,9 @@ const GovernancePage = (() => {
       return escHtml(action);
     };
 
-    const actionBadge = action => {
-      const label = actionLabel(action);
-      if (label === 'Undeploy') return `<span class="badge badge-red">${label}</span>`;
-      if (label === 'Deploy')   return `<span class="badge badge-green">${label}</span>`;
-      return `<span class="badge badge-neutral">${label}</span>`;
-    };
+    // Audit entries record what happened, not how a model is doing — they
+    // stay neutral so the status colours keep a single meaning.
+    const actionBadge = action => `<span class="badge badge-neutral">${actionLabel(action)}</span>`;
 
     const rows = events.map(e => {
       const date    = e.timestamp || '—';

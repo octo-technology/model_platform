@@ -3,6 +3,7 @@ const MonitoringPage = (() => {
 
   let allModels = [];
   let allMetrics = {};
+  let registeredCounts = {};  // project → models registered in MLflow
   let refreshTimer = null;
   const GRAFANA_QUERY_PARAMS = '?orgId=1&from=now-1h&to=now&timezone=utc';
   // API URL: read from data attribute or default to current origin
@@ -32,7 +33,7 @@ const MonitoringPage = (() => {
           <h1 class="page-title">Fleet Monitoring</h1>
         </div>
         <div class="page-header-meta">
-          <div class="status-badge status-badge-live"><span class="status-pulse"></span>Live</div>
+          <div class="status-badge status-badge-live" title="Metrics refresh automatically"><span class="status-pulse"></span>Live data</div>
           <button class="monitoring-refresh-btn" id="monitoring-refresh-btn" title="Click to refresh now">
             <span id="monitoring-timestamp">Updating…</span>
           </button>
@@ -42,11 +43,12 @@ const MonitoringPage = (() => {
         <div class="monitoring-filters">
           <div class="filters-row">
             <div class="form-group"><label class="form-label">Project</label><select class="form-select" id="monitoring-project-filter"><option value="">All</option></select></div>
-            <div class="form-group"><label class="form-label">Status</label><select class="form-select" id="monitoring-status-filter"><option value="">All</option><option value="healthy">Healthy</option><option value="caution">Caution</option><option value="alert">Alert</option></select></div>
+            <div class="form-group"><label class="form-label">Status</label><select class="form-select" id="monitoring-status-filter"><option value="">All</option>${['healthy', 'caution', 'alert'].map(v => `<option value="${v}">${Status.label('health', v)}</option>`).join('')}</select></div>
             <div class="form-group"><label class="form-label">Sort</label><select class="form-select" id="monitoring-sort-filter"><option value="name">Name</option><option value="error-rate">Error Rate</option><option value="calls">Calls</option></select></div>
             <div class="form-group" style="margin-left: auto;"><label class="form-label">Period</label><select class="form-select" id="monitoring-period-filter"><option value="15m">15 min</option><option value="30m">30 min</option><option value="1h">1h</option><option value="6h">6h</option><option value="1d">24h</option><option value="7d" selected>7d</option><option value="30d">30d</option></select></div>
           </div>
         </div>
+        ${legend()}
         <div id="monitoring-content"><div class="loading-screen"><span class="spinner"></span><span>Loading…</span></div></div>
       </div>
     `;
@@ -91,7 +93,7 @@ const MonitoringPage = (() => {
       content.innerHTML = `
         <div class="empty-state">
           <div class="empty-state-title" style="color:var(--status-red-light)">⚠️ Cannot Load Metrics</div>
-          <div class="empty-state-desc" style="max-width:600px;text-align:left;white-space:pre-wrap;font-family:monospace;font-size:12px">${escHtml(errorMsg)}</div>
+          <div class="empty-state-desc" style="max-width:600px;text-align:left;white-space:pre-wrap;font-family:var(--font-mono);font-size:12px">${escHtml(errorMsg)}</div>
           <div style="margin-top:16px;font-size:12px;color:var(--text-2)">Debug Info: API URL = ${escHtml(API_BASE_URL)}</div>
         </div>
       `;
@@ -201,16 +203,17 @@ const MonitoringPage = (() => {
     });
 
     content.innerHTML = `
+      <h2 class="section-title" style="margin-bottom:8px">Models KPI</h2>
       <div class="fleet-header">
         <div><div class="fleet-stat-label">Total</div><div class="fleet-stat-value">${stats.total}</div></div>
-        <div><div class="fleet-stat-label">Healthy</div><div class="fleet-stat-value">${stats.healthy}</div></div>
-        <div><div class="fleet-stat-label">Caution</div><div class="fleet-stat-value">${stats.caution}</div></div>
-        <div><div class="fleet-stat-label">Alert</div><div class="fleet-stat-value">${stats.alert}</div></div>
-        ${stats.noMetrics > 0 ? `<div><div class="fleet-stat-label">No Metrics</div><div class="fleet-stat-value" style="color: var(--text-secondary);">${stats.noMetrics}</div></div>` : ''}
+        <div><div class="fleet-stat-label">${Status.label('health', 'healthy')}</div><div class="fleet-stat-value">${stats.healthy}</div></div>
+        <div><div class="fleet-stat-label">${Status.label('health', 'caution')}</div><div class="fleet-stat-value">${stats.caution}</div></div>
+        <div><div class="fleet-stat-label">${Status.label('health', 'alert')}</div><div class="fleet-stat-value">${stats.alert}</div></div>
+        ${stats.noMetrics > 0 ? `<div><div class="fleet-stat-label">No Metrics</div><div class="fleet-stat-value" style="color: var(--text-2);">${stats.noMetrics}</div></div>` : ''}
         <div><div class="fleet-stat-label">Calls</div><div class="fleet-stat-value">${stats.totalCalls.toLocaleString()}</div></div>
       </div>
       <div class="projects-grid">
-        ${Object.entries(grouped).map(([proj, models]) => {
+        ${Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b)).map(([proj, models]) => {
           const pStats = { healthy: 0, caution: 0, alert: 0 };
           models.forEach(m => pStats[getModelStatus(safeMetrics(allMetrics[m.id]).errorRate)]++);
           const worstStatus = pStats.alert > 0 ? 'alert' : pStats.caution > 0 ? 'caution' : 'healthy';
@@ -223,11 +226,12 @@ const MonitoringPage = (() => {
               <div class="project-box-header">
                 <div class="project-header-top">
                   <h2 class="project-box-title">${escHtml(proj)}</h2>
-                  <div class="project-box-stats">
-                    ${pStats.healthy > 0 ? `<span class="project-stat-badge healthy">${pStats.healthy}</span>` : ''}
-                    ${pStats.caution > 0 ? `<span class="project-stat-badge caution">${pStats.caution}</span>` : ''}
-                    ${pStats.alert   > 0 ? `<span class="project-stat-badge alert">${pStats.alert}</span>`   : ''}
-                  </div>
+                  ${CountChip.deployed(totalM, registeredCounts[proj] ?? totalM)}
+                </div>
+                <div class="project-box-stats">
+                  ${['healthy', 'caution', 'alert'].filter(st => pStats[st] > 0).map(st =>
+                    Status.badge('health', st, { label: `${pStats[st]} ${Status.label('health', st)}` })
+                  ).join('')}
                 </div>
                 <div class="project-health-bar">
                   <div class="ph-seg ph-healthy" style="width:${phHealthy}%"></div>
@@ -241,17 +245,17 @@ const MonitoringPage = (() => {
                   const st = getModelStatus(met.errorRate);
                   const hasMetrics = allMetrics[m.id] !== undefined;
                   return `
-                    <div class="model-row model-row-${hasMetrics ? st : 'unknown'}">
+                    <div class="model-row model-row-${hasMetrics ? st : 'unknown'}" title="${Status.label('health', hasMetrics ? st : 'unknown')}">
                       <div class="model-row-header">
                         <div class="model-row-info">
                           <div class="model-row-name">
                             ${escHtml(m.name)}
                             <span class="kind-badge kind-badge-${m.kind === 'agent' ? 'agent' : 'model'}">${m.kind === 'agent' ? 'Agent' : 'Model'}</span>
                           </div>
-                          <div class="model-row-version">v${m.version}</div>
+                          <div class="model-row-version">v${m.version} ${Status.badge('health', hasMetrics ? st : 'unknown')}</div>
                         </div>
                         <div class="model-row-actions">
-                          <a href="${m.deployment_name && m.project ? `http://${window.MP_HOST_NAME || ''}/deploy/${m.project}/${m.deployment_name}/docs` : '#'}" target="_blank" rel="noopener" class="model-row-link${!m.deployment_name ? ' model-row-link-disabled' : ''}" title="Open API Docs (Swagger)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg></a>
+                          <a href="${m.deployment_name && m.project ? `${location.protocol}//${window.MP_HOST_NAME || ''}/deploy/${m.project}/${m.deployment_name}/docs` : '#'}" target="_blank" rel="noopener" class="model-row-link${!m.deployment_name ? ' model-row-link-disabled' : ''}" title="Open API Docs (Swagger)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg></a>
                           <a href="${m.dashboard_url ? m.dashboard_url + GRAFANA_QUERY_PARAMS : '#'}" target="_blank" rel="noopener" class="model-row-link${!m.dashboard_url ? ' model-row-link-disabled' : ''}" title="Open Grafana dashboard"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg></a>
                         </div>
                       </div>
@@ -268,6 +272,28 @@ const MonitoringPage = (() => {
             </div>
           `;
         }).join('')}
+      </div>
+    `;
+  }
+
+  // Same legend shape as the Projects page
+  function legend() {
+    const dots = ['healthy', 'caution', 'alert', 'unknown'].map(st =>
+      `<span class="legend-item">
+        <span class="legend-dot legend-dot--${Status.tone('health', st)}"></span>
+        ${escHtml(Status.label('health', st))}
+      </span>`
+    ).join('');
+    return `
+      <div class="legend">
+        <span class="legend-group">
+          <span class="legend-label">Models</span>
+          <span class="legend-item"><span class="count-chip">1<span class="count-chip__total">/3</span> deployed</span> deployed / registered</span>
+        </span>
+        <span class="legend-group">
+          <span class="legend-label">Health (error rate)</span>
+          ${dots}
+        </span>
       </div>
     `;
   }
@@ -304,8 +330,14 @@ const MonitoringPage = (() => {
 
     // 2. For each project, fetch its deployed models and deployed agents
     const allModels = [];
+    registeredCounts = {};
     await Promise.all(projects.map(async (project) => {
       const projectName = project.name;
+      try {
+        registeredCounts[projectName] = (await API.models.list(projectName)).length;
+      } catch {
+        // Unreachable registry: the chip falls back to the deployed count
+      }
       try {
         const deployments = await API.deployedModels.list(projectName);
         deployments.forEach(d => {

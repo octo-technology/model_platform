@@ -216,12 +216,10 @@ Minimal — <!-- justification -->
 
   // ── Tab content data ──────────────────────────────────────
 
-  const TABS = [
-    { id: 'minimal',       label: 'Minimal',       color: 'green' },
-    { id: 'limited',       label: 'Limited',        color: 'yellow' },
-    { id: 'high',          label: 'High',           color: 'orange' },
-    { id: 'unacceptable',  label: 'Unacceptable',   color: 'red' },
-  ];
+  // Tabs are the four AI Act risk levels — they take their label and their
+  // colour from the shared risk scale rather than naming a colour.
+  const TABS = ['minimal', 'limited', 'high', 'unacceptable']
+    .map(id => ({ id, label: Status.label('risk', id) }));
 
   // ── Render ────────────────────────────────────────────────
 
@@ -238,12 +236,13 @@ Minimal — <!-- justification -->
 
         <div class="page-content">
 
-          <!-- Quick Start -->
-          <div class="cg-quickstart">
-            <div class="cg-quickstart__header">
+          <!-- Quick Start — collapsible: read once, then mostly in the way -->
+          <details class="cg-quickstart" id="cg-quickstart" ${quickStartOpen() ? 'open' : ''}>
+            <summary class="cg-quickstart__header">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
               <h2>Quick Start — Platform Criteria</h2>
-            </div>
+              <svg class="cg-quickstart__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </summary>
             <div class="cg-quickstart__body">
               <div class="cg-checklist">
                 <div class="cg-checklist__item cg-checklist__item--mandatory">
@@ -276,13 +275,13 @@ Minimal — <!-- justification -->
                 <span class="cg-checklist__icon cg-checklist__icon--recommended" style="margin-left:16px">○</span> Recommended (1 minimum for "compliant" status)
               </div>
             </div>
-          </div>
+          </details>
 
           <!-- Tabs -->
           <div class="cg-tabs" id="cg-tabs">
             ${TABS.map(t => `
-              <button class="cg-tabs__btn cg-tabs__btn--${t.color}" data-tab="${t.id}">
-                <span class="cg-tabs__dot cg-tabs__dot--${t.color}"></span>
+              <button class="cg-tabs__btn cg-tabs__btn--${t.id}" data-tab="${t.id}">
+                <span class="cg-tabs__dot cg-tabs__dot--${t.id}"></span>
                 ${t.label}
               </button>
             `).join('')}
@@ -298,8 +297,19 @@ Minimal — <!-- justification -->
       </div>
     `;
 
+    document.getElementById('cg-quickstart').addEventListener('toggle', e => {
+      try { localStorage.setItem(QUICK_START_KEY, e.target.open ? 'open' : 'closed'); } catch {}
+    });
+
     initTabs();
     activateTab('minimal');
+  }
+
+  // Remembers per viewer whether the Quick Start was folded away
+  const QUICK_START_KEY = 'cg-quickstart';
+
+  function quickStartOpen() {
+    try { return localStorage.getItem(QUICK_START_KEY) !== 'closed'; } catch { return true; }
   }
 
   // ── Tabs ──────────────────────────────────────────────────

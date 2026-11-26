@@ -1,7 +1,9 @@
 // API client layer for Model Platform
 // All backend communication goes through this module.
 
-const API_BASE = window.API_BASE_URL || 'http://backend.model-platform.svc.cluster.local:8000';
+// Same origin by default: a cluster-internal DNS name is not resolvable from a
+// browser, and an absolute http:// URL breaks on an https page.
+const API_BASE = window.API_BASE_URL || '/api';
 
 const API = (() => {
 

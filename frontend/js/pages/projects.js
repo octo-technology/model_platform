@@ -1,6 +1,8 @@
 // Projects list page
 const ProjectsPage = (() => {
 
+  let allProjects = [];
+
   const DEMO_PROJECTS = [
     {
       name: "Credit-Risk-Assessment",
@@ -63,8 +65,8 @@ const ProjectsPage = (() => {
       <div class="page-animate">
         <div class="page-header">
           <div class="page-title-group">
-            <div class="page-eyebrow">Overview</div>
-            <h1 class="page-title">Projects</h1>
+            <div class="page-eyebrow">Platform</div>
+            <h1 class="page-title">Project overview</h1>
           </div>
           <div class="page-actions">
             <button class="btn btn-primary" id="new-project-btn">
@@ -75,11 +77,43 @@ const ProjectsPage = (() => {
         </div>
 
         <div class="page-content">
+          ${legend()}
+          <div class="monitoring-filters hidden" id="projects-filters">
+            <div class="filters-row">
+              <div class="form-group" style="flex:1;min-width:220px">
+                <label class="form-label" for="projects-search">Search</label>
+                <input class="form-input" id="projects-search" type="search" placeholder="Name, owner or scope" autocomplete="off">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="projects-owner-filter">Owner</label>
+                <select class="form-select" id="projects-owner-filter"><option value="">All</option></select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="projects-registry-filter">MLflow registry</label>
+                <select class="form-select" id="projects-registry-filter">
+                  <option value="">All</option>
+                  ${REGISTRY_STATUSES.map(st => `<option value="${st}">${escHtml(Status.label('runtime', st))}</option>`).join('')}
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="projects-sort-filter">Sort</label>
+                <select class="form-select" id="projects-sort-filter">
+                  <option value="name">Name</option>
+                  <option value="deployed">Deployed models</option>
+                </select>
+              </div>
+            </div>
+          </div>
           <div id="projects-loading" class="loading-screen">
             <span class="spinner"></span>
             <span>Loading projects…</span>
           </div>
           <div id="projects-grid" class="projects-grid hidden"></div>
+          <div id="projects-no-match" class="empty-state hidden">
+            <div class="empty-state-title">No project matches your filters</div>
+            <div class="empty-state-desc">Try a different search term or clear the filters.</div>
+            <button class="btn btn-secondary mt-4" id="projects-clear-filters">Clear filters</button>
+          </div>
           <div id="projects-empty" class="empty-state hidden">
             <div class="empty-state-icon">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -98,6 +132,49 @@ const ProjectsPage = (() => {
 
     loadProjects();
     document.getElementById('new-project-btn').addEventListener('click', openNewProjectModal);
+
+    ['projects-search', 'projects-owner-filter', 'projects-registry-filter', 'projects-sort-filter']
+      .forEach(id => document.getElementById(id).addEventListener('input', applyFilters));
+    document.getElementById('projects-clear-filters').addEventListener('click', clearFilters);
+  }
+
+  function clearFilters() {
+    document.getElementById('projects-search').value = '';
+    document.getElementById('projects-owner-filter').value = '';
+    document.getElementById('projects-registry-filter').value = '';
+    applyFilters();
+  }
+
+  function applyFilters() {
+    const query    = document.getElementById('projects-search').value.trim().toLowerCase();
+    const owner    = document.getElementById('projects-owner-filter').value;
+    const registry = document.getElementById('projects-registry-filter').value;
+    const sort     = document.getElementById('projects-sort-filter').value;
+
+    const filtered = allProjects.filter(p => {
+      const haystack = [p.name || p.Name, p.owner || p.Owner, p.scope || p.Scope]
+        .filter(Boolean).join(' ').toLowerCase();
+      if (query && !haystack.includes(query)) return false;
+      if (owner && (p.owner || p.Owner || '') !== owner) return false;
+      if (registry && (p._registry_status || '') !== registry) return false;
+      return true;
+    });
+
+    filtered.sort((a, b) => sort === 'deployed'
+      ? (b._deployed_count ?? 0) - (a._deployed_count ?? 0)
+      : String(a.name || a.Name || '').localeCompare(String(b.name || b.Name || '')));
+
+    renderGrid(filtered);
+  }
+
+  function populateOwnerFilter(projects) {
+    const select = document.getElementById('projects-owner-filter');
+    const previous = select.value;
+    const owners = [...new Set(projects.map(p => p.owner || p.Owner).filter(Boolean))].sort();
+    select.innerHTML = '<option value="">All</option>'
+      + owners.map(o => `<option value="${escHtml(o)}">${escHtml(o)}</option>`).join('');
+    // A reload (after a delete) must not silently drop the active filter.
+    if (owners.includes(previous)) select.value = previous;
   }
 
   async function loadProjects() {
@@ -112,36 +189,62 @@ const ProjectsPage = (() => {
             API.deployedAgents.list(name),
             API.projects.registryStatus(name),
           ]);
-          const modelCount = deployedModels.status === 'fulfilled' && Array.isArray(deployedModels.value) ? deployedModels.value.length : 0;
-          const agentCount = deployedAgents.status === 'fulfilled' && Array.isArray(deployedAgents.value) ? deployedAgents.value.length : 0;
+          const count = result => (result.status === 'fulfilled' && Array.isArray(result.value) ? result.value.length : 0);
           return {
             ...p,
-            _deployed_count: modelCount + agentCount,
+            _deployed_count: count(deployedModels) + count(deployedAgents),
+            _model_count: null, // filled in by fillModelCounts once the registry answers
             _registry_status: registryOk.status === 'fulfilled' ? registryOk.value : 'error',
           };
         })
       );
       renderProjects(enriched);
+      fillModelCounts(enriched);
     } catch (err) {
       Toast.error(`Failed to load projects: ${err.message}`);
       document.getElementById('projects-loading').classList.add('hidden');
     }
   }
 
+  // The model total comes from each project's MLflow registry, which can take
+  // minutes to start for a new project: never hold the grid for it.
+  function fillModelCounts(projects) {
+    projects.forEach(p => {
+      const name = p.name || p.Name || '';
+      API.models.list(name)
+        .then(models => {
+          if (!Array.isArray(models)) return;
+          p._model_count = models.length;
+          const chip = document.querySelector(`.project-card[data-project="${CSS.escape(name)}"] .count-chip`);
+          if (chip) chip.outerHTML = CountChip.deployed(p._deployed_count ?? 0, p._model_count);
+        })
+        .catch(() => {});
+    });
+  }
+
   function renderProjects(projects) {
-    const loading = document.getElementById('projects-loading');
-    const grid    = document.getElementById('projects-grid');
-    const empty   = document.getElementById('projects-empty');
+    allProjects = projects || [];
 
-    loading.classList.add('hidden');
+    document.getElementById('projects-loading').classList.add('hidden');
 
-    if (!projects || projects.length === 0) {
-      empty.classList.remove('hidden');
+    if (allProjects.length === 0) {
+      document.getElementById('projects-empty').classList.remove('hidden');
       document.getElementById('new-project-btn-empty')?.addEventListener('click', openNewProjectModal);
       return;
     }
 
-    grid.classList.remove('hidden');
+    document.getElementById('projects-filters').classList.remove('hidden');
+    populateOwnerFilter(allProjects);
+    applyFilters();
+  }
+
+  function renderGrid(projects) {
+    const grid    = document.getElementById('projects-grid');
+    const noMatch = document.getElementById('projects-no-match');
+
+    grid.classList.toggle('hidden', projects.length === 0);
+    noMatch.classList.toggle('hidden', projects.length > 0);
+
     grid.innerHTML = projects.map(p => projectCard(p)).join('');
 
     grid.querySelectorAll('.project-card').forEach(card => {
@@ -185,25 +288,44 @@ const ProjectsPage = (() => {
   function buildRegistryUrl(name) {
     const host = window.MP_HOST_NAME || 'model-platform.com';
     const path = window.MP_REGISTRY_PATH || 'registry';
-    return `http://${host}/${path}/${sanitizeName(name)}/`;
+    return `${location.protocol}//${host}/${path}/${sanitizeName(name)}/`;
   }
 
-  function deployedBadge(count) {
-    if (count > 0) {
-      return `<span class="badge badge-running">${count} deployed</span>`;
-    }
-    return `<span class="badge badge-neutral">No deployments</span>`;
+  // Reads the same scale the cards use, so the legend cannot drift from
+  // what is actually rendered below it.
+  const REGISTRY_STATUSES = ['running', 'pending', 'error', 'not_found'];
+
+  function legend() {
+    const dots = REGISTRY_STATUSES.map(st =>
+      `<span class="legend-item">
+        <span class="legend-dot legend-dot--${Status.tone('runtime', st)}"></span>
+        ${escHtml(Status.label('runtime', st))}
+      </span>`
+    ).join('');
+    return `
+      <div class="legend">
+        <span class="legend-group">
+          <span class="legend-label">Models</span>
+          <span class="legend-item"><span class="count-chip">1<span class="count-chip__total">/3</span> deployed</span> deployed / registered</span>
+        </span>
+        <span class="legend-group">
+          <span class="legend-label">MLflow registry</span>
+          ${dots}
+        </span>
+      </div>
+    `;
   }
 
   function registryStatusDot(status) {
-    const map = {
-      running:   { color: 'var(--cyan)',       label: 'Healthy'      },
-      pending:   { color: 'var(--orange)',      label: 'Starting…'    },
-      error:     { color: 'var(--red-light)',   label: 'Error'        },
-      not_found: { color: 'var(--text-2)',      label: 'Not deployed' },
+    const TONE_COLORS = {
+      ok:      'var(--status-ok-fg)',
+      warn:    'var(--status-warn-fg)',
+      error:   'var(--status-error-fg)',
+      neutral: 'var(--status-neutral-fg)',
     };
-    const { color, label } = map[status] || { color: 'var(--text-2)', label: status || '…' };
-    return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:${color};white-space:nowrap" title="Registry: ${label}">
+    const label = Status.label('runtime', status);
+    const color = TONE_COLORS[Status.tone('runtime', status)];
+    return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:${color};white-space:nowrap" title="Registry: ${escHtml(label)}">
       <svg width="7" height="7" viewBox="0 0 7 7" fill="currentColor"><circle cx="3.5" cy="3.5" r="3.5"/></svg>
       ${escHtml(label)}
     </span>`;
@@ -214,6 +336,7 @@ const ProjectsPage = (() => {
     const owner          = p.owner || p.Owner || '—';
     const scope          = p.scope || p.Scope || '';
     const deployedCount  = p._deployed_count  ?? 0;
+    const modelCount     = p._model_count;   // null until the registry answers
     const registryStatus = p._registry_status || 'error';
     const registryUrl    = buildRegistryUrl(name);
 
@@ -221,7 +344,7 @@ const ProjectsPage = (() => {
       <div class="project-card" data-project="${escHtml(name)}">
         <div class="project-card-header">
           <div class="project-name">${escHtml(name)}</div>
-          ${deployedBadge(deployedCount)}
+          ${CountChip.deployed(deployedCount, modelCount)}
         </div>
         ${scope ? `<p class="project-scope-desc">${escHtml(scope)}</p>` : ''}
         <div class="project-meta">

@@ -19,7 +19,7 @@ RUN printf 'server {\n\
 # Entrypoint: inject env vars into config.js at runtime
 RUN printf '#!/bin/sh\n\
 cat > /usr/share/nginx/html/js/config.js <<EOF\n\
-window.API_BASE_URL = "${API_BASE_URL:-http://backend.model-platform.svc.cluster.local:8000}";\n\
+window.API_BASE_URL = "${API_BASE_URL:-/api}";\n\
 window.MP_HOST_NAME = "${MP_HOST_NAME:-model-platform.com}";\n\
 window.MP_REGISTRY_PATH = "${MP_REGISTRY_PATH:-registry}";\n\
 window.MLFLOW_S3_ENDPOINT_URL = "${MLFLOW_S3_ENDPOINT_URL:-}";\n\

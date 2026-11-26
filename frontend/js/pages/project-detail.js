@@ -1,5 +1,5 @@
-// Project detail page with 5 tabs:
-// Settings · Available AIs · Public Registry · Deployed AIs · Batch Predictions
+// Project detail page with 5 tabs, most used first:
+// Available AIs · Deployed AIs · Batch Predictions · Public Registry · Settings
 // Available/Deployed AIs each contain two sections: ML Models and Agentic Models.
 const ProjectDetailPage = (() => {
 
@@ -24,17 +24,9 @@ const ProjectDetailPage = (() => {
 
         <div class="page-content">
           <div class="tabs" id="project-tabs">
-            <button class="tab-btn active" data-tab="settings">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
-              Settings
-            </button>
-            <button class="tab-btn" data-tab="models">
+            <button class="tab-btn active" data-tab="models">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="9" height="9"/><rect x="13" y="2" width="9" height="9"/><rect x="13" y="13" width="9" height="9"/><rect x="2" y="13" width="9" height="9"/></svg>
               Available AIs
-            </button>
-            <button class="tab-btn" data-tab="registry">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              Public Registry
             </button>
             <button class="tab-btn" data-tab="deployed">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
@@ -44,13 +36,21 @@ const ProjectDetailPage = (() => {
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
               Batch Predictions
             </button>
+            <button class="tab-btn" data-tab="registry">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              Public Registry
+            </button>
+            <button class="tab-btn" data-tab="settings">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+              Settings
+            </button>
           </div>
 
-          <div id="tab-settings" class="tab-panel active"></div>
-          <div id="tab-models"   class="tab-panel"></div>
-          <div id="tab-registry" class="tab-panel"></div>
+          <div id="tab-models"   class="tab-panel active"></div>
           <div id="tab-deployed" class="tab-panel"></div>
           <div id="tab-batch"    class="tab-panel"></div>
+          <div id="tab-registry" class="tab-panel"></div>
+          <div id="tab-settings" class="tab-panel"></div>
         </div>
       </div>
     `;
@@ -79,9 +79,9 @@ const ProjectDetailPage = (() => {
     });
 
     // Load first tab immediately
-    const settingsPanel = document.getElementById('tab-settings');
-    settingsPanel.dataset.loaded = 'true';
-    loadTab('settings', name, settingsPanel);
+    const modelsPanel = document.getElementById('tab-models');
+    modelsPanel.dataset.loaded = 'true';
+    loadTab('models', name, modelsPanel);
   }
 
   function loadTab(tab, projectName, panel) {
@@ -128,8 +128,8 @@ const ProjectDetailPage = (() => {
               <tr>
                 <td class="font-bold">${escHtml(name)}</td>
                 <td>${escHtml(owner)}</td>
-                <td><span class="badge badge-orange">${escHtml(scope)}</span></td>
-                <td class="mono">${escHtml(perimeter)}</td>
+                <td>${infoListHTML(scope)}</td>
+                <td>${infoListHTML(perimeter)}</td>
               </tr>
             </tbody>
           </table>
@@ -145,7 +145,7 @@ const ProjectDetailPage = (() => {
             <input type="checkbox" id="batch-toggle" ${batchEnabled ? 'checked' : ''} style="width:16px;height:16px;cursor:pointer">
             <span>Enable batch predictions for this project</span>
           </label>
-          <span id="batch-status" class="badge ${batchEnabled ? 'badge-running' : 'badge-neutral'}">${batchEnabled ? 'Enabled' : 'Disabled'}</span>
+          <span id="batch-status" class="badge badge-${Status.tone('runtime', batchEnabled ? 'enabled' : 'disabled')}">${Status.label('runtime', batchEnabled ? 'enabled' : 'disabled')}</span>
         </div>
       </div>
 
@@ -185,9 +185,11 @@ const ProjectDetailPage = (() => {
 
       try {
         await API.projects.updateBatchEnabled(projectName, enabled);
-        statusEl.className = `badge ${enabled ? 'badge-running' : 'badge-neutral'}`;
-        statusEl.textContent = enabled ? 'Enabled' : 'Disabled';
+        const batchState = enabled ? 'enabled' : 'disabled';
+        statusEl.className = `badge badge-${Status.tone('runtime', batchState)}`;
+        statusEl.textContent = Status.label('runtime', batchState);
         Toast.success(`Batch predictions ${enabled ? 'enabled' : 'disabled'}.`);
+        markTabStale('batch');
       } catch (err) {
         e.target.checked = !enabled;
         Toast.error(err.message);
@@ -197,6 +199,14 @@ const ProjectDetailPage = (() => {
     document.getElementById('add-user-btn').addEventListener('click', () =>
       toggleAddUserForm(projectName)
     );
+  }
+
+  // Free-text project fields hold several facts in one paragraph:
+  // one bullet per line or sentence reads faster.
+  function infoListHTML(text) {
+    const items = text.split(/\n+|(?<=\.)\s+/).map(item => item.trim()).filter(Boolean);
+    if (items.length < 2) return escHtml(text);
+    return `<ul class="info-list">${items.map(item => `<li>${escHtml(item)}</li>`).join('')}</ul>`;
   }
 
   function renderUsersTable(projectName, users, area) {
@@ -224,7 +234,7 @@ const ProjectDetailPage = (() => {
             </select>
           </td>
           <td class="actions">
-            <div class="flex gap-2 justify-end">
+            <div class="flex gap-2">
               <button class="btn btn-secondary btn-xs save-role-btn" data-user="${escHtml(email)}" data-project="${escHtml(projectName)}">Save role</button>
               <button class="btn btn-danger btn-xs remove-user-btn" data-user="${escHtml(email)}" data-project="${escHtml(projectName)}">Remove</button>
             </div>
@@ -235,7 +245,7 @@ const ProjectDetailPage = (() => {
     area.innerHTML = `
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th style="text-align:right">Actions</th></tr></thead>
+          <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Actions</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>`;
@@ -273,14 +283,21 @@ const ProjectDetailPage = (() => {
     });
   }
 
+  function closeAddUserForm(area) {
+    area.innerHTML = '';
+    area.dataset.open = 'false';
+    document.querySelector('#users-table-area .empty-state')?.classList.remove('hidden');
+  }
+
   async function toggleAddUserForm(projectName) {
     const area = document.getElementById('add-user-form-area');
     if (area.dataset.open === 'true') {
-      area.innerHTML = '';
-      area.dataset.open = 'false';
+      closeAddUserForm(area);
       return;
     }
     area.dataset.open = 'true';
+    // The form takes the place of the "No users yet" message
+    document.querySelector('#users-table-area .empty-state')?.classList.add('hidden');
 
     // Try to load the user list for autocomplete (admin only).
     // Always fall back to a plain text input so non-admins can still add users.
@@ -295,7 +312,7 @@ const ProjectDetailPage = (() => {
       : `<input class="form-input" id="add-user-email" type="email" placeholder="user@example.com" style="flex:2" autocomplete="off">`;
 
     area.innerHTML = `
-      <div class="row-form" style="padding:10px 20px;border-bottom:1px solid var(--border-0)">
+      <div class="row-form" style="padding:16px 20px">
         ${emailField}
         <select class="form-select" id="add-user-role" style="flex:1">
           ${ROLES.map(r => `<option value="${r}">${r}</option>`).join('')}
@@ -304,10 +321,7 @@ const ProjectDetailPage = (() => {
         <button class="btn btn-secondary btn-sm" id="add-user-cancel">Cancel</button>
       </div>`;
 
-    document.getElementById('add-user-cancel').addEventListener('click', () => {
-      area.innerHTML = '';
-      area.dataset.open = 'false';
-    });
+    document.getElementById('add-user-cancel').addEventListener('click', () => closeAddUserForm(area));
 
     document.getElementById('add-user-submit').addEventListener('click', async () => {
       const emailEl = document.getElementById('add-user-email');
@@ -740,12 +754,10 @@ const ProjectDetailPage = (() => {
 
   function complianceIcon(status, label) {
     const prefix = label ? `<span style="font-size:10px;color:var(--text-2);margin-right:4px">${escHtml(label)}</span>` : '';
-    const titlePrefix = label ? `${escHtml(label)} — ` : '';
-    if (status === 'compliant') return `${prefix}<span class="badge badge-green" title="${titlePrefix}Compliant">Compliant</span>`;
-    if (status === 'partially_compliant') return `${prefix}<span class="badge badge-orange" title="${titlePrefix}Partially compliant">Partial</span>`;
-    if (status === 'non_compliant') return `${prefix}<span class="badge badge-red" title="${titlePrefix}Non-compliant">Non-compliant</span>`;
-    if (status === 'not_evaluated') return `${prefix}<span class="badge badge-neutral" title="${titlePrefix}Not evaluated">Not evaluated</span>`;
-    return `${prefix}<span class="badge badge-neutral">—</span>`;
+    const meta = Status.meta('compliance', status);
+    if (!meta) return `${prefix}<span class="badge badge-neutral">—</span>`;
+    const title = label ? `${label} — ${meta.label}` : meta.label;
+    return prefix + Status.badge('compliance', status, { title });
   }
 
   function modelRow(m, projectName, context, complianceMap) {
@@ -974,7 +986,7 @@ const ProjectDetailPage = (() => {
       results.innerHTML = `
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Model ID</th><th>Author</th><th>Task</th><th>Likes</th><th style="text-align:right">Action</th></tr></thead>
+            <thead><tr><th>Model ID</th><th>Author</th><th>Task</th><th>Likes</th><th>Action</th></tr></thead>
             <tbody>${rows}</tbody>
           </table>
         </div>`;
@@ -1193,10 +1205,7 @@ const ProjectDetailPage = (() => {
       const batchEnabled = info.batch_enabled || false;
 
       if (!batchEnabled) {
-        panel.innerHTML = emptyHTML(
-          'Batch Predictions Disabled',
-          'Enable batch predictions in the Settings tab to use this feature.'
-        );
+        renderBatchDisabled(projectName, panel);
         return;
       }
 
@@ -1222,6 +1231,32 @@ const ProjectDetailPage = (() => {
     }
   }
 
+  // Batch can be switched on right here instead of sending the user to Settings
+  function renderBatchDisabled(projectName, panel) {
+    panel.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-title">Batch Predictions Disabled</div>
+        <div class="empty-state-desc">Enabling creates the project's batch storage. It can take a few seconds.</div>
+        <button class="btn btn-primary btn-sm" id="batch-enable-btn">Enable batch predictions</button>
+      </div>`;
+
+    const enableBtn = document.getElementById('batch-enable-btn');
+    enableBtn.addEventListener('click', async () => {
+      enableBtn.disabled = true;
+      enableBtn.innerHTML = '<span class="spinner spinner-sm"></span> Enabling…';
+      try {
+        await API.projects.updateBatchEnabled(projectName, true);
+        Toast.success('Batch predictions enabled.');
+        markTabStale('settings');
+        loadBatch(projectName, panel);
+      } catch (err) {
+        Toast.error(err.message);
+        enableBtn.disabled = false;
+        enableBtn.textContent = 'Enable batch predictions';
+      }
+    });
+  }
+
   function renderBatch(projectName, models, jobs, panel) {
     const modelOptions = (models || []).flatMap(m => {
       const name = m.name || '';
@@ -1240,6 +1275,7 @@ const ProjectDetailPage = (() => {
       : '';
 
     const rows = (jobs || []).map(j => batchJobRow(j, projectName)).join('');
+    const hasJobs = rows !== '';
 
     panel.innerHTML = `
       <div class="card mb-4">
@@ -1249,10 +1285,13 @@ const ProjectDetailPage = (() => {
         <div style="padding:16px 20px">
           ${noModelsMsg}
           ${models && models.length > 0 ? `
-          <div class="row-form" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-            <select class="form-select" id="batch-model-select" style="flex:1;min-width:200px">
-              ${modelOptions}
-            </select>
+          <div class="row-form" style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;padding:0">
+            <div class="form-group" style="flex:1;min-width:200px;margin:0">
+              <label class="form-label" for="batch-model-select">Model version</label>
+              <select class="form-select" id="batch-model-select">
+                ${modelOptions}
+              </select>
+            </div>
             <label class="btn btn-secondary btn-sm" style="cursor:pointer">
               <input type="file" id="batch-file-input" accept=".csv" style="display:none">
               Choose CSV file
@@ -1267,13 +1306,13 @@ const ProjectDetailPage = (() => {
         <div class="card-header">
           <span class="card-title">Batch Jobs</span>
           <span class="section-count">${(jobs || []).length}</span>
-          <button class="btn btn-secondary btn-sm" id="batch-cleanup-btn" style="margin-left:auto">
+          <button class="btn btn-secondary btn-sm" id="batch-cleanup-btn" style="margin-left:auto" ${hasJobs ? '' : 'disabled'}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
             </svg>
             Cleanup
           </button>
-          <button class="btn btn-secondary btn-sm" id="batch-refresh-btn">
+          <button class="btn btn-secondary btn-sm" id="batch-refresh-btn" ${hasJobs ? '' : 'disabled'}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
             </svg>
@@ -1284,7 +1323,7 @@ const ProjectDetailPage = (() => {
           ${rows ? `
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Job ID</th><th>Model</th><th>Version</th><th>Status</th><th>Created</th><th style="text-align:right">Actions</th></tr></thead>
+              <thead><tr><th>Job ID</th><th>Model</th><th>Version</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
               <tbody>${rows}</tbody>
             </table>
           </div>` : emptyHTML('No batch jobs', 'Submit a batch prediction to get started.')}
@@ -1331,7 +1370,8 @@ const ProjectDetailPage = (() => {
     );
 
     // Cleanup finished/failed jobs
-    document.getElementById('batch-cleanup-btn')?.addEventListener('click', async () => {
+    const cleanupBtn = document.getElementById('batch-cleanup-btn');
+    cleanupBtn.addEventListener('click', async () => {
       const ok = await Modal.confirm({
         title: 'Cleanup Batch Jobs',
         message: 'Delete all completed and failed batch jobs and their associated files?',
@@ -1339,11 +1379,13 @@ const ProjectDetailPage = (() => {
         danger: true,
       });
       if (ok) {
+        cleanupBtn.disabled = true;
+        cleanupBtn.innerHTML = '<span class="spinner spinner-sm"></span> Cleaning up…';
         try {
           const result = await API.batch.cleanup(projectName);
           Toast.success(`Cleaned up ${result.deleted} batch job(s).`);
-          loadBatch(projectName, panel);
         } catch (err) { Toast.error(err.message); }
+        loadBatch(projectName, panel);
       }
     });
 
@@ -1426,7 +1468,7 @@ const ProjectDetailPage = (() => {
         </td>
         <td>${escHtml(created)}</td>
         <td class="actions">
-          <div class="flex gap-2 justify-end">
+          <div class="flex gap-2">
             ${isCompleted ? `<button class="btn btn-secondary btn-sm batch-download-btn" data-job-id="${escHtml(jobId)}">Download</button>` : ''}
             <button class="btn btn-danger btn-xs batch-delete-btn" data-job-id="${escHtml(jobId)}">Delete</button>
           </div>
@@ -1460,20 +1502,19 @@ const ProjectDetailPage = (() => {
 
   // ── Helpers ──────────────────────────────────────────────────
 
+  // Forces a lazily loaded tab to reload on its next activation
+  function markTabStale(tab) {
+    delete document.getElementById(`tab-${tab}`).dataset.loaded;
+  }
+
   function statusBadge(status) {
-    const s = String(status).toLowerCase();
-    let cls = 'badge-neutral';
-    if (s.includes('run') || s.includes('serv'))       cls = 'badge-running';
-    else if (s.includes('pend') || s.includes('build')) cls = 'badge-pending';
-    else if (s.includes('err') || s.includes('fail'))  cls = 'badge-error';
-    else if (s === 'deployed')                          cls = 'badge-deployed';
-    return `<span class="badge ${cls}">${escHtml(status)}</span>`;
+    return Status.badge('runtime', status);
   }
 
   function buildDashboardUrl(projectName, deployName) {
     const host = window.MP_HOST_NAME || '';
     if (!host || !deployName || deployName === '—') return '';
-    return `http://${host}/deploy/${projectName}/${deployName}`;
+    return `${location.protocol}//${host}/deploy/${projectName}/${deployName}`;
   }
 
   // MLflow's registered-model `aliases` field is an alias→version map (e.g.

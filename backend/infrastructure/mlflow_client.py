@@ -29,19 +29,17 @@ class MLflowClientManager:
         """
         Initializes the MLflow client.
 
-        Tries to create an instance of MlflowClient and logs the result.
-        If initialization fails, logs the error and sets the client to None.
+        Raises if the registry does not answer: a client that cannot reach its
+        registry must not be cached, and one broken project must not take the
+        others down with it.
         """
-        try:
-            logger.info(f"Initializing MLflow client with tracking URI: {self.tracking_uri}")
-            self.client = mlflow.MlflowClient(tracking_uri=self.tracking_uri)
-            self._check_connection()
-            logger.info("MLflow client initialized successfully.")
-        except Exception as e:
-            logger.error(f"Failed to initialize MLflow client: {e}")
-            self.client = None
+        logger.info(f"Initializing MLflow client with tracking URI: {self.tracking_uri}")
+        self.client = mlflow.MlflowClient(tracking_uri=self.tracking_uri)
+        self._check_connection()
+        logger.info("MLflow client initialized successfully.")
 
     def _check_connection(self):
+        """Raise if the registry is unreachable, so callers keep it out of the pool."""
         try:
             _ = self.client.search_experiments()
         except MlflowException as e:
