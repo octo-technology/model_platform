@@ -1,6 +1,8 @@
 services:
   minio:
-    image: minio/minio
+    # minio/minio is no longer published; bitnamilegacy images are frozen but pullable.
+    image: bitnamilegacy/minio:2025.7.23-debian-12-r5
+    user: "0"
     expose:
       - "9000"
     ports:
@@ -16,10 +18,11 @@ services:
       interval: 1s
       timeout: 10s
       retries: 5
-    command: server /data --console-address ":9001"
+    command: minio server /data --console-address ":9001"
   # Create a bucket named "bucket" if it doesn't exist
   minio-create-bucket:
-    image: minio/mc
+    image: bitnamilegacy/minio-client:2025.7.21-debian-12-r3
+    user: "0"
     depends_on:
       minio:
         condition: service_healthy

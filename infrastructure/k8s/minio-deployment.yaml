@@ -28,8 +28,14 @@ spec:
     spec:
       containers:
         - name: minio
-          image: minio/minio:latest
+          # minio/minio is no longer published on Docker Hub or quay.io.
+          # bitnamilegacy images are frozen (Aug 2025) but still pullable.
+          image: bitnamilegacy/minio:2025.7.23-debian-12-r5
+          # Root, like the former official image, so /data on the PVC is writable.
+          securityContext:
+            runAsUser: 0
           args:
+            - minio
             - server
             - /data
             - --console-address
@@ -78,7 +84,9 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: mc
-          image: minio/mc:latest
+          image: bitnamilegacy/minio-client:2025.7.21-debian-12-r3
+          securityContext:
+            runAsUser: 0
           env:
             - name: MINIO_ENDPOINT
               value: http://minio.minio.svc.cluster.local:9000
