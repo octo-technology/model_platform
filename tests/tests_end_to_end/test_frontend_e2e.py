@@ -142,7 +142,9 @@ class TestProjectDetail:
     """Navigation et onglets de la page de détail d'un projet."""
 
     def test_settings_tab_shows_project_info(self, first_project_page: Page):
-        expect(first_project_page.locator("#tab-settings .card").first).to_be_visible(timeout=5_000)
+        # Project pages open on the models tab; settings is no longer the default.
+        first_project_page.click("[data-tab='settings']")
+        expect(first_project_page.locator("#tab-settings .card").first).to_be_visible(timeout=10_000)
 
     def test_models_tab_renders(self, first_project_page: Page):
         first_project_page.click("[data-tab='models']")

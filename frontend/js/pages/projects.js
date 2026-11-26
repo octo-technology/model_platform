@@ -184,26 +184,42 @@ const ProjectsPage = (() => {
       const enriched = await Promise.all(
         projects.map(async p => {
           const name = p.name || p.Name || '';
-          const [deployedModels, deployedAgents, models, registryOk] = await Promise.allSettled([
+          const [deployedModels, deployedAgents, registryOk] = await Promise.allSettled([
             API.deployedModels.list(name),
             API.deployedAgents.list(name),
-            API.models.list(name),
             API.projects.registryStatus(name),
           ]);
           const count = result => (result.status === 'fulfilled' && Array.isArray(result.value) ? result.value.length : 0);
           return {
             ...p,
             _deployed_count: count(deployedModels) + count(deployedAgents),
-            _model_count: count(models),
+            _model_count: null, // filled in by fillModelCounts once the registry answers
             _registry_status: registryOk.status === 'fulfilled' ? registryOk.value : 'error',
           };
         })
       );
       renderProjects(enriched);
+      fillModelCounts(enriched);
     } catch (err) {
       Toast.error(`Failed to load projects: ${err.message}`);
       document.getElementById('projects-loading').classList.add('hidden');
     }
+  }
+
+  // The model total comes from each project's MLflow registry, which can take
+  // minutes to start for a new project: never hold the grid for it.
+  function fillModelCounts(projects) {
+    projects.forEach(p => {
+      const name = p.name || p.Name || '';
+      API.models.list(name)
+        .then(models => {
+          if (!Array.isArray(models)) return;
+          p._model_count = models.length;
+          const chip = document.querySelector(`.project-card[data-project="${CSS.escape(name)}"] .count-chip`);
+          if (chip) chip.outerHTML = CountChip.deployed(p._deployed_count ?? 0, p._model_count);
+        })
+        .catch(() => {});
+    });
   }
 
   function renderProjects(projects) {
@@ -320,7 +336,7 @@ const ProjectsPage = (() => {
     const owner          = p.owner || p.Owner || '—';
     const scope          = p.scope || p.Scope || '';
     const deployedCount  = p._deployed_count  ?? 0;
-    const modelCount     = p._model_count     ?? 0;
+    const modelCount     = p._model_count;   // null until the registry answers
     const registryStatus = p._registry_status || 'error';
     const registryUrl    = buildRegistryUrl(name);
 
