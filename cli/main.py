@@ -1,5 +1,13 @@
 import typer
 
+from cli.commands.agent import (
+    deploy_agent,
+    get_agent_info,
+    list_agents,
+    list_deployed_agents,
+    search_agent_infos,
+    undeploy_agent,
+)
 from cli.commands.auth import login, me
 from cli.commands.batch import batch_status, delete_batch_job, download_batch_result, list_batch_jobs, submit_batch
 from cli.commands.demo import get_status, list_simulations, start_simulation, stop_simulation
@@ -28,6 +36,7 @@ app.add_typer(batch_app, name="batch")
 app.command()(login)
 app.command()(me)
 app.command()(search_model_infos)
+app.command()(search_agent_infos)
 
 project_app.command("list")(list_projects)
 project_app.command("info")(project_info)
@@ -40,6 +49,11 @@ project_app.command("list-deployed-models")(list_deployed_models)
 project_app.command("delete")(delete_project)
 project_app.command("enable-batch")(enable_batch)
 project_app.command("disable-batch")(disable_batch)
+project_app.command("list-agents")(list_agents)
+project_app.command("deploy-agent")(deploy_agent)
+project_app.command("undeploy-agent")(undeploy_agent)
+project_app.command("list-deployed-agents")(list_deployed_agents)
+project_app.command("agent-info")(get_agent_info)
 user_app.command("list")(list_users)
 user_app.command("add")(add_user)
 demo_app.command("list")(list_simulations)

@@ -134,6 +134,40 @@ const API = (() => {
         }),
     },
 
+    // ── Agent Infos (compliance metadata for agentic models) ────
+    agentInfos: {
+      search: (query, projectName) => {
+        let url = `/agent_infos/search?query=${enc(query)}`;
+        if (projectName) url += `&project_name=${enc(projectName)}`;
+        return get(url);
+      },
+      listForProject: (projectName) => get(`/agent_infos/${enc(projectName)}/list`),
+      get: (projectName, agentName, version) =>
+        get(`/agent_infos/${enc(projectName)}/${enc(agentName)}/${enc(version)}`),
+      aiActCard: (projectName, agentName, version) =>
+        get(`/agent_infos/${enc(projectName)}/${enc(agentName)}/${enc(version)}/ai_act_card`),
+      acceptRiskLevel: (projectName, agentName, version, riskLevel) =>
+        post(`/agent_infos/${enc(projectName)}/${enc(agentName)}/${enc(version)}/accept_risk_level`, {
+          body: { risk_level: riskLevel },
+        }),
+      evaluateCompliance: (projectName) => post(`/agent_infos/${enc(projectName)}/evaluate_compliance`),
+    },
+
+    // ── Agents (registry + deploy / undeploy) ───────────────────
+    agents: {
+      list:       (proj) => get(`/${proj}/agents/list`),
+      versions:   (proj, agent) => get(`/${proj}/agents/${agent}/versions`),
+      deploy:     (proj, agent, ver, secrets = {}) =>
+        post(`/${proj}/agents/deploy/${agent}/${ver}`, { body: { secrets } }),
+      undeploy:   (proj, agent, ver) => get(`/${proj}/agents/undeploy/${agent}/${ver}`),
+      taskStatus: (proj, taskId) => get(`/${proj}/agents/task-status/${taskId}`),
+    },
+
+    // ── Deployed agents (live agentic deployments) ──────────────
+    deployedAgents: {
+      list: (proj) => get(`/${proj}/deployed_agents/list`),
+    },
+
     // ── Compliance ──────────────────────────────────────────────
     compliance: {
       dashboard: () => get('/compliance/dashboard'),
@@ -167,6 +201,10 @@ const API = (() => {
         post(`/ai/${enc(proj)}/${enc(model)}/${enc(ver)}/act_review`),
       suggestRiskLevel: (proj, model, ver) =>
         post(`/ai/${enc(proj)}/${enc(model)}/${enc(ver)}/suggest_risk_level`),
+      agentActReview: (proj, agent, ver) =>
+        post(`/ai/agent/${enc(proj)}/${enc(agent)}/${enc(ver)}/act_review`),
+      agentSuggestRiskLevel: (proj, agent, ver) =>
+        post(`/ai/agent/${enc(proj)}/${enc(agent)}/${enc(ver)}/suggest_risk_level`),
       setCredentials: (apiKey, region) =>
         fetch(`${API_BASE}/ai/credentials`, {
           method: 'PUT',
@@ -225,6 +263,26 @@ const API = (() => {
         }),
       removeApiKey: () =>
         fetch(`${API_BASE}/ai/api_key`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${Auth.getToken()}` },
+        }).then(async r => {
+          if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+          return r.json();
+        }),
+      setMammouthApiKey: (apiKey) =>
+        fetch(`${API_BASE}/ai/mammouth_api_key`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${Auth.getToken()}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ api_key: apiKey }),
+        }).then(async r => {
+          if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+          return r.json();
+        }),
+      removeMammouthApiKey: () =>
+        fetch(`${API_BASE}/ai/mammouth_api_key`, {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${Auth.getToken()}` },
         }).then(async r => {

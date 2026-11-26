@@ -1,7 +1,10 @@
 # Philippe Stepniewski
 import re
 
+from backend.domain.entities.agent_info import AgentInfo
 from backend.domain.entities.model_info import ModelInfo
+from backend.domain.ports.agent_info_db_handler import AgentInfoDbHandler
+from backend.domain.ports.agent_registry import AgentRegistry
 from backend.domain.ports.model_info_db_handler import ModelInfoDbHandler
 from backend.domain.ports.model_registry import ModelRegistry
 from backend.domain.ports.platform_config_handler import PlatformConfigHandler
@@ -21,11 +24,13 @@ DEPLOYMENT_GATE_POLICY_KEY = "DEPLOYMENT_GATE_POLICY"
 def evaluate_deterministic_compliance(model_info: ModelInfo, governance: dict) -> str:
     """Evaluate deterministic compliance based on model metadata.
 
+    Reads LoggedModel-centric governance dict produced by the registry adapter.
     Returns one of: compliant, partially_compliant, non_compliant.
     """
     tags: dict = governance.get("tags", {})
     params: dict = governance.get("params", {})
     metrics: dict = governance.get("metrics", {})
+    signature: dict | None = governance.get("signature")
 
     # Immediate rejection for unacceptable risk
     if model_info.risk_level == "unacceptable":
@@ -44,7 +49,7 @@ def evaluate_deterministic_compliance(model_info: ModelInfo, governance: dict) -
 
     # Recommended criteria
     has_params = len(params) > 0
-    has_signature = _has_model_signature(tags)
+    has_signature = bool(signature)
     recommended_count = sum([has_params, has_signature])
 
     if recommended_count >= 1:
@@ -53,20 +58,38 @@ def evaluate_deterministic_compliance(model_info: ModelInfo, governance: dict) -
     return COMPLIANCE_PARTIALLY_COMPLIANT
 
 
-def _has_model_signature(tags: dict) -> bool:
-    import json
+def evaluate_deterministic_compliance_for_agent(agent_info: AgentInfo, governance: dict) -> str:
+    """Evaluate deterministic compliance based on agent metadata.
 
-    history_raw = tags.get("mlflow.log-model.history")
-    if not history_raw:
-        return False
-    try:
-        history = json.loads(history_raw)
-        if isinstance(history, list) and history:
-            sig = history[0].get("signature")
-            return sig is not None and sig != {}
-    except (json.JSONDecodeError, KeyError):
-        pass
-    return False
+    Reads the run/registered-model tags dict produced by the agent registry adapter.
+    Returns one of: compliant, partially_compliant, non_compliant.
+    """
+    tags: dict = {**governance.get("registered_model_tags", {}), **governance.get("run_tags", {})}
+
+    # Immediate rejection for unacceptable risk
+    if agent_info.risk_level == "unacceptable":
+        return COMPLIANCE_NON_COMPLIANT
+
+    # Mandatory criteria
+    has_risk_level = bool(agent_info.risk_level)
+    has_card = bool(agent_info.agent_card) or bool(agent_info.description) or bool(tags.get("mlflow.note.content"))
+    has_author = bool(tags.get("mlflow.user"))
+    has_guardrails = bool(agent_info.guardrails)
+
+    mandatory_ok = all([has_risk_level, has_card, has_author, has_guardrails])
+
+    if not mandatory_ok:
+        return COMPLIANCE_NON_COMPLIANT
+
+    # Recommended criteria
+    has_tools = len(agent_info.tools or []) > 0
+    has_llm_model = bool(agent_info.llm_model)
+    recommended_count = sum([has_tools, has_llm_model])
+
+    if recommended_count >= 1:
+        return COMPLIANCE_COMPLIANT
+
+    return COMPLIANCE_PARTIALLY_COMPLIANT
 
 
 def extract_llm_compliance_from_review(act_review: str | None) -> str:
@@ -102,7 +125,7 @@ def evaluate_project_compliance(
         try:
             governance = registry.get_model_governance_information(model_info.model_name, model_info.model_version)
         except Exception:
-            governance = {"tags": {}, "params": {}, "metrics": {}}
+            governance = {"tags": {}, "params": {}, "metrics": {}, "signature": None, "flavors": []}
 
         status = evaluate_deterministic_compliance(model_info, governance)
         model_info_db_handler.update_compliance_statuses(
@@ -121,11 +144,46 @@ def evaluate_project_compliance(
     return results
 
 
+def evaluate_project_compliance_for_agents(
+    project_name: str,
+    agent_registry: AgentRegistry,
+    agent_info_db_handler: AgentInfoDbHandler,
+) -> list[dict]:
+    """Recalculate deterministic compliance for all agents in a project."""
+    agent_infos = agent_info_db_handler.list_agent_infos_for_project(project_name)
+    results = []
+    for agent_info in agent_infos:
+        try:
+            governance = agent_registry.get_agent_governance_information(
+                agent_info.agent_name, agent_info.agent_version
+            )
+        except Exception:
+            governance = {"registered_model_tags": {}, "run_tags": {}}
+
+        status = evaluate_deterministic_compliance_for_agent(agent_info, governance)
+        agent_info_db_handler.update_compliance_statuses(
+            agent_name=agent_info.agent_name,
+            agent_version=agent_info.agent_version,
+            project_name=project_name,
+            deterministic_compliance=status,
+        )
+        results.append(
+            {
+                "agent_name": agent_info.agent_name,
+                "agent_version": agent_info.agent_version,
+                "deterministic_compliance": status,
+            }
+        )
+    return results
+
+
 def check_deployment_gate(
-    model_info: ModelInfo,
+    info: ModelInfo | AgentInfo,
     platform_config_handler: PlatformConfigHandler,
 ) -> tuple[bool, str]:
     """Check if deployment is allowed based on compliance statuses and gate policy.
+
+    Works for both models and agents: only reads the fields common to both entities.
 
     Returns (allowed, reason).
     """
@@ -134,8 +192,8 @@ def check_deployment_gate(
     if policy == GATE_POLICY_DISABLED:
         return True, ""
 
-    det = model_info.deterministic_compliance or COMPLIANCE_NOT_EVALUATED
-    llm = model_info.llm_compliance or COMPLIANCE_NOT_EVALUATED
+    det = info.deterministic_compliance or COMPLIANCE_NOT_EVALUATED
+    llm = info.llm_compliance or COMPLIANCE_NOT_EVALUATED
 
     passing_statuses = {COMPLIANCE_COMPLIANT, COMPLIANCE_PARTIALLY_COMPLIANT}
     det_ok = det in passing_statuses

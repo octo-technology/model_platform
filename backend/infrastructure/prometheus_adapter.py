@@ -125,12 +125,20 @@ class PrometheusAdapter(MetricsHandler):
 
         Uses OpenTelemetry http_server_duration_milliseconds_count metric,
         filtered by the Prometheus 'job' label (set to K8s service name)
-        and http_target="/predict" to count only prediction requests.
+        and http_target matching either "/predict" (ML models) or
+        "/agent_predict" (agentic models) to count only prediction requests.
+
+        http_target carries the full ROOT_PATH-prefixed path set by the
+        deployment (e.g. "/deploy/{namespace}/{deployment}/agent_predict"),
+        not a bare "/predict" — so the match must be a suffix match, not an
+        exact one. PromQL "=~" is fully anchored (implicit ^...$), hence the
+        ".*" prefix below.
 
         PromQL Queries Used:
-        - total_calls: sum(increase(http_server_duration_milliseconds_count{job=..., http_target="/predict"}[period]))
+        - total_calls: sum(increase(http_server_duration_milliseconds_count{
+            job=..., http_target=~".*/(agent_)?predict"}[period]))
         - total_errors: sum(increase(http_server_duration_milliseconds_count{
-            job=..., http_target="/predict", http_status_code!~"2.."}[period]))
+            job=..., http_target=~".*/(agent_)?predict", http_status_code!~"2.."}[period]))
 
         Parameters
         ----------
@@ -153,10 +161,11 @@ class PrometheusAdapter(MetricsHandler):
             duration = self._period_to_duration(period)
             logger.debug(f"Querying metrics for model_id={model_id}, period={period} " f"(duration={duration})")
 
-            # Total calls to /predict endpoint (all status codes)
+            # Total calls to /predict or /agent_predict endpoint (all status codes).
+            # http_target is ROOT_PATH-prefixed, so match on the path suffix.
             calls_query = (
                 f"sum(increase(http_server_duration_milliseconds_count{{"
-                f'job="{model_id}",http_target="/predict"}}[{duration}]))'
+                f'job="{model_id}",http_target=~".*/(agent_)?predict"}}[{duration}]))'
             )
             total_calls_raw = await self._execute_query(calls_query)
 
@@ -166,10 +175,10 @@ class PrometheusAdapter(MetricsHandler):
 
             total_calls = int(total_calls_raw)
 
-            # Total errors: non-2xx status codes on /predict
+            # Total errors: non-2xx status codes on /predict or /agent_predict
             errors_query = (
                 f"sum(increase(http_server_duration_milliseconds_count{{"
-                f'job="{model_id}",http_target="/predict",'
+                f'job="{model_id}",http_target=~".*/(agent_)?predict",'
                 f'http_status_code!~"2.."}}[{duration}]))'
             )
             total_errors_raw = await self._execute_query(errors_query)
@@ -224,15 +233,17 @@ class PrometheusAdapter(MetricsHandler):
         try:
             logger.debug(f"Querying fleet metrics: project={project_name}, period={period}")
 
-            # Discover model jobs by finding all 'job' label values that have
-            # /predict traffic. The 'job' label is set by Prometheus to the K8s
-            # service name, which matches the deployment name (model_id).
+            # Discover model/agent jobs by finding all 'job' label values that have
+            # /predict or /agent_predict traffic. The 'job' label is set by
+            # Prometheus to the K8s service name, which matches the deployment
+            # name (model_id).
             if project_name:
                 match_selector = (
-                    f"http_server_duration_milliseconds_count{{" f'http_target="/predict",namespace="{project_name}"}}'
+                    f"http_server_duration_milliseconds_count{{"
+                    f'http_target=~".*/(agent_)?predict",namespace="{project_name}"}}'
                 )
             else:
-                match_selector = 'http_server_duration_milliseconds_count{http_target="/predict"}'
+                match_selector = 'http_server_duration_milliseconds_count{http_target=~".*/(agent_)?predict"}'
 
             response = await self.client.get(
                 f"{self.prometheus_url}/api/v1/label/job/values",

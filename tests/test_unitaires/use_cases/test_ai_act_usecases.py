@@ -1,5 +1,4 @@
 # Philippe Stepniewski
-import json
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
@@ -7,31 +6,14 @@ import pytest
 
 from backend.domain.entities.model_info import ModelInfo
 from backend.domain.use_cases.ai_act_usecases import (
-    _extract_model_type,
-    _extract_signature,
     _format_created_date,
+    _format_model_type,
+    _format_signature,
     _metrics_table,
     _params_table,
     _risk_level_checkboxes,
     generate_ai_act_card,
 )
-
-
-def _make_tags(**overrides):
-    tags = {}
-    tags.update(overrides)
-    return tags
-
-
-def _make_history_json(flavors=None, signature=None, utc_time_created=None):
-    entry = {}
-    if flavors is not None:
-        entry["flavors"] = flavors
-    if signature is not None:
-        entry["signature"] = signature
-    if utc_time_created is not None:
-        entry["utc_time_created"] = utc_time_created
-    return json.dumps([entry])
 
 
 class TestRiskLevelCheckboxes:
@@ -94,65 +76,54 @@ class TestMetricsTable:
 
 
 class TestFormatCreatedDate:
-    def test_valid_tags_returns_utc_time_created(self):
-        history = _make_history_json(utc_time_created="2026-01-15 10:30:00 UTC")
-        tags = _make_tags(**{"mlflow.log-model.history": history})
-        assert _format_created_date(tags) == "2026-01-15 10:30:00 UTC"
+    def test_valid_timestamp(self):
+        # 2026-01-15 10:00 UTC ~ epoch ms
+        ts_ms = int(datetime(2026, 1, 15, 10, 0, tzinfo=timezone.utc).timestamp() * 1000)
+        assert "2026-01-15 10:00 UTC" in _format_created_date(ts_ms)
 
-    def test_empty_tags_returns_today(self):
-        tags = {}
-        result = _format_created_date(tags)
+    def test_none_timestamp_returns_today(self):
+        result = _format_created_date(None)
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         assert today in result
 
-    def test_malformed_json_returns_fallback(self):
-        tags = _make_tags(**{"mlflow.log-model.history": "not valid json"})
-        result = _format_created_date(tags)
+    def test_zero_timestamp_returns_today(self):
+        result = _format_created_date(0)
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         assert today in result
 
 
-class TestExtractModelType:
+class TestFormatModelType:
     def test_sklearn_and_python_function(self):
-        history = _make_history_json(flavors={"sklearn": {}, "python_function": {}})
-        tags = _make_tags(**{"mlflow.log-model.history": history})
-        assert _extract_model_type(tags) == "sklearn"
+        assert _format_model_type(["sklearn", "python_function"]) == "sklearn"
 
     def test_multiple_non_pyfunc_flavors(self):
-        history = _make_history_json(flavors={"sklearn": {}, "xgboost": {}, "python_function": {}})
-        tags = _make_tags(**{"mlflow.log-model.history": history})
-        result = _extract_model_type(tags)
+        result = _format_model_type(["sklearn", "xgboost", "python_function"])
         assert "sklearn" in result
         assert "xgboost" in result
 
     def test_only_python_function(self):
-        history = _make_history_json(flavors={"python_function": {}})
-        tags = _make_tags(**{"mlflow.log-model.history": history})
-        assert _extract_model_type(tags) == "*à compléter*"
+        assert _format_model_type(["python_function"]) == "*à compléter*"
 
-    def test_no_history(self):
-        tags = {}
-        assert _extract_model_type(tags) == "*à compléter*"
+    def test_empty_flavors(self):
+        assert _format_model_type([]) == "*à compléter*"
+
+    def test_none_flavors(self):
+        assert _format_model_type(None) == "*à compléter*"
 
 
-class TestExtractSignature:
+class TestFormatSignature:
     def test_valid_signature(self):
-        history = _make_history_json(signature={"inputs": "[col1]", "outputs": "[col2]"})
-        tags = _make_tags(**{"mlflow.log-model.history": history})
-        inputs, outputs = _extract_signature(tags)
+        inputs, outputs = _format_signature({"inputs": "[col1]", "outputs": "[col2]"})
         assert inputs == "[col1]"
         assert outputs == "[col2]"
 
     def test_no_signature(self):
-        history = _make_history_json(flavors={"sklearn": {}})
-        tags = _make_tags(**{"mlflow.log-model.history": history})
-        inputs, outputs = _extract_signature(tags)
+        inputs, outputs = _format_signature(None)
         assert inputs == "*à compléter*"
         assert outputs == "*à compléter*"
 
-    def test_no_history(self):
-        tags = {}
-        inputs, outputs = _extract_signature(tags)
+    def test_empty_signature(self):
+        inputs, outputs = _format_signature({})
         assert inputs == "*à compléter*"
         assert outputs == "*à compléter*"
 
@@ -161,19 +132,19 @@ class TestGenerateAiActCard:
     @pytest.fixture
     def registry(self):
         mock = MagicMock()
+        ts_ms = int(datetime(2026, 1, 15, 10, 0, tzinfo=timezone.utc).timestamp() * 1000)
         mock.get_model_governance_information.return_value = {
-            "tags": {
-                "mlflow.user": "alice",
-                "mlflow.runName": "run_1",
-                "mlflow.log-model.history": _make_history_json(
-                    flavors={"sklearn": {}, "python_function": {}},
-                    signature={"inputs": "[col1]", "outputs": "[col2]"},
-                    utc_time_created="2026-01-15 10:00 UTC",
-                ),
-            },
+            "model_name": "my_model",
+            "version": "1",
+            "model_id": "m-abc",
+            "run_id": "abc123",
+            "creation_timestamp": ts_ms,
+            "tags": {"mlflow.user": "alice", "mlflow.runName": "run_1"},
             "params": {"lr": "0.01"},
             "metrics": {"accuracy": "0.95"},
-            "run_id": "abc123",
+            "flavors": ["sklearn", "python_function"],
+            "signature": {"inputs": "[col1]", "outputs": "[col2]"},
+            "model_uri": "models:/my_model/1",
         }
         return mock
 
@@ -204,16 +175,25 @@ class TestGenerateAiActCard:
         assert "user=alice" in result
         assert "desc=My model description" in result
         assert "type=sklearn" in result
+        assert "in=[col1]" in result
+        assert "out=[col2]" in result
 
     @patch("backend.domain.use_cases.ai_act_usecases._load_template")
     def test_no_model_info_uses_fallbacks(self, mock_template, registry):
         db_handler = MagicMock()
         db_handler.get_model_info.return_value = None
         registry.get_model_governance_information.return_value = {
+            "model_name": "model",
+            "version": "1",
+            "model_id": None,
+            "run_id": "xyz",
+            "creation_timestamp": None,
             "tags": {"mlflow.note.content": "A note from MLflow"},
             "params": {},
             "metrics": {},
-            "run_id": "xyz",
+            "flavors": [],
+            "signature": None,
+            "model_uri": "models:/model/1",
         }
         mock_template.return_value = "desc={description} risk={risk_level_checkboxes}"
         result = generate_ai_act_card(registry, db_handler, "proj", "model", "1")
@@ -227,10 +207,17 @@ class TestGenerateAiActCard:
             model_name="m", model_version="1", project_name="p", risk_level="high", model_card=None
         )
         registry.get_model_governance_information.return_value = {
+            "model_name": "m",
+            "version": "1",
+            "model_id": None,
+            "run_id": "xyz",
+            "creation_timestamp": None,
             "tags": {"mlflow.note.content": "Fallback note"},
             "params": {},
             "metrics": {},
-            "run_id": "xyz",
+            "flavors": [],
+            "signature": None,
+            "model_uri": "models:/m/1",
         }
         mock_template.return_value = "desc={description}"
         result = generate_ai_act_card(registry, db_handler, "p", "m", "1")

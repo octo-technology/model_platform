@@ -22,7 +22,13 @@ class DashboardHandler(ABC):
 
     @abstractmethod
     def create_dashboard(
-        self, project_name: str, model_name: str, version: str, service_name: str, dashboard_uid: str
+        self,
+        project_name: str,
+        model_name: str,
+        version: str,
+        service_name: str,
+        dashboard_uid: str,
+        is_agent: bool = False,
     ) -> bool:
         pass
 

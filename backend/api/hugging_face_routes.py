@@ -101,7 +101,7 @@ def log_model_task(registry, model_id):
         model_name = model_id.split("/")[-1]
         registry.log_model(
             python_model=HFModelWrapper(),
-            artifact_path="custom_model",
+            name="custom_model",
             registered_model_name=f"hf_{model_name}",
             # conda_env=join(HF_PATH, "conda.yaml"),
         )

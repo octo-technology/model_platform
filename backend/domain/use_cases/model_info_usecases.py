@@ -34,6 +34,33 @@ def search_model_infos(
     return model_info_db_handler.search_model_infos(query=query, project_name=project_name)
 
 
+def prune_stale_model_infos(
+    project_name: str,
+    registry: ModelRegistry,
+    model_info_db_handler: ModelInfoDbHandler,
+) -> None:
+    """Delete ModelInfo rows whose version no longer exists in the MLflow registry."""
+    existing = model_info_db_handler.list_model_infos_for_project(project_name)
+    live_versions_by_model: dict[str, set[str] | None] = {}
+    for info in existing:
+        if info.model_name in live_versions_by_model:
+            continue
+        try:
+            live_versions_by_model[info.model_name] = {
+                str(v["version"]) for v in registry.list_model_versions(info.model_name)
+            }
+        except Exception as e:
+            logger.warning(f"Could not list live versions for model {info.model_name}: {e}")
+            live_versions_by_model[info.model_name] = None
+
+    for info in existing:
+        live_versions = live_versions_by_model.get(info.model_name)
+        if live_versions is None:
+            continue  # registry lookup failed — don't prune on uncertain data
+        if info.model_version not in live_versions:
+            model_info_db_handler.delete_model_info(info.model_name, info.model_version, project_name)
+
+
 def sync_model_infos_for_project(
     project_name: str,
     registry: ModelRegistry,

@@ -11,3 +11,7 @@ tmp/
 
 # Kubernetes secrets (ne jamais commiter!)
 infrastructure/k8s/backend-secret.yaml
+
+# markdowns de suivi de stage
+plan.md
+planification_stage.md

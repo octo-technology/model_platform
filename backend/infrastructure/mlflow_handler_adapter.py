@@ -5,6 +5,7 @@ from loguru import logger
 from mlflow import MlflowClient
 
 from backend.domain.ports.registry_handler import RegistryHandler
+from backend.infrastructure.mlflow_agent_registry_adapter import MLFlowAgentRegistryAdapter
 from backend.infrastructure.mlflow_client import MLflowClientManager
 from backend.infrastructure.mlflow_model_registry_adapter import MLFlowModelRegistryAdapter
 
@@ -27,10 +28,20 @@ class MLFlowHandlerAdapter(RegistryHandler):
         mlflow_client_manager = MLflowClientManager(tracking_uri=tracking_uri)
         mlflow_client_manager.initialize()
         registry_adapter = MLFlowModelRegistryAdapter(mlflow_client_manager=mlflow_client_manager)
-        registry_and_ttl = {"registry": registry_adapter, "timestamp": int(time.time())}
+        agent_registry_adapter = MLFlowAgentRegistryAdapter(mlflow_client_manager=mlflow_client_manager)
+        registry_and_ttl = {
+            "registry": registry_adapter,
+            "agent_registry": agent_registry_adapter,
+            "timestamp": int(time.time()),
+        }
         self.client_pool[project_name] = registry_and_ttl
         logger.info(f"Successfully connected to {project_name} project registry.")
         return registry_adapter
+
+    def get_agent_registry_adapter(self, project_name: str, tracking_uri: str) -> MLFlowAgentRegistryAdapter:
+        if project_name not in self.client_pool:
+            self._add_project_name_to_client_pool(project_name, tracking_uri)
+        return self.client_pool[project_name]["agent_registry"]
 
     def clean_client_pool(self, ttl_in_seconds: int = 300) -> None:
         current_timestamp: int = int(time.time())
@@ -64,7 +75,7 @@ class MLFlowHandlerAdapter(RegistryHandler):
         project_db_handler,
         model_info_db_handler,
     ) -> None:
-        from backend.domain.use_cases.model_info_usecases import sync_model_infos_for_project
+        from backend.domain.use_cases.model_info_usecases import prune_stale_model_infos, sync_model_infos_for_project
         from backend.utils import sanitize_project_name
 
         while self.running:
@@ -82,10 +93,19 @@ class MLFlowHandlerAdapter(RegistryHandler):
                 try:
                     registry = self.get_registry_adapter(project.name, tracking_uri)
                     sync_model_infos_for_project(project.name, registry, model_info_db_handler)
+                    prune_stale_model_infos(project.name, registry, model_info_db_handler)
                     # Evaluate deterministic compliance after sync
                     from backend.domain.use_cases.compliance_usecases import evaluate_project_compliance
 
                     evaluate_project_compliance(project.name, registry, model_info_db_handler)
+                    # Copy run metadata to model version tags and registered model tags for MLflow UI visibility
+                    for model in registry.list_all_models():
+                        for mv in registry.list_model_versions(model["name"]):
+                            registry.sync_run_data_to_model_version_tags(model["name"], mv["version"])
+                        latest_versions = model.get("latest_versions", [])
+                        if latest_versions:
+                            latest = max(latest_versions, key=lambda v: int(v["version"]))
+                            registry.sync_run_data_to_registered_model_tags(model["name"], latest["version"])
                 except Exception as e:
                     logger.warning(f"Could not sync model_infos for project {project.name}: {e}")
 
@@ -97,3 +117,40 @@ class MLFlowHandlerAdapter(RegistryHandler):
     ) -> None:
         asyncio.create_task(self._sync_model_infos_periodically(interval, project_db_handler, model_info_db_handler))
         logger.info(f"🟢 model_infos sync task started (every {interval}s)")
+
+    async def _sync_agent_infos_periodically(
+        self,
+        interval: int,
+        project_db_handler,
+        agent_info_db_handler,
+    ) -> None:
+        from backend.domain.use_cases.agent_info_usecases import prune_stale_agent_infos, sync_agent_infos_for_project
+        from backend.utils import sanitize_project_name
+
+        while self.running:
+            await asyncio.sleep(interval)
+            logger.info(f"🔄 Syncing agent_infos (interval={interval}s)")
+            projects = project_db_handler.list_projects()
+            for project in projects:
+                tracking_uri = (
+                    "http://"
+                    + sanitize_project_name(project.name)
+                    + "."
+                    + sanitize_project_name(project.name)
+                    + ".svc.cluster.local:5000"
+                )
+                try:
+                    agent_registry = self.get_agent_registry_adapter(project.name, tracking_uri)
+                    sync_agent_infos_for_project(project.name, agent_registry, agent_info_db_handler)
+                    prune_stale_agent_infos(project.name, agent_registry, agent_info_db_handler)
+                except Exception as e:
+                    logger.warning(f"Could not sync agent_infos for project {project.name}: {e}")
+
+    def start_agent_info_sync_task(
+        self,
+        interval: int,
+        project_db_handler,
+        agent_info_db_handler,
+    ) -> None:
+        asyncio.create_task(self._sync_agent_infos_periodically(interval, project_db_handler, agent_info_db_handler))
+        logger.info(f"🟢 agent_infos sync task started (every {interval}s)")

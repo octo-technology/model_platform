@@ -25,6 +25,9 @@ class K8SModelDeployment(ModelDeployment, K8SDeployment):
         self._create_or_update_namespace()  # TOUL dit : on devrait pas faire ça.
         self._create_or_update_model_service()
         self._create_model_service_deployment()
+        # Kept separate from the deployment spec so subclasses (e.g. agents) that
+        # override _create_model_service_deployment still get Prometheus scraping.
+        self._create_service_monitor()
         return self.service_name
 
     def delete_model_deployment(self):
@@ -94,6 +97,28 @@ class K8SModelDeployment(ModelDeployment, K8SDeployment):
             ),
         )
 
+        try:
+            self.apps_api_instance.read_namespaced_deployment(self.service_name, self.namespace)
+            self.apps_api_instance.replace_namespaced_deployment(
+                namespace=self.namespace, name=self.service_name, body=deployment
+            )
+            logger.info(f"✅ Deployment {self.service_name} successfully updated!")
+        except ApiException as e:
+            if e.status == 404:
+                try:
+                    self.apps_api_instance.create_namespaced_deployment(namespace=self.namespace, body=deployment)
+                    logger.info(f"✅ Deployment {self.service_name} successfully created!")
+                except ApiException as create_err:
+                    logger.error(f"❌ Failed to create deployment {self.service_name}: {create_err}")
+            else:
+                logger.error(f"⚠️ Error while updating deployment {self.service_name}: {e}")
+
+    def _create_service_monitor(self):
+        """Create (or refresh) the ServiceMonitor so Prometheus scrapes /metrics.
+
+        The `release: kube-prometheus-stack` label is required for the cluster's
+        Prometheus serviceMonitorSelector to pick it up.
+        """
         api = client.CustomObjectsApi()
         service_monitor = {
             "apiVersion": "monitoring.coreos.com/v1",
@@ -131,23 +156,19 @@ class K8SModelDeployment(ModelDeployment, K8SDeployment):
             )
             logger.info(f"✅ ServiceMonitor for {self.service_name} successfully created!")
         except ApiException as e:
-            logger.error(f"❌ Error while creating ServiceMonitor: {e}")
-
-        try:
-            self.apps_api_instance.read_namespaced_deployment(self.service_name, self.namespace)
-            self.apps_api_instance.replace_namespaced_deployment(
-                namespace=self.namespace, name=self.service_name, body=deployment
-            )
-            logger.info(f"✅ Deployment {self.service_name} successfully updated!")
-        except ApiException as e:
-            if e.status == 404:
-                try:
-                    self.apps_api_instance.create_namespaced_deployment(namespace=self.namespace, body=deployment)
-                    logger.info(f"✅ Deployment {self.service_name} successfully created!")
-                except ApiException as create_err:
-                    logger.error(f"❌ Failed to create deployment {self.service_name}: {create_err}")
+            if e.status == 409:
+                # Already exists (e.g. redeploy of the same version) — refresh it.
+                api.replace_namespaced_custom_object(
+                    group="monitoring.coreos.com",
+                    version="v1",
+                    namespace="monitoring",
+                    plural="servicemonitors",
+                    name=f"{self.service_name}-monitor",
+                    body=service_monitor,
+                )
+                logger.info(f"✅ ServiceMonitor for {self.service_name} successfully updated!")
             else:
-                logger.error(f"⚠️ Error while updating deployment {self.service_name}: {e}")
+                logger.error(f"❌ Error while creating ServiceMonitor: {e}")
 
     def _delete_model_service(self):
         try:

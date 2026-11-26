@@ -1,5 +1,6 @@
 // Project detail page with 5 tabs, most used first:
-// Available Models · Deployed Models · Batch Predictions · Public Registry · Settings
+// Available AIs · Deployed AIs · Batch Predictions · Public Registry · Settings
+// Available/Deployed AIs each contain two sections: ML Models and Agentic Models.
 const ProjectDetailPage = (() => {
 
   const ROLES = ['VIEWER', 'DEVELOPER', 'MAINTAINER', 'ADMIN'];
@@ -25,11 +26,11 @@ const ProjectDetailPage = (() => {
           <div class="tabs" id="project-tabs">
             <button class="tab-btn active" data-tab="models">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="9" height="9"/><rect x="13" y="2" width="9" height="9"/><rect x="13" y="13" width="9" height="9"/><rect x="2" y="13" width="9" height="9"/></svg>
-              Available Models
+              Available AIs
             </button>
             <button class="tab-btn" data-tab="deployed">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-              Deployed Models
+              Deployed AIs
             </button>
             <button class="tab-btn" data-tab="batch">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
@@ -337,87 +338,418 @@ const ProjectDetailPage = (() => {
     });
   }
 
-  // ── Available Models Tab ─────────────────────────────────────
+  // ── Available AIs Tab (ML Models + Agentic Models) ───────────
 
   async function loadModels(projectName, panel) {
     panel.innerHTML = loadingHTML();
     try {
-      const [models, modelInfos, deployed] = await Promise.all([
-        API.models.list(projectName),
+      const [models, modelInfos, mlflowAgents, agentInfos] = await Promise.all([
+        API.models.list(projectName).catch(() => []),
         API.modelInfos.listForProject(projectName).catch(() => []),
-        API.deployedModels.list(projectName).catch(() => []),
+        API.agents.list(projectName).catch(() => []),
+        API.agentInfos.listForProject(projectName).catch(() => []),
       ]);
-      if (!models || models.length === 0) {
-        panel.innerHTML = emptyHTML('No models found', 'Register models in MLflow to see them here.');
-        return;
-      }
 
-      // Build compliance lookup: "modelName:version" → { deterministic, llm }
+      // Build compliance lookup for ML models: "modelName:version" → { deterministic, llm }
       const complianceMap = {};
       for (const info of modelInfos) {
         complianceMap[`${info.model_name}:${info.model_version}`] = {
           deterministic: info.deterministic_compliance || 'not_evaluated',
           llm: info.llm_compliance || 'not_evaluated',
+          risk_level: info.risk_level,
         };
       }
 
-      // Fetch all versions for each model in parallel
-      const modelsWithVersions = await Promise.all(
-        models.map(async m => {
-          try {
-            const versions = await API.models.versions(projectName, m.name);
-            return { ...m, all_versions: versions };
-          } catch {
-            return { ...m, all_versions: m.latest_versions || [] };
-          }
-        })
-      );
-      renderModels(projectName, modelsWithVersions, deployed.length, panel, complianceMap);
+      // Build compliance lookup for agents: "agentName:agentVersion" → { ... }
+      const agentComplianceMap = {};
+      for (const info of agentInfos) {
+        agentComplianceMap[`${info.agent_name}:${info.agent_version}`] = {
+          deterministic: info.deterministic_compliance || 'not_evaluated',
+          llm: info.llm_compliance || 'not_evaluated',
+          risk_level: info.risk_level,
+        };
+      }
+
+      // Fetch all versions for each ML model in parallel
+      const modelsWithVersions = (models && models.length > 0)
+        ? await Promise.all(
+            models.map(async m => {
+              try {
+                const versions = await API.models.versions(projectName, m.name);
+                return { ...m, all_versions: versions };
+              } catch {
+                return { ...m, all_versions: m.latest_versions || [] };
+              }
+            })
+          )
+        : [];
+
+      // Same for agents
+      const agentsWithVersions = (mlflowAgents && mlflowAgents.length > 0)
+        ? await Promise.all(
+            mlflowAgents.map(async a => {
+              try {
+                const versions = await API.agents.versions(projectName, a.name);
+                return { ...a, all_versions: versions };
+              } catch {
+                return { ...a, all_versions: a.latest_versions || [] };
+              }
+            })
+          )
+        : [];
+
+      renderAvailableAIs(projectName, modelsWithVersions, agentsWithVersions, panel, complianceMap, agentComplianceMap);
     } catch (err) {
       panel.innerHTML = errorHTML(err.message);
     }
   }
 
-  function renderModels(projectName, models, deployedCount, panel, complianceMap) {
-    const rows = models.map(m => modelRow(m, projectName, 'available', complianceMap)).join('');
-
+  function renderAvailableAIs(projectName, models, agents, panel, complianceMap, agentComplianceMap) {
     panel.innerHTML = `
+      ${renderMLModelsSection(projectName, models, complianceMap)}
+      ${renderAvailableAgentsSection(projectName, agents, agentComplianceMap)}
+      <div id="deploy-status-area"></div>
+    `;
+    if (models.length > 0) {
+      attachModelEvents(projectName, panel, 'available', complianceMap);
+    }
+    attachAgentDeployEvents(projectName, panel, agentComplianceMap);
+  }
+
+  function attachAgentDeployEvents(projectName, panel, agentComplianceMap) {
+    // Update compliance + risk badge when the version dropdown changes
+    panel.querySelectorAll('.version-select-agent').forEach(sel => {
+      sel.addEventListener('change', () => {
+        const agentName = sel.dataset.agent;
+        const version = sel.value;
+        const c = (agentComplianceMap || {})[`${agentName}:${version}`];
+
+        const riskCell = panel.querySelector(`.risk-cell-agent[data-agent="${agentName}"]`);
+        if (riskCell) riskCell.innerHTML = riskBadge(c ? c.risk_level : null);
+        const detCell = panel.querySelector(`.det-cell-agent[data-agent="${agentName}"]`);
+        if (detCell) detCell.innerHTML = complianceIcon(c ? c.deterministic : 'not_evaluated');
+        const llmCell = panel.querySelector(`.llm-cell-agent[data-agent="${agentName}"]`);
+        if (llmCell) llmCell.innerHTML = complianceIcon(c ? c.llm : 'not_evaluated');
+
+        const registryLink = panel.querySelector(`.registry-cell-agent[data-agent="${agentName}"] a`);
+        if (registryLink) {
+          const registryInfo = JSON.parse(sel.dataset.registryInfo || '{}')[version] || {};
+          registryLink.href = buildRegistryUrl(projectName, registryInfo.experimentId, registryInfo.modelId);
+        }
+
+        const aliasesCell = panel.querySelector(`.aliases-cell-agent[data-agent="${agentName}"]`);
+        if (aliasesCell) {
+          const aliasesByVersion = JSON.parse(sel.dataset.aliasesInfo || '{}');
+          aliasesCell.textContent = aliasesDisplayForVersion(aliasesByVersion, version);
+        }
+      });
+    });
+
+    // Open the agent detail page (name link uses the currently selected version)
+    panel.querySelectorAll('.agent-name-link').forEach(link => {
+      link.addEventListener('click', e => {
+        e.preventDefault();
+        const agentName = link.dataset.agent;
+        const row = link.closest('tr');
+        const version = row.querySelector(`select.version-select-agent[data-agent="${agentName}"]`).value;
+        App.navigateTo('agent', { project: projectName, name: agentName, version });
+      });
+    });
+
+    panel.querySelectorAll('.deploy-agent-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const agentName = btn.dataset.agent;
+        const row = btn.closest('tr');
+        const version = row.querySelector(`select.version-select-agent[data-agent="${agentName}"]`).value;
+
+        const secrets = await openAgentSecretsModal(agentName, version);
+        if (secrets === null) return; // user cancelled the deploy entirely
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner spinner-sm"></span>';
+
+        try {
+          const result = await API.agents.deploy(projectName, agentName, version, secrets);
+          const taskId = result.task_id || null;
+          btn.innerHTML = 'Deploying…';
+
+          if (taskId) {
+            pollAgentDeployStatus(projectName, taskId, agentName, version, btn);
+          } else {
+            Toast.success(`Deployment started for ${agentName} v${version}`);
+            btn.innerHTML = 'Deploy';
+            btn.disabled = false;
+          }
+        } catch (err) {
+          Toast.error(`Agent deploy failed: ${err.message}`);
+          btn.innerHTML = 'Deploy';
+          btn.disabled = false;
+        }
+      });
+    });
+  }
+
+  // Prompts for secret env vars (LLM API key, DB password, ...) to push to the
+  // agent's K8s Secret at deploy time. Never sent anywhere but this one deploy
+  // call — the platform does not persist these values. Leave blank when
+  // redeploying an agent whose Secret already exists in-cluster.
+  // Resolves to a {KEY: value} object, or `null` if the user cancelled the deploy.
+  function openAgentSecretsModal(agentName, version) {
+    return new Promise(resolve => {
+      const secretsRow = () => `
+        <div class="agent-secret-row" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <input class="form-input agent-secret-key" type="text" placeholder="key name" style="flex:1;font-family:monospace">
+          <span style="color:var(--text-2);">=</span>
+          <input class="form-input agent-secret-value" type="text" placeholder="key value" style="flex:2;font-family:monospace">
+          <button type="button" class="btn-icon agent-secret-remove" title="Remove" style="flex:0 0 auto;">&times;</button>
+        </div>
+      `;
+
+      const { close } = Modal.open({
+        title: `Deploy ${agentName} v${version}`,
+        body: `
+          <p style="color:var(--text-2);font-size:13px;line-height:1.6;margin-bottom:12px;">
+            Optional: secrets (LLM API key, DB password…) for this agent. Pushed straight to a K8s
+            Secret — never stored by the platform. Leave blank to keep the existing Secret (e.g. when
+            redeploying a new version of an already-configured agent).
+          </p>
+          <div id="agent-secrets-rows">${secretsRow()}</div>
+          <button type="button" class="btn btn-secondary" id="agent-secret-add" style="font-size:13px;">+ Add variable</button>
+          <p id="agent-secrets-error" style="color:var(--red-light);font-size:12px;margin-top:8px;display:none;"></p>
+        `,
+        footer: `
+          <button class="btn btn-secondary" id="modal-cancel">Cancel</button>
+          <button class="btn btn-primary" id="modal-deploy">Deploy</button>
+        `,
+        onClose: () => resolve(null),
+      });
+
+      const rowsContainer = document.getElementById('agent-secrets-rows');
+      const errorEl = document.getElementById('agent-secrets-error');
+
+      const attachRemoveHandler = row => {
+        row.querySelector('.agent-secret-remove').addEventListener('click', () => {
+          if (rowsContainer.children.length > 1) row.remove();
+          else {
+            row.querySelector('.agent-secret-key').value = '';
+            row.querySelector('.agent-secret-value').value = '';
+          }
+        });
+      };
+      attachRemoveHandler(rowsContainer.firstElementChild);
+
+      document.getElementById('agent-secret-add').addEventListener('click', () => {
+        rowsContainer.insertAdjacentHTML('beforeend', secretsRow());
+        attachRemoveHandler(rowsContainer.lastElementChild);
+      });
+
+      document.getElementById('modal-cancel').addEventListener('click', () => { close(); resolve(null); });
+      document.getElementById('modal-deploy').addEventListener('click', () => {
+        const secrets = {};
+        for (const row of rowsContainer.querySelectorAll('.agent-secret-row')) {
+          const key = row.querySelector('.agent-secret-key').value.trim();
+          const value = row.querySelector('.agent-secret-value').value.trim();
+          if (!key && !value) continue;
+          if (!key) {
+            errorEl.textContent = `Missing variable name for value "${value}"`;
+            errorEl.style.display = 'block';
+            return;
+          }
+          if (key in secrets) {
+            errorEl.textContent = `Duplicate variable name: "${key}"`;
+            errorEl.style.display = 'block';
+            return;
+          }
+          secrets[key] = value;
+        }
+        close();
+        resolve(secrets);
+      });
+    });
+  }
+
+  function pollAgentDeployStatus(projectName, taskId, agentName, version, btn) {
+    const interval = setInterval(async () => {
+      try {
+        const result = await API.agents.taskStatus(projectName, taskId);
+        const status = result.status || '';
+        if (status === 'completed') {
+          clearInterval(interval);
+          Toast.success(`${agentName} v${version} deployed.`);
+          btn.innerHTML = 'Deployed';
+        } else if (status.startsWith('failed')) {
+          clearInterval(interval);
+          Toast.error(`Deploy failed: ${status}`);
+          btn.innerHTML = 'Deploy';
+          btn.disabled = false;
+        }
+      } catch (err) {
+        clearInterval(interval);
+        Toast.error(`Status poll failed: ${err.message}`);
+        btn.innerHTML = 'Deploy';
+        btn.disabled = false;
+      }
+    }, 3000);
+  }
+
+  function renderMLModelsSection(projectName, models, complianceMap) {
+    const sectionHeader = `
       <div class="section-toolbar">
         <div class="section-toolbar-left">
-          <span class="section-title">MLflow Registry</span>
-          ${CountChip.deployed(deployedCount, models.length)}
+          <span class="section-title">ML Models</span>
+          <span class="section-count">${models.length}</span>
         </div>
-      </div>
+      </div>`;
+
+    if (!models || models.length === 0) {
+      return `
+        ${sectionHeader}
+        ${emptyHTML('No ML models found', 'Register models in MLflow to see them here.')}
+      `;
+    }
+
+    const rows = models.map(m => modelRow(m, projectName, 'available', complianceMap)).join('');
+    return `
+      ${sectionHeader}
       <div class="table-wrap">
-        <table>
+        <table class="avail-ai-table">
           <thead>
             <tr>
-              <th>Model name</th>
-              <th>Aliases</th>
-              <th>Latest version</th>
-              <th>Registered</th>
-              <th>Version to deploy</th>
-              <th>Compliance</th>
-              <th>Action</th>
+              <th class="avail-col-name">Model name</th>
+              <th class="avail-col-aliases">Aliases</th>
+              <th class="avail-col-version">Latest version</th>
+              <th class="avail-col-registered">Registered</th>
+              <th class="avail-col-deploy">Version to deploy</th>
+              <th class="avail-col-risk">Risk Level</th>
+              <th class="avail-col-det">Deterministic Compliance</th>
+              <th class="avail-col-llm">LLM Compliance</th>
+              <th class="avail-col-registry">Registry</th>
+              <th class="avail-col-action" style="text-align:right">Action</th>
             </tr>
           </thead>
           <tbody id="models-tbody">${rows}</tbody>
         </table>
       </div>
-      <a href="#compliance-guide" class="table-footnote-link">See compliance guide</a>
-      <div id="deploy-status-area"></div>
     `;
-
-    attachModelEvents(projectName, panel, 'available', complianceMap);
   }
 
-  // Deterministic above LLM, same layout as the Audit page
-  function complianceCellHTML(compliance) {
-    const c = compliance || { deterministic: 'not_evaluated', llm: 'not_evaluated' };
-    return `<div class="compliance-stack">
-      <div>${complianceIcon(c.deterministic, 'Deterministic')}</div>
-      <div>${complianceIcon(c.llm, 'LLM')}</div>
-    </div>`;
+  function renderAvailableAgentsSection(projectName, agents, agentComplianceMap) {
+    const sectionHeader = `
+      <div class="section-toolbar" style="margin-top:24px">
+        <div class="section-toolbar-left">
+          <span class="section-title">Agentic Models</span>
+          <span class="section-count">${(agents || []).length}</span>
+        </div>
+      </div>`;
+
+    if (!agents || agents.length === 0) {
+      return `
+        ${sectionHeader}
+        ${emptyHTML('No agentic models found', 'Register an agent in MLflow with the tag <code>model_type=agent</code> to see it here.')}
+      `;
+    }
+
+    const rows = agents.map(a => agentRow(a, projectName, agentComplianceMap)).join('');
+    return `
+      ${sectionHeader}
+      <div class="table-wrap">
+        <table class="avail-ai-table">
+          <thead>
+            <tr>
+              <th class="avail-col-name">Agent name</th>
+              <th class="avail-col-aliases">Aliases</th>
+              <th class="avail-col-version">Latest version</th>
+              <th class="avail-col-registered">Registered</th>
+              <th class="avail-col-deploy">Version to deploy</th>
+              <th class="avail-col-risk">Risk Level</th>
+              <th class="avail-col-det">Deterministic Compliance</th>
+              <th class="avail-col-llm">LLM Compliance</th>
+              <th class="avail-col-registry">Registry</th>
+              <th class="avail-col-action" style="text-align:right">Action</th>
+            </tr>
+          </thead>
+          <tbody id="agents-tbody">${rows}</tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  function agentRow(a, projectName, agentComplianceMap) {
+    const name = a.name || '—';
+
+    const versionObjects = a.all_versions || a.latest_versions || [];
+    const versionNumbers = versionObjects
+      .map(v => (typeof v === 'object' ? v.version : v))
+      .filter(Boolean)
+      .sort((a, b) => Number(b) - Number(a));
+
+    const latest = versionNumbers.length > 0 ? versionNumbers[0] : '—';
+
+    const ts = a.creation_timestamp;
+    const registered = ts ? new Date(ts).toLocaleDateString() : '—';
+
+    // a.aliases is an alias→version map (e.g. {"champion": "5"}) — invert it to
+    // version→aliases so the Aliases column can show only the alias(es) that apply
+    // to whichever version is currently selected in "Version to deploy".
+    const aliasesByVersion = invertAliasMap(a.aliases);
+    const aliasesByVersionData = escHtml(JSON.stringify(aliasesByVersion));
+
+    const versionOptions = versionNumbers.length > 0
+      ? versionNumbers.map(v => `<option value="${escHtml(String(v))}">${escHtml(String(v))}</option>`).join('')
+      : `<option value="">—</option>`;
+
+    const registryInfoByVersion = {};
+    versionObjects.forEach(v => {
+      if (typeof v === 'object' && v.version) {
+        registryInfoByVersion[String(v.version)] = { modelId: v.model_id || null, experimentId: v.experiment_id || null };
+      }
+    });
+    const registryInfoData = escHtml(JSON.stringify(registryInfoByVersion));
+
+    const firstVersion = versionNumbers.length > 0 ? versionNumbers[0] : '';
+    const firstCompliance = (agentComplianceMap || {})[`${name}:${firstVersion}`];
+    const initialRisk = riskBadge(firstCompliance ? firstCompliance.risk_level : null);
+    const initialDet  = complianceIcon(firstCompliance ? firstCompliance.deterministic : 'not_evaluated');
+    const initialLlm  = complianceIcon(firstCompliance ? firstCompliance.llm : 'not_evaluated');
+    const firstRegistryInfo = registryInfoByVersion[String(firstVersion)] || {};
+    const initialAliases = aliasesDisplayForVersion(aliasesByVersion, firstVersion);
+
+    return `
+      <tr>
+        <td class="font-bold avail-col-name">
+          <a href="#" class="agent-name-link" data-agent="${escHtml(name)}" data-project="${escHtml(projectName)}">${escHtml(name)}</a>
+        </td>
+        <td class="avail-col-aliases aliases-cell-agent" style="font-size:12px;color:var(--text-2)" data-agent="${escHtml(name)}">${escHtml(initialAliases)}</td>
+        <td class="mono avail-col-version">${escHtml(String(latest))}</td>
+        <td class="avail-col-registered">${escHtml(registered)}</td>
+        <td class="avail-col-deploy">
+          <select class="form-select version-select-agent" style="width:90px;padding:4px 28px 4px 8px;" data-agent="${escHtml(name)}" data-registry-info="${registryInfoData}" data-aliases-info="${aliasesByVersionData}">
+            ${versionOptions}
+          </select>
+        </td>
+        <td class="avail-col-risk risk-cell-agent" data-agent="${escHtml(name)}">${initialRisk}</td>
+        <td class="avail-col-det det-cell-agent" data-agent="${escHtml(name)}">${initialDet}</td>
+        <td class="avail-col-llm llm-cell-agent" data-agent="${escHtml(name)}">${initialLlm}</td>
+        <td class="avail-col-registry registry-cell-agent" data-agent="${escHtml(name)}">
+          <a href="${escHtml(buildRegistryUrl(projectName, firstRegistryInfo.experimentId, firstRegistryInfo.modelId))}" target="_blank" rel="noopener" class="btn btn-secondary btn-xs">Registry</a>
+        </td>
+        <td class="actions avail-col-action">
+          <button class="btn btn-primary btn-sm deploy-agent-btn"
+                  data-agent="${escHtml(name)}"
+                  data-project="${escHtml(projectName)}">
+            Deploy
+          </button>
+        </td>
+      </tr>
+    `;
+  }
+
+  function riskBadge(risk, label) {
+    const prefix = label ? `<span style="font-size:10px;color:var(--text-2);margin-right:4px">${escHtml(label)}</span>` : '';
+    if (!risk) return `${prefix}<span class="badge badge-neutral" title="Risk level — not set">—</span>`;
+    const map = { unacceptable: 'badge-error', high: 'badge-red', limited: 'badge-orange', minimal: 'badge-green' };
+    const cls = map[String(risk).toLowerCase()] || 'badge-neutral';
+    return `${prefix}<span class="badge ${cls}" title="Risk level">${escHtml(risk)}</span>`;
   }
 
   function complianceIcon(status, label) {
@@ -444,32 +776,55 @@ const ProjectDetailPage = (() => {
     const ts = m.creation_timestamp;
     const registered = ts ? new Date(ts).toLocaleDateString() : '—';
 
-    const aliases = m.aliases && typeof m.aliases === 'object' ? Object.keys(m.aliases) : (Array.isArray(m.aliases) ? m.aliases : []);
-    const aliasesDisplay = aliases.length > 0 ? aliases.join(', ') : '—';
+    // m.aliases is an alias→version map (e.g. {"champion": "5"}) — invert it to
+    // version→aliases so the Aliases column can show only the alias(es) that apply
+    // to whichever version is currently selected in "Version to deploy".
+    const aliasesByVersion = invertAliasMap(m.aliases);
+    const aliasesByVersionData = escHtml(JSON.stringify(aliasesByVersion));
 
     const versionOptions = versionNumbers.length > 0
       ? versionNumbers.map(v => `<option value="${escHtml(String(v))}">${escHtml(String(v))}</option>`).join('')
       : `<option value="">—</option>`;
 
-    // Compliance badge for the first (latest) version
-    const complianceData = JSON.stringify(complianceMap || {}).replace(/"/g, '&quot;');
+    // Logged-model identifiers (experiment_id + model_id) per version, for the Registry
+    // link — kept as a data attribute so the version-change handler can look it up.
+    const registryInfoByVersion = {};
+    versionObjects.forEach(v => {
+      if (typeof v === 'object' && v.version) {
+        registryInfoByVersion[String(v.version)] = { modelId: v.model_id || null, experimentId: v.experiment_id || null };
+      }
+    });
+    const registryInfoData = escHtml(JSON.stringify(registryInfoByVersion));
+
+    // Compliance badges for the first (latest) version — one badge per column
     const firstVersion = versionNumbers.length > 0 ? versionNumbers[0] : '';
     const firstCompliance = (complianceMap || {})[`${name}:${firstVersion}`];
-    const initialBadge = complianceCellHTML(firstCompliance);
+    const initialRisk = riskBadge(firstCompliance ? firstCompliance.risk_level : null);
+    const initialDet  = complianceIcon(firstCompliance ? firstCompliance.deterministic : 'not_evaluated');
+    const initialLlm  = complianceIcon(firstCompliance ? firstCompliance.llm : 'not_evaluated');
+    const firstRegistryInfo = registryInfoByVersion[String(firstVersion)] || {};
+    const initialAliases = aliasesDisplayForVersion(aliasesByVersion, firstVersion);
 
     return `
       <tr>
-        <td class="font-bold">${escHtml(name)}</td>
-        <td style="font-size:12px;color:var(--text-2)">${escHtml(aliasesDisplay)}</td>
-        <td class="mono">${escHtml(String(latest))}</td>
-        <td>${escHtml(registered)}</td>
-        <td>
-          <select class="form-select version-select" style="width:90px;padding:4px 28px 4px 8px;" data-model="${escHtml(name)}">
+        <td class="font-bold avail-col-name">
+          <a href="#" class="model-name-link" data-model="${escHtml(name)}" data-project="${escHtml(projectName)}">${escHtml(name)}</a>
+        </td>
+        <td class="avail-col-aliases aliases-cell" style="font-size:12px;color:var(--text-2)" data-model="${escHtml(name)}">${escHtml(initialAliases)}</td>
+        <td class="mono avail-col-version">${escHtml(String(latest))}</td>
+        <td class="avail-col-registered">${escHtml(registered)}</td>
+        <td class="avail-col-deploy">
+          <select class="form-select version-select" style="width:90px;padding:4px 28px 4px 8px;" data-model="${escHtml(name)}" data-registry-info="${registryInfoData}" data-aliases-info="${aliasesByVersionData}">
             ${versionOptions}
           </select>
         </td>
-        <td class="compliance-cell" data-model="${escHtml(name)}">${initialBadge}</td>
-        <td class="actions">
+        <td class="avail-col-risk risk-cell" data-model="${escHtml(name)}">${initialRisk}</td>
+        <td class="avail-col-det det-cell" data-model="${escHtml(name)}">${initialDet}</td>
+        <td class="avail-col-llm llm-cell" data-model="${escHtml(name)}">${initialLlm}</td>
+        <td class="avail-col-registry registry-cell" data-model="${escHtml(name)}">
+          <a href="${escHtml(buildRegistryUrl(projectName, firstRegistryInfo.experimentId, firstRegistryInfo.modelId))}" target="_blank" rel="noopener" class="btn btn-secondary btn-xs">Registry</a>
+        </td>
+        <td class="actions avail-col-action">
           <button class="btn btn-primary btn-sm deploy-btn" data-model="${escHtml(name)}" data-project="${escHtml(projectName)}">
             Deploy
           </button>
@@ -484,9 +839,37 @@ const ProjectDetailPage = (() => {
       sel.addEventListener('change', () => {
         const modelName = sel.dataset.model;
         const version = sel.value;
-        const cell = panel.querySelector(`.compliance-cell[data-model="${modelName}"]`);
-        if (!cell) return;
-        cell.innerHTML = complianceCellHTML((complianceMap || {})[`${modelName}:${version}`]);
+        const c = (complianceMap || {})[`${modelName}:${version}`];
+
+        const riskCell = panel.querySelector(`.risk-cell[data-model="${modelName}"]`);
+        if (riskCell) riskCell.innerHTML = riskBadge(c ? c.risk_level : null);
+        const detCell = panel.querySelector(`.det-cell[data-model="${modelName}"]`);
+        if (detCell) detCell.innerHTML = complianceIcon(c ? c.deterministic : 'not_evaluated');
+        const llmCell = panel.querySelector(`.llm-cell[data-model="${modelName}"]`);
+        if (llmCell) llmCell.innerHTML = complianceIcon(c ? c.llm : 'not_evaluated');
+
+        const registryLink = panel.querySelector(`.registry-cell[data-model="${modelName}"] a`);
+        if (registryLink) {
+          const registryInfo = JSON.parse(sel.dataset.registryInfo || '{}')[version] || {};
+          registryLink.href = buildRegistryUrl(projectName, registryInfo.experimentId, registryInfo.modelId);
+        }
+
+        const aliasesCell = panel.querySelector(`.aliases-cell[data-model="${modelName}"]`);
+        if (aliasesCell) {
+          const aliasesByVersion = JSON.parse(sel.dataset.aliasesInfo || '{}');
+          aliasesCell.textContent = aliasesDisplayForVersion(aliasesByVersion, version);
+        }
+      });
+    });
+
+    // Open the model detail page (name link uses the currently selected version)
+    panel.querySelectorAll('.model-name-link').forEach(link => {
+      link.addEventListener('click', e => {
+        e.preventDefault();
+        const modelName = link.dataset.model;
+        const row = link.closest('tr');
+        const version = row.querySelector(`select.version-select[data-model="${modelName}"]`).value;
+        App.navigateTo('model', { project: projectName, name: modelName, version });
       });
     });
 
@@ -629,75 +1012,32 @@ const ProjectDetailPage = (() => {
     }
   }
 
-  // ── Deployed Models Tab ──────────────────────────────────────
+  // ── Deployed AIs Tab (ML Models + Agentic Models) ────────────
 
   async function loadDeployed(projectName, panel) {
     panel.innerHTML = loadingHTML();
     try {
-      const models = await API.deployedModels.list(projectName);
-      renderDeployed(projectName, models, panel);
+      // Agents endpoint may 404 if not yet implemented → fall back to []
+      const [models, agents] = await Promise.all([
+        API.deployedModels.list(projectName).catch(() => []),
+        API.deployedAgents.list(projectName).catch(() => []),
+      ]);
+      renderDeployedAIs(projectName, models, agents, panel);
     } catch (err) {
       panel.innerHTML = errorHTML(err.message);
     }
   }
 
-  function renderDeployed(projectName, models, panel) {
-    if (!models || models.length === 0) {
-      panel.innerHTML = emptyHTML('No deployments', 'Deploy a model from the Available Models tab.');
-      return;
-    }
-
-    const rows = models.map(m => {
-      const name        = m.name             || m.model_name  || '—';
-      const version     = m.version          || '—';
-      const status      = m.status           || 'unknown';
-      const deployName  = m.deployment_name  || m.name || '—';
-      const dashUrl     = m.dashboard_url    || buildDashboardUrl(projectName, deployName);
-      const deployDate  = m.deployment_date  ? new Date(m.deployment_date).toLocaleDateString() : '—';
-      const endpointUrl = buildDashboardUrl(projectName, deployName);
-      const docsUrl     = endpointUrl ? `${endpointUrl}/docs` : '';
-
-      return `
-        <tr>
-          <td class="font-bold">${escHtml(name)}</td>
-          <td class="mono">${escHtml(String(version))}</td>
-          <td>${escHtml(deployDate)}</td>
-          <td>${endpointUrl ? `<a href="${escHtml(endpointUrl)}" target="_blank" rel="noopener" class="endpoint-link">${escHtml(endpointUrl)}</a>` : '—'}</td>
-          <td class="mono">${escHtml(deployName)}</td>
-          <td>${statusBadge(status)}</td>
-          <td class="actions">
-            <div class="flex gap-2">
-              ${docsUrl ? `<a href="${escHtml(docsUrl)}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">API Docs</a>` : ''}
-              ${dashUrl ? `<a href="${escHtml(dashUrl)}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Grafana dashboard</a>` : ''}
-              <button class="btn btn-danger btn-sm undeploy-btn" data-model="${escHtml(name)}" data-version="${escHtml(String(version))}">Undeploy</button>
-            </div>
-          </td>
-        </tr>`;
-    }).join('');
-
+  function renderDeployedAIs(projectName, models, agents, panel) {
     panel.innerHTML = `
-      <div class="section-toolbar">
-        <div class="section-toolbar-left">
-          <span class="section-title">Live Deployments</span>
-          <span class="section-count">${models.length}</span>
-        </div>
-        <button class="btn btn-secondary btn-sm" id="refresh-deployed-btn">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-          </svg>
-          Refresh
-        </button>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Model</th><th>Version</th><th>Deployed on</th><th>Endpoint</th><th>Deployment name</th><th>Status</th><th>Actions</th></tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>`;
+      ${renderDeployedMLSection(projectName, models)}
+      ${renderDeployedAgentsSection(projectName, agents)}
+    `;
 
-    document.getElementById('refresh-deployed-btn').addEventListener('click', () =>
-      loadDeployed(projectName, panel)
-    );
+    const refreshBtn = document.getElementById('refresh-deployed-btn');
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', () => loadDeployed(projectName, panel));
+    }
 
     panel.querySelectorAll('.undeploy-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
@@ -718,6 +1058,140 @@ const ProjectDetailPage = (() => {
         }
       });
     });
+
+    panel.querySelectorAll('.undeploy-agent-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const agentName = btn.dataset.agent;
+        const version   = btn.dataset.version;
+        const ok = await Modal.confirm({
+          title: 'Undeploy Agent',
+          message: `Undeploy <strong>${agentName}</strong> v${version}?`,
+          confirmLabel: 'Undeploy',
+          danger: true,
+        });
+        if (ok) {
+          try {
+            await API.agents.undeploy(projectName, agentName, version);
+            Toast.success(`${agentName} v${version} undeployed.`);
+            loadDeployed(projectName, panel);
+          } catch (err) { Toast.error(err.message); }
+        }
+      });
+    });
+  }
+
+  function renderDeployedMLSection(projectName, models) {
+    const sectionHeader = `
+      <div class="section-toolbar">
+        <div class="section-toolbar-left">
+          <span class="section-title">ML Models</span>
+          <span class="section-count">${(models || []).length}</span>
+        </div>
+        <button class="btn btn-secondary btn-sm" id="refresh-deployed-btn">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+          </svg>
+          Refresh
+        </button>
+      </div>`;
+
+    if (!models || models.length === 0) {
+      return `
+        ${sectionHeader}
+        ${emptyHTML('No ML deployments', 'Deploy a model from the Available AIs tab.')}
+      `;
+    }
+
+    const rows = models.map(m => {
+      const name        = m.name             || m.model_name  || '—';
+      const version     = m.version          || '—';
+      const status      = m.status           || 'unknown';
+      const deployName  = m.deployment_name  || m.name || '—';
+      const dashUrl     = m.dashboard_url    || buildDashboardUrl(projectName, deployName);
+      const deployDate  = m.deployment_date  ? new Date(m.deployment_date).toLocaleDateString() : '—';
+      const endpointUrl = buildDashboardUrl(projectName, deployName);
+      const docsUrl     = endpointUrl ? `${endpointUrl}/docs` : '';
+
+      return `
+        <tr>
+          <td class="font-bold dep-col-name">${escHtml(name)}</td>
+          <td class="mono dep-col-version">${escHtml(String(version))}</td>
+          <td class="dep-col-date">${escHtml(deployDate)}</td>
+          <td class="dep-col-endpoint">${endpointUrl ? `<a href="${escHtml(endpointUrl)}" target="_blank" rel="noopener" style="color:var(--cyan);font-size:12px;font-family:var(--font-mono)">${escHtml(endpointUrl)}</a>` : '—'}</td>
+          <td class="mono dep-col-deployname">${escHtml(deployName)}</td>
+          <td class="dep-col-status">${statusBadge(status)}</td>
+          <td class="actions dep-col-actions">
+            <div class="flex gap-2 justify-end" style="flex-wrap:nowrap">
+              ${docsUrl ? `<a href="${escHtml(docsUrl)}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">API Docs</a>` : ''}
+              ${dashUrl ? `<a href="${escHtml(dashUrl)}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Dashboard</a>` : ''}
+              <button class="btn btn-danger btn-sm undeploy-btn" data-model="${escHtml(name)}" data-version="${escHtml(String(version))}">Undeploy</button>
+            </div>
+          </td>
+        </tr>`;
+    }).join('');
+
+    return `
+      ${sectionHeader}
+      <div class="table-wrap">
+        <table class="deployed-ai-table">
+          <thead><tr><th class="dep-col-name">Model</th><th class="dep-col-version">Version</th><th class="dep-col-date">Deployed on</th><th class="dep-col-endpoint">Endpoint</th><th class="dep-col-deployname">Deployment name</th><th class="dep-col-status">Status</th><th class="dep-col-actions" style="text-align:right">Actions</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }
+
+  function renderDeployedAgentsSection(projectName, agents) {
+    const sectionHeader = `
+      <div class="section-toolbar" style="margin-top:24px">
+        <div class="section-toolbar-left">
+          <span class="section-title">Agentic Models</span>
+          <span class="section-count">${(agents || []).length}</span>
+        </div>
+      </div>`;
+
+    if (!agents || agents.length === 0) {
+      return `
+        ${sectionHeader}
+        ${emptyHTML('No agent deployments', 'Deploy an agent from the Available AIs tab.')}
+      `;
+    }
+
+    const rows = agents.map(a => {
+      const name        = a.model_name      || a.name || a.agent_name || '—';
+      const version     = a.model_version   || a.version || a.agent_version || '—';
+      const status      = a.status          || 'unknown';
+      const deployName  = a.deployment_name || '—';
+      const deployDate  = a.deployment_date ? new Date(a.deployment_date).toLocaleDateString() : '—';
+      const baseUrl     = buildDashboardUrl(projectName, deployName);
+      const endpointUrl = baseUrl ? `${baseUrl}/agent_predict` : '';
+      const docsUrl     = baseUrl ? `${baseUrl}/docs` : '';
+      const dashUrl     = a.dashboard_url || baseUrl;
+      return `
+        <tr>
+          <td class="font-bold dep-col-name">${escHtml(name)}</td>
+          <td class="mono dep-col-version">${escHtml(String(version))}</td>
+          <td class="dep-col-date">${escHtml(deployDate)}</td>
+          <td class="dep-col-endpoint">${endpointUrl ? `<a href="${escHtml(endpointUrl)}" target="_blank" rel="noopener" style="color:var(--cyan);font-size:12px;font-family:var(--font-mono)">${escHtml(endpointUrl)}</a>` : '—'}</td>
+          <td class="mono dep-col-deployname">${escHtml(deployName)}</td>
+          <td class="dep-col-status">${statusBadge(status)}</td>
+          <td class="actions dep-col-actions">
+            <div class="flex gap-2 justify-end" style="flex-wrap:nowrap">
+              ${docsUrl ? `<a href="${escHtml(docsUrl)}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">API Docs</a>` : ''}
+              ${dashUrl ? `<a href="${escHtml(dashUrl)}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Dashboard</a>` : ''}
+              <button class="btn btn-danger btn-sm undeploy-agent-btn" data-agent="${escHtml(name)}" data-version="${escHtml(String(version))}">Undeploy</button>
+            </div>
+          </td>
+        </tr>`;
+    }).join('');
+
+    return `
+      ${sectionHeader}
+      <div class="table-wrap">
+        <table class="deployed-ai-table">
+          <thead><tr><th class="dep-col-name">Agent</th><th class="dep-col-version">Version</th><th class="dep-col-date">Deployed on</th><th class="dep-col-endpoint">Endpoint</th><th class="dep-col-deployname">Deployment name</th><th class="dep-col-status">Status</th><th class="dep-col-actions" style="text-align:right">Actions</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
   }
 
   // ── Batch Predictions Tab ────────────────────────────────────
@@ -1041,6 +1515,45 @@ const ProjectDetailPage = (() => {
     const host = window.MP_HOST_NAME || '';
     if (!host || !deployName || deployName === '—') return '';
     return `${location.protocol}//${host}/deploy/${projectName}/${deployName}`;
+  }
+
+  // MLflow's registered-model `aliases` field is an alias→version map (e.g.
+  // {"champion": "5"}). Invert it to version→aliases so the Aliases column can show
+  // only the alias(es) pinned to whichever version is currently selected.
+  function invertAliasMap(aliases) {
+    const byVersion = {};
+    if (aliases && typeof aliases === 'object' && !Array.isArray(aliases)) {
+      Object.entries(aliases).forEach(([alias, version]) => {
+        const key = String(version);
+        (byVersion[key] = byVersion[key] || []).push(alias);
+      });
+    }
+    return byVersion;
+  }
+
+  function aliasesDisplayForVersion(aliasesByVersion, version) {
+    const aliases = (aliasesByVersion || {})[String(version)] || [];
+    return aliases.length > 0 ? aliases.join(', ') : '—';
+  }
+
+  // Mirrors backend.utils.sanitize_project_name — the /registry/<project>/ ingress path
+  // segment must match the project's k8s service name, not its display name.
+  function sanitizeProjectName(projectName) {
+    return String(projectName || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, '-')
+      .replace(/^-+/, '')
+      .replace(/-+$/, '');
+  }
+
+  // Links to the LoggedModel's page (MLflow 3.x) in the project's own MLflow instance,
+  // proxied at /registry/<project>/ (see infrastructure/k8s/nginx-configmap.yaml).
+  // Requires the experiment_id + model_id of the LoggedModel behind this registered
+  // version (see MLFlowModelRegistryAdapter._process_model_versions).
+  function buildRegistryUrl(projectName, experimentId, modelId) {
+    const host = window.MP_HOST_NAME || '';
+    if (!host || !experimentId || !modelId) return '';
+    return `http://${host}/registry/${sanitizeProjectName(projectName)}/#/experiments/${encodeURIComponent(experimentId)}/models/${encodeURIComponent(modelId)}`;
   }
 
   function loadingHTML(text = 'Loading…') {

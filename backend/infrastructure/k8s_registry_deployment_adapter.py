@@ -26,6 +26,8 @@ class K8SRegistryDeployment(RegistryDeployment, K8SDeployment):
         self.mlflow_s3_endpoint_url = os.environ["MLFLOW_S3_ENDPOINT_URL"]
         self.pgsql_cluster_host = os.environ["POSTGRES_HOST"]
         self.mlflow_db_name = self.project_name.replace("-", "_")
+        mlflow_image = os.environ.get("MLFLOW_IMAGE", "ghcr.io/octo-technology/model-platform/mlflow")
+        self.mlflow_image = f"{mlflow_image}:{os.environ.get('IMAGE_TAG', 'latest')}"
 
     def create_registry_deployment(self):
         self._create_or_update_namespace()
@@ -52,23 +54,6 @@ class K8SRegistryDeployment(RegistryDeployment, K8SDeployment):
                 logger.info(f"✅ Service {project_name} successfully created!")
             else:
                 logger.info(f"⚠️ Error while creating/updating the service: {e}")
-
-    def _allowed_hosts(self, project_name: str) -> str:
-        """Host headers the MLflow server accepts.
-
-        MLflow 3 rejects any Host it does not know with a 403 (DNS rebinding
-        protection). Its default allowlist covers localhost and private IPs
-        only, so the cluster DNS name the backend dials and the public host
-        the registry links point at both have to be declared.
-        """
-        return ",".join(
-            [
-                f"{project_name}.{project_name}.svc.cluster.local:{self.port}",
-                f"{project_name}.{project_name}.svc.cluster.local",
-                f"localhost:{self.port}",
-                self.host_name,
-            ]
-        )
 
     def _create_or_update_mlflow_deployment(self, project_name: str):
         """Crée ou met à jour un déploiement Kubernetes pour MLflow."""
@@ -98,8 +83,8 @@ class K8SRegistryDeployment(RegistryDeployment, K8SDeployment):
                         containers=[
                             client.V1Container(
                                 name="mlflow",
-                                image="ghcr.io/octo-technology/model-platform/mlflow:latest",
-                                image_pull_policy="Always",
+                                image=self.mlflow_image,
+                                image_pull_policy=os.environ.get("MLFLOW_IMAGE_PULL_POLICY", "Always"),
                                 ports=[client.V1ContainerPort(container_port=self.port)],
                                 env=[
                                     client.V1EnvVar(name="MLFLOW_SERVER_HOST", value="0.0.0.0"),
@@ -120,7 +105,7 @@ class K8SRegistryDeployment(RegistryDeployment, K8SDeployment):
                                     "--artifacts-destination",
                                     "s3://bucket",
                                     "--allowed-hosts",
-                                    self._allowed_hosts(project_name),
+                                    "*",
                                     #  "--static-prefix",
                                     #  f"/{self.sub_path}/{project_name}",
                                 ],

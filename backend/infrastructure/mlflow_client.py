@@ -5,6 +5,7 @@ This module defines the settings for configuring MLFlow, including environment v
 
 import mlflow
 from loguru import logger
+from mlflow import MlflowException
 
 
 class MLflowClientManager:
@@ -39,7 +40,12 @@ class MLflowClientManager:
 
     def _check_connection(self):
         """Raise if the registry is unreachable, so callers keep it out of the pool."""
-        self.client.search_experiments()
+        try:
+            _ = self.client.search_experiments()
+        except MlflowException as e:
+            self.client = None
+            logger.error(f"Failed to connect to MLflow server: {e}")
+            raise
 
     def close(self):
         """

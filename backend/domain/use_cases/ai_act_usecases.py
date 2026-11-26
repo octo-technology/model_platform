@@ -1,4 +1,3 @@
-import json
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -41,46 +40,33 @@ def _metrics_table(metrics: dict) -> str:
     return f"| Métrique | Valeur | Seuil d'acceptation |\n|---|---|---|\n{rows}"
 
 
-def _format_created_date(tags: dict) -> str:
-    history_raw = tags.get("mlflow.log-model.history")
-    if history_raw:
+def _format_created_date(creation_timestamp: int | None) -> str:
+    """Format LoggedModel.creation_timestamp (epoch ms) as UTC string."""
+    if creation_timestamp:
         try:
-            history = json.loads(history_raw)
-            if isinstance(history, list) and history and history[0].get("utc_time_created"):
-                return history[0]["utc_time_created"]
-        except (json.JSONDecodeError, KeyError):
+            return datetime.fromtimestamp(creation_timestamp / 1000, tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        except (ValueError, OSError):
             pass
     return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
 
-def _extract_model_type(tags: dict) -> str:
-    history_raw = tags.get("mlflow.log-model.history")
-    if history_raw:
-        try:
-            history = json.loads(history_raw)
-            if isinstance(history, list) and history:
-                flavours = history[0].get("flavors", {})
-                non_pyfunc = [f for f in flavours if f != "python_function"]
-                if non_pyfunc:
-                    return ", ".join(non_pyfunc)
-        except (json.JSONDecodeError, KeyError):
-            pass
-    return "*à compléter*"
+def _format_model_type(flavors: list[str] | None) -> str:
+    """Build a comma-separated list of non-pyfunc flavors."""
+    if not flavors:
+        return "*à compléter*"
+    non_pyfunc = [f for f in flavors if f != "python_function"]
+    if not non_pyfunc:
+        return "*à compléter*"
+    return ", ".join(non_pyfunc)
 
 
-def _extract_signature(tags: dict) -> tuple[str, str]:
-    history_raw = tags.get("mlflow.log-model.history")
-    if history_raw:
-        try:
-            history = json.loads(history_raw)
-            if isinstance(history, list) and history:
-                sig = history[0].get("signature", {})
-                inputs = sig.get("inputs", "*à compléter*")
-                outputs = sig.get("outputs", "*à compléter*")
-                return str(inputs), str(outputs)
-        except (json.JSONDecodeError, KeyError):
-            pass
-    return "*à compléter*", "*à compléter*"
+def _format_signature(signature: dict | None) -> tuple[str, str]:
+    """Extract inputs/outputs from a LoggedModel signature dict."""
+    if not signature:
+        return "*à compléter*", "*à compléter*"
+    inputs = signature.get("inputs", "*à compléter*")
+    outputs = signature.get("outputs", "*à compléter*")
+    return str(inputs), str(outputs)
 
 
 def generate_ai_act_card(
@@ -95,11 +81,16 @@ def generate_ai_act_card(
     tags: dict = governance.get("tags", {})
     params: dict = governance.get("params", {})
     metrics: dict = governance.get("metrics", {})
-    run_id: str = governance.get("run_id", "N/A")
+    run_id: str = governance.get("run_id") or "N/A"
+    flavors: list[str] = governance.get("flavors", []) or []
+    signature: dict | None = governance.get("signature")
+    creation_timestamp: int | None = governance.get("creation_timestamp")
 
     model_info: ModelInfo | None = model_info_db_handler.get_model_info(model_name, version, project_name)
     risk_level = model_info.risk_level if model_info else None
     model_card_text = model_info.model_card if model_info else None
+
+    sig_inputs, sig_outputs = _format_signature(signature)
 
     context = {
         "model_name": model_name,
@@ -107,13 +98,13 @@ def generate_ai_act_card(
         "project_name": project_name,
         "run_id": run_id,
         "run_name": tags.get("mlflow.runName", "N/A"),
-        "created_date": _format_created_date(tags),
+        "created_date": _format_created_date(creation_timestamp),
         "user": tags.get("mlflow.user", "*à compléter*"),
         "risk_level_checkboxes": _risk_level_checkboxes(risk_level),
         "description": model_card_text or tags.get("mlflow.note.content") or "*à compléter*",
-        "model_type": _extract_model_type(tags),
-        "sig_inputs": _extract_signature(tags)[0],
-        "sig_outputs": _extract_signature(tags)[1],
+        "model_type": _format_model_type(flavors),
+        "sig_inputs": sig_inputs,
+        "sig_outputs": sig_outputs,
         "params_table": _params_table(params),
         "metrics_table": _metrics_table(metrics),
         "now_str": datetime.now(timezone.utc).strftime("%Y-%m-%d"),

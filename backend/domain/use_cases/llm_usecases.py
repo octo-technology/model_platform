@@ -5,6 +5,7 @@ from pathlib import Path
 
 import anthropic
 import boto3
+import openai
 from loguru import logger
 
 from backend.domain.ports.platform_config_handler import PlatformConfigHandler
@@ -24,6 +25,8 @@ BEDROCK_MODELS = {
 }
 BEDROCK_DEFAULT_MODEL_ID = "eu.anthropic.claude-sonnet-4-20250514-v1:0"
 ANTHROPIC_MODEL_ID = "claude-sonnet-4-20250514"
+MAMMOUTH_BASE_URL = "https://api.mammouth.ai/v1"
+MAMMOUTH_MODEL_ID = "claude-haiku-4-5"
 
 
 def get_bedrock_api_key(platform_config_handler: PlatformConfigHandler = None) -> str | None:
@@ -74,8 +77,20 @@ def get_anthropic_api_key(platform_config_handler: PlatformConfigHandler = None)
     return None
 
 
+def get_mammouth_api_key(platform_config_handler: PlatformConfigHandler = None) -> str | None:
+    """Returns Mammouth AI API key or None if not configured."""
+    api_key = os.environ.get("MAMMOUTH_API_KEY")
+    if api_key:
+        return api_key
+    if platform_config_handler is not None:
+        api_key = platform_config_handler.get("MAMMOUTH_API_KEY")
+        if api_key:
+            return api_key
+    return None
+
+
 def get_provider(platform_config_handler: PlatformConfigHandler = None) -> str | None:
-    """Returns the active LLM provider: 'bedrock', 'anthropic', or None."""
+    """Returns the active LLM provider: 'bedrock', 'anthropic', 'mammouth', or None."""
     provider = os.environ.get("LLM_PROVIDER")
     if provider:
         return provider
@@ -90,6 +105,8 @@ def _make_client(platform_config_handler: PlatformConfigHandler = None):
     provider = get_provider(platform_config_handler)
     if provider == "anthropic":
         return anthropic.Anthropic(api_key=get_anthropic_api_key(platform_config_handler))
+    if provider == "mammouth":
+        return openai.OpenAI(api_key=get_mammouth_api_key(platform_config_handler), base_url=MAMMOUTH_BASE_URL)
     # Bedrock: use boto3 with bearer token auth
     api_key = get_bedrock_api_key(platform_config_handler)
     region = get_bedrock_region(platform_config_handler)
@@ -108,6 +125,8 @@ def is_available(platform_config_handler: PlatformConfigHandler = None) -> bool:
         return get_bedrock_api_key(platform_config_handler) is not None
     if provider == "anthropic":
         return get_anthropic_api_key(platform_config_handler) is not None
+    if provider == "mammouth":
+        return get_mammouth_api_key(platform_config_handler) is not None
     return False
 
 
@@ -122,6 +141,24 @@ def _call_bedrock(client, model_id: str, prompt: str, max_tokens: int) -> str:
     return next((block["text"] for block in output_message["content"] if "text" in block), "")
 
 
+def _call_mammouth(client, model_id: str, prompt: str, max_tokens: int) -> str:
+    """Call Mammouth AI's OpenAI-compatible chat completions API and return the text response."""
+    response = client.chat.completions.create(
+        model=model_id,
+        max_tokens=max_tokens,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return response.choices[0].message.content or ""
+
+
+def _get_model_id(provider: str | None, platform_config_handler: PlatformConfigHandler = None) -> str:
+    if provider == "anthropic":
+        return ANTHROPIC_MODEL_ID
+    if provider == "mammouth":
+        return MAMMOUTH_MODEL_ID
+    return get_bedrock_model_id(platform_config_handler)
+
+
 def review_ai_act_compliance(ai_act_card_markdown: str, platform_config_handler: PlatformConfigHandler = None) -> str:
     """
     Call Claude to review an AI Act compliance card and return structured remarks.
@@ -129,21 +166,24 @@ def review_ai_act_compliance(ai_act_card_markdown: str, platform_config_handler:
     """
     client = _make_client(platform_config_handler)
     provider = get_provider(platform_config_handler)
-    model_id = ANTHROPIC_MODEL_ID if provider == "anthropic" else get_bedrock_model_id(platform_config_handler)
+    model_id = _get_model_id(provider, platform_config_handler)
 
     prompt = _load_prompt("ai_act_review.txt").format(ai_act_card_markdown=ai_act_card_markdown)
 
     if provider == "anthropic":
         with client.messages.stream(
             model=model_id,
-            max_tokens=4096,
+            max_tokens=16000,
             thinking={"type": "adaptive"},
             messages=[{"role": "user", "content": prompt}],
         ) as stream:
             message = stream.get_final_message()
         return next((b.text for b in message.content if b.type == "text"), "")
 
-    return _call_bedrock(client, model_id, prompt, max_tokens=4096)
+    if provider == "mammouth":
+        return _call_mammouth(client, model_id, prompt, max_tokens=16000)
+
+    return _call_bedrock(client, model_id, prompt, max_tokens=16000)
 
 
 VALID_RISK_LEVELS = {"unacceptable", "high", "limited", "minimal"}
@@ -156,7 +196,7 @@ def suggest_risk_level(ai_act_card_markdown: str, platform_config_handler: Platf
     """
     client = _make_client(platform_config_handler)
     provider = get_provider(platform_config_handler)
-    model_id = ANTHROPIC_MODEL_ID if provider == "anthropic" else get_bedrock_model_id(platform_config_handler)
+    model_id = _get_model_id(provider, platform_config_handler)
 
     prompt = _load_prompt("risk_level_suggestion.txt").format(ai_act_card_markdown=ai_act_card_markdown)
 
@@ -169,6 +209,8 @@ def suggest_risk_level(ai_act_card_markdown: str, platform_config_handler: Platf
         ) as stream:
             message = stream.get_final_message()
         raw_response = next((b.text for b in message.content if b.type == "text"), "")
+    elif provider == "mammouth":
+        raw_response = _call_mammouth(client, model_id, prompt, max_tokens=1024)
     else:
         raw_response = _call_bedrock(client, model_id, prompt, max_tokens=1024)
 
