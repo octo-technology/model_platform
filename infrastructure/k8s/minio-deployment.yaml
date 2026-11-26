@@ -98,6 +98,13 @@ spec:
             - /bin/sh
             - -c
             - |
-              mc alias set local "$MINIO_ENDPOINT" "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"
+              set -e
+              # MinIO may still be pulling or starting: wait up to 5 minutes.
+              i=0
+              until mc alias set local "$MINIO_ENDPOINT" "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"; do
+                i=$((i + 1))
+                [ "$i" -ge 100 ] && echo "MinIO not reachable after 5 minutes" && exit 1
+                sleep 3
+              done
               mc mb --ignore-existing local/bucket
               mc ls local
